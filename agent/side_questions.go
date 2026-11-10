@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MTheux/it4us-va/sidequestion"
 	"github.com/Autumn-27/norma/agentcore"
+	"github.com/MTheux/it4us-va/sidequestion"
 )
 
 func attachSideCapture(ctx context.Context, opts *agentcore.Options) context.Context {

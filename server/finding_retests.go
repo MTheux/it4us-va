@@ -12,10 +12,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/MTheux/it4us-va/agent"
-	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/audit"
+	"github.com/MTheux/it4us-va/db"
 )
 
 func (s *Server) listActiveFindingRetests(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +145,7 @@ func (s *Server) findingRetestTools() []actool.CoreTool {
 	return []actool.CoreTool{
 		roTool("get_finding_retest_context", "Read the vulnerability evidence snapshot, retest status, supplementary notes, and current task constraints associated with the current retest session. No parameters; only the current session can be read.",
 			objSchema(map[string]any{}), func(ctx context.Context, _ json.RawMessage) (actool.Result, error) {
-				r, err := s.m.pg.FindingRetestForConversation(ctx, intercept.ConvIDFromContext(ctx))
+				r, err := s.m.pg.FindingRetestForConversation(ctx, audit.ConvIDFromContext(ctx))
 				if err != nil {
 					return actool.Errorf(err.Error()), nil
 				}
@@ -181,7 +181,7 @@ func (s *Server) findingRetestTools() []actool.CoreTool {
 				if err := json.Unmarshal(in, &a); err != nil {
 					return actool.Errorf(err.Error()), nil
 				}
-				if err := s.m.pg.RecordFindingRetestResult(ctx, intercept.ConvIDFromContext(ctx), a.Verdict, a.Summary, a.Evidence); err != nil {
+				if err := s.m.pg.RecordFindingRetestResult(ctx, audit.ConvIDFromContext(ctx), a.Verdict, a.Summary, a.Evidence); err != nil {
 					return actool.Errorf(err.Error()), nil
 				}
 				return jsonResult(map[string]any{"saved": true, "verdict": a.Verdict})

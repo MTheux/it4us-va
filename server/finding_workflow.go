@@ -8,27 +8,12 @@ import (
 	"log"
 	"strconv"
 
+	actool "github.com/Autumn-27/norma/tool"
 	"github.com/MTheux/it4us-va/agent"
 	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/traffic"
-	actool "github.com/Autumn-27/norma/tool"
 )
 
 func (s *Server) seedFindingWorkflowTools() {
-	const hostSearchDescriptionFlag = "finding_workflow_tools_v3_host_search_description"
-	if value, _, _ := s.m.pg.GetSetting(hostSearchDescriptionFlag); value != "true" {
-		// Only replace the original built-in text. A user-edited description is
-		// authoritative and must survive upgrades.
-		legacy := "Query the target traffic already captured by the recording proxy (host is required; URL substrings or body keywords can further filter). body_contains runs a full-text search across captured request/response headers and bodies, supporting any substring and Chinese (at least 3 characters) — useful for finding passwords, keys, errors, intranet addresses, etc. in responses. Only an ultra-light index (id/method/url/status/resp_len) is returned, without any response content. By default only 3 entries are returned, at most 10 per page; use page to paginate when there are many results (page starts at 0); use traffic_get(id) to see the raw request/response of an entry. Use it first to review visited resources and find endpoints, avoiding repeated curl of the same URL."
-		if _, err := s.m.pg.Exec(`UPDATE tools SET description=$1,updated_at=now() WHERE key='traffic_search' AND system AND description=$2`, traffic.TrafficSearchDescription, legacy); err != nil {
-			// Log and leave the flag unset so the next startup retries; do not
-			// return, or a transient error here would also skip the reporter
-			// migration below — the two are independent.
-			log.Printf("[evidence] upgrade traffic_search description: %v", err)
-		} else {
-			_ = s.m.pg.SetSetting(hostSearchDescriptionFlag, "true")
-		}
-	}
 	const flag = "finding_workflow_tools_v2_reporter"
 	if value, _, _ := s.m.pg.GetSetting(flag); value == "true" {
 		return

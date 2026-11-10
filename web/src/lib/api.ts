@@ -54,8 +54,6 @@ import type {
   InterceptDetail,
   InterceptPending,
   InterceptRule,
-  JudgeConfig,
-  JudgeUsage,
   LLMPoolStatus,
   LLMProfile,
   LLMRecordDetail,
@@ -1219,10 +1217,11 @@ export const api = {
     post<{ ok: boolean; enabled: boolean }>(`/asset-intercept/rules/${id}/toggle`, { enabled }),
 
   // ---- intercept pending (ask) ----
-  interceptPending: () => get<{ pending: InterceptPending[] }>("/intercept/pending").then((r) => arr(r.pending)),
-  interceptGetOne: (id: number) => get<InterceptPending>(`/intercept/pending/${id}`),
-  interceptDecide: (id: number, decision: "allowed" | "denied") =>
-    post<{ ok: boolean }>(`/intercept/pending/${id}/decide`, { decision }),
+  // Aprovação interativa removida na excisão ofensiva (Plano 3): nunca há pendentes.
+  interceptPending: (): Promise<InterceptPending[]> => Promise.resolve([]),
+  interceptGetOne: (_id: number): Promise<InterceptPending> => Promise.reject(new Error("aprovação interativa foi removida")),
+  interceptDecide: (_id: number, _decision: "allowed" | "denied"): Promise<{ ok: boolean }> =>
+    Promise.reject(new Error("aprovação interativa foi removida")),
   interceptExecution: (id: number, conversationId?: number) =>
     get<import("@/lib/types").InterceptExecution>(
       `/intercept/history/${id}/execution${conversationId ? `?conversation=${conversationId}` : ""}`,
@@ -1269,11 +1268,6 @@ export const api = {
     });
     if (!r.ok) throw new Error(await r.text());
   },
-
-  // ---- intercept LLM judge (model fallback approval, global config) ----
-  interceptGetJudgeConfig: () => get<JudgeConfig>("/intercept/judge"),
-  interceptSetJudgeConfig: (cfg: JudgeConfig) => put<{ ok: boolean }>("/intercept/judge", cfg),
-  interceptJudgeUsage: (days = 30) => get<JudgeUsage>(`/intercept/judge/usage?days=${days}`),
 
   // ---- commands (tool execution history, any tool) ----
   commands: (params?: { task?: string; q?: string; page?: number; size?: number }) => {

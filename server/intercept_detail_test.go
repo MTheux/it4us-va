@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MTheux/it4us-va/audit"
 	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 )
 
 func TestInterceptDetailHTTP(t *testing.T) {
@@ -24,7 +24,7 @@ func TestInterceptDetailHTTP(t *testing.T) {
 	t.Cleanup(func() { _ = d.Close() })
 	// Exercise the authenticated HTTP surface without starting unrelated task
 	// schedulers or mutating the process-global tool assembly used by other tests.
-	m := &Manager{pg: d, interceptor: intercept.New(d)}
+	m := &Manager{pg: d, interceptor: audit.New(d)}
 	s := &Server{m: m, jwtKey: []byte("approval-http-test-signing-key")}
 	h := s.Handler()
 	token, err := signJWT(s.jwtKey)
@@ -110,11 +110,7 @@ func TestInterceptDetailHTTP(t *testing.T) {
 			t.Fatalf("%s: %d", tc.path, r.Code)
 		}
 	}
-	decisionPath := fmt.Sprintf("/api/intercept/pending/%d/decide", id)
-	if r := do(http.MethodPost, decisionPath, `{"decision":"denied"}`, true); r.Code != 200 {
-		t.Fatalf("decide: %d %s", r.Code, r.Body.String())
-	}
-	if r := do(http.MethodPost, decisionPath, `{"decision":"allowed"}`, true); r.Code != 409 {
-		t.Fatalf("duplicate decision: %d", r.Code)
-	}
+	// A aprovação interativa (/api/intercept/pending/{id}/decide) foi removida na
+	// excisão ofensiva (Plano 3): os viewers de auditoria (history/detail/execution)
+	// sobrevivem; o endpoint de decisão não existe mais.
 }

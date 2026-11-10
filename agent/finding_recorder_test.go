@@ -28,7 +28,7 @@ func TestReportFindingOptionalTrafficWithoutCapture(t *testing.T) {
 	defer d.DeleteTask(task.ID)
 	ts := NewToolSet(nil, "")
 	ts.ts, ts.taskID = d.Exploration(task.ExplorationID), task.ID
-	ts.SetFindingRecorder(evidence.New(d, nil, t.TempDir()))
+	ts.SetFindingRecorder(evidence.New(d, t.TempDir()))
 	notices := 0
 	ts.notifyFinding = func(int64, string) { notices++ }
 	for _, refs := range []string{"", `,"traffic_refs":[]`, `,"traffic_refs":null`} {

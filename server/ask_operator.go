@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/MTheux/it4us-va/agent"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/MTheux/it4us-va/agent"
 )
 
 const askOperatorMaxImage = 10 << 20

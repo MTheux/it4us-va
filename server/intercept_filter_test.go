@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/MTheux/it4us-va/audit"
 	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 )
 
 func TestInterceptFilterHTTP(t *testing.T) {
@@ -21,7 +21,7 @@ func TestInterceptFilterHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = d.Close() })
-	m := &Manager{pg: d, interceptor: intercept.New(d)}
+	m := &Manager{pg: d, interceptor: audit.New(d)}
 	s := &Server{m: m, jwtKey: []byte("approval-filter-test-key")}
 	h := s.Handler()
 	token, err := signJWT(s.jwtKey)

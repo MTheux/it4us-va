@@ -1,4 +1,4 @@
-// Package evidence preserves finding evidence independently of disposable traffic.
+// Package evidence preserves finding evidence (read-only; o modelo de captura MITM foi removido na excisão ofensiva).
 package evidence
 
 import (
@@ -17,17 +17,15 @@ import (
 	"time"
 
 	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/traffic"
 )
 
 type Store struct {
-	DB      *db.DB
-	Traffic *traffic.Traffic
-	Dir     string
+	DB  *db.DB
+	Dir string
 }
 
-func New(pg *db.DB, tr *traffic.Traffic, dir string) *Store {
-	return &Store{DB: pg, Traffic: tr, Dir: dir}
+func New(pg *db.DB, dir string) *Store {
+	return &Store{DB: pg, Dir: dir}
 }
 
 func hashPath(dir, hash string) (string, error) {
@@ -143,40 +141,18 @@ func (s *Store) StageFindingsExport(ctx context.Context, findings []*db.DBFindin
 	})
 }
 
-func (s *Store) prepare(ctx context.Context, refs []db.TrafficRef) ([]db.PreparedTrafficEvidence, error) {
+func (s *Store) prepare(_ context.Context, refs []db.TrafficRef) ([]db.PreparedTrafficEvidence, error) {
 	refs, err := db.NormalizeTrafficRefs(refs)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]db.PreparedTrafficEvidence, 0, len(refs))
-	if len(refs) == 0 {
-		return out, nil
+	// A excisão ofensiva removeu a captura MITM: não há exchange para ler como
+	// evidência. Findings são gravados sem bindings; a evidência de scanner será
+	// ligada pelo pipeline de VA (Plano 4). Uma ref explícita falha fail-closed.
+	if len(refs) > 0 {
+		return nil, errors.New("vinculação de evidência de captura foi removida; a evidência de scanner será ligada no pipeline de VA")
 	}
-	ids := make([]string, len(refs))
-	byID := map[string]db.TrafficRef{}
-	for i, ref := range refs {
-		ids[i] = ref.TrafficID
-		byID[ref.TrafficID] = ref
-	}
-	err = s.Traffic.ReadEvidence(ctx, ids, func(e traffic.EvidenceExchange) error {
-		rh, err := s.writeBody(e.Request, e.ReqLen, e.ReqHash)
-		if err != nil {
-			return err
-		}
-		ph, err := s.writeBody(e.Response, e.RespLen, e.RespHash)
-		if err != nil {
-			return err
-		}
-		v := db.TrafficEvidenceSnapshot{SourceTrafficID: e.ID, CapturedAt: e.TS, URL: e.URL, Method: e.Method, Status: e.Status, ContentType: e.ContentType,
-			ReqHead: e.ReqHead, RespHead: e.RespHead, ReqHash: rh, RespHash: ph, ReqLen: e.ReqLen, RespLen: e.RespLen}
-		// Raw wire bytes: normalize once here so the ID, the stored row and every
-		// downstream consumer (archive, API responses) all see the same text.
-		v = v.Normalize()
-		v.ID = db.TrafficSnapshotID(v)
-		out = append(out, db.PreparedTrafficEvidence{Ref: byID[e.ID], Snapshot: v})
-		return nil
-	})
-	return out, err
+	return []db.PreparedTrafficEvidence{}, nil
 }
 
 func (s *Store) Record(ctx context.Context, in db.RecordFindingInput, refs []db.TrafficRef) (out *db.RecordedFinding, err error) {

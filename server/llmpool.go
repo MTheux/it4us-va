@@ -4,10 +4,10 @@ import (
 	"log"
 	"time"
 
+	"github.com/Autumn-27/norma/llm"
 	"github.com/MTheux/it4us-va/agent"
 	"github.com/MTheux/it4us-va/db"
 	"github.com/MTheux/it4us-va/llmpool"
-	"github.com/Autumn-27/norma/llm"
 )
 
 // Server-side wiring for LLM pooling (failover). Design: docs/llm-polling-design.md:

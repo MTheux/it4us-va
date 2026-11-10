@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MTheux/it4us-va/agent"
-	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 	"github.com/Autumn-27/norma/llm"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/audit"
+	"github.com/MTheux/it4us-va/db"
 )
 
 type retestProvider struct {
@@ -214,7 +214,7 @@ func TestRetestHTTPThroughConversationAndTools(t *testing.T) {
 	if listing.Code != 200 || strings.Contains(listing.Body.String(), `"snapshot"`) {
 		t.Fatalf("history %d %s", listing.Code, listing.Body)
 	}
-	res, err := s.findingRetestTools()[1].Call(intercept.WithConvID(t.Context(), *rows[0].ConversationID), json.RawMessage(`{"verdict":"fixed","summary":"bad overwrite","evidence":"bad"}`), nil)
+	res, err := s.findingRetestTools()[1].Call(audit.WithConvID(t.Context(), *rows[0].ConversationID), json.RawMessage(`{"verdict":"fixed","summary":"bad overwrite","evidence":"bad"}`), nil)
 	if err != nil || !res.IsError {
 		t.Fatal("sealed result accepted", res, err)
 	}

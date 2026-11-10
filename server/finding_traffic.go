@@ -13,14 +13,14 @@ import (
 	"strconv"
 	"unicode/utf8"
 
+	actool "github.com/Autumn-27/norma/tool"
 	"github.com/MTheux/it4us-va/agent"
 	"github.com/MTheux/it4us-va/db"
 	"github.com/MTheux/it4us-va/evidence"
-	actool "github.com/Autumn-27/norma/tool"
 )
 
 func (s *Server) evidenceStore() *evidence.Store {
-	return evidence.New(s.m.pg, s.m.traffic, filepath.Join(s.m.dir, "evidence"))
+	return evidence.New(s.m.pg, filepath.Join(s.m.dir, "evidence"))
 }
 
 // Add only new optional properties; preserve edited descriptions, existing

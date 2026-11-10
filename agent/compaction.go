@@ -26,9 +26,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MTheux/it4us-va/db"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // Compactor performs background cold-node compaction for many explorations.

@@ -1,4 +1,4 @@
-package intercept
+package audit
 
 import (
 	"context"
@@ -126,14 +126,6 @@ func TestReviewInputAuditRetention(t *testing.T) {
 				t.Fatal("review snapshot changed")
 			}
 		}
-	}
-}
-
-func TestEffectiveJudgePromptPreservesCustomPolicy(t *testing.T) {
-	custom := "Custom policy: do not send requests to real users."
-	prompt := EffectiveJudgePrompt(custom)
-	if !strings.HasPrefix(prompt, custom) || strings.Count(EffectiveJudgePrompt(prompt), JudgeContextBoundary) != 1 || strings.Count(EffectiveJudgePrompt(prompt), JudgeOutputContract) != 1 {
-		t.Fatal("custom prompt changed or input boundary duplicated")
 	}
 }
 

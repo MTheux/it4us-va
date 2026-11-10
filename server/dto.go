@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/traffic"
 )
 
 // DTO/serialization layer: each handler emits EXACTLY the frontend's spec shapes
@@ -147,35 +146,6 @@ func completedRFC(unix int64) string {
 		return ""
 	}
 	return rfc3339(time.Unix(unix, 0))
-}
-
-// ---- TrafficExchange (frontend "TrafficExchange") ---- ts as RFC3339.
-type TrafficExchangeDTO struct {
-	ID          string `json:"id"`
-	TS          string `json:"ts"`
-	Host        string `json:"host"`
-	Method      string `json:"method"`
-	URL         string `json:"url"`
-	Status      int    `json:"status"`
-	ContentType string `json:"content_type"`
-	RespLen     int    `json:"resp_len"`
-}
-
-func trafficDTOs(ex []traffic.ExchangeMeta) []TrafficExchangeDTO {
-	out := make([]TrafficExchangeDTO, 0, len(ex))
-	for _, e := range ex {
-		out = append(out, TrafficExchangeDTO{
-			ID:          e.ID,
-			TS:          rfc3339(time.Unix(e.TS, 0)),
-			Host:        e.Host,
-			Method:      e.Method,
-			URL:         e.URL,
-			Status:      e.Status,
-			ContentType: e.ContentType,
-			RespLen:     e.RespLen,
-		})
-	}
-	return out
 }
 
 // ---- TaskNode (frontend "TaskNode") — frontier, intents, exploration graph nodes ----

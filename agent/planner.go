@@ -7,13 +7,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/MTheux/it4us-va/audit"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // Planner is the event-driven LLM planner (docs §4.3): each time the asset or
@@ -406,7 +406,7 @@ func (p *Planner) Plan(ctx context.Context, taskID int64, as *db.AssetStore, ts 
 	}
 	// This task's work dir <workDir>/tasks/<taskID>; create it first.
 	taskDir := ensureRunDir(p.workDir, taskID, 0)
-	ctx = intercept.WithReviewContext(ctx, taskDir, intercept.ReviewBackground{})
+	ctx = audit.WithReviewContext(ctx, taskDir, audit.ReviewBackground{})
 	sysBody := plannerSystem(goal, p.workDir, taskDir) + p.lessonsBlock
 	if p.wantConstraints() {
 		sysBody += constraintBlock(ts) // inject the operation constraints (if any) into the system prompt, bounding exploration

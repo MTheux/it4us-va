@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -15,13 +16,12 @@ import (
 	"sync"
 	"time"
 
+	actool "github.com/Autumn-27/norma/tool"
 	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/audit"
 	pgdb "github.com/MTheux/it4us-va/db"
 	"github.com/MTheux/it4us-va/enrich"
 	"github.com/MTheux/it4us-va/guard"
-	"github.com/MTheux/it4us-va/intercept"
-	"github.com/MTheux/it4us-va/traffic"
-	actool "github.com/Autumn-27/norma/tool"
 )
 
 // Task is one engagement: a description + goal + its own exploration store,
@@ -52,13 +52,13 @@ type Task struct {
 	LLMChainRevision   int64   `json:"-"`
 	LLMFailoverState   string  `json:"llm_failover_state,omitempty"`
 	// LLMRotate (#85): per-intent round-robin over the task's LLM chain heads.
-	LLMRotate  bool `json:"llm_rotate,omitempty"`
-	rotateMu   sync.Mutex
-	rotateNext int
-	LLMFailoverReason  string  `json:"llm_failover_reason,omitempty"`
-	SourceTaskIDs      []int64 `json:"source_task_ids,omitempty"`
-	CompanyIDs         []int64 `json:"company_ids,omitempty"`
-	Status             string  `json:"status"` // persisted lifecycle status (done/failed/timeout are terminal; empty/other is derived from runtime state)
+	LLMRotate         bool `json:"llm_rotate,omitempty"`
+	rotateMu          sync.Mutex
+	rotateNext        int
+	LLMFailoverReason string  `json:"llm_failover_reason,omitempty"`
+	SourceTaskIDs     []int64 `json:"source_task_ids,omitempty"`
+	CompanyIDs        []int64 `json:"company_ids,omitempty"`
+	Status            string  `json:"status"` // persisted lifecycle status (done/failed/timeout are terminal; empty/other is derived from runtime state)
 	// Task-level timeout (see docs/task-timeout-and-settle-design.md). DeadlineAt/FirstRunAt are unix seconds, 0 = unset/not yet run.
 	TimeoutSeconds       int                    `json:"timeout_seconds"`
 	PlanHeartbeatSeconds int                    `json:"plan_heartbeat_seconds"` // planner heartbeat trigger interval (seconds)
@@ -217,7 +217,6 @@ func (t *Task) setLLMState(profileID, activeID *int64, profileIDs []int64, revis
 // exploration graph. All options default to false for backward compatibility.
 type DeleteTaskOptions struct {
 	DeleteAssets     bool `json:"delete_assets"`
-	DeleteTraffic    bool `json:"delete_traffic"`
 	DeleteFiles      bool `json:"delete_files"`
 	DeleteFindings   bool `json:"delete_findings"`
 	DeleteLLMRecords bool `json:"delete_llm_records"`
@@ -228,7 +227,6 @@ type DeleteTaskResult struct {
 	Deleted           string `json:"deleted"`
 	AssetsDeleted     int64  `json:"assets_deleted"`
 	AssetsDetached    int64  `json:"assets_detached"`
-	TrafficDeleted    int64  `json:"traffic_deleted"`
 	FilesDeleted      bool   `json:"files_deleted"`
 	FindingsDeleted   int64  `json:"findings_deleted"`
 	LLMRecordsDeleted int64  `json:"llm_records_deleted"`
@@ -241,9 +239,8 @@ type Manager struct {
 	dir         string
 	pg          *pgdb.DB
 	assets      *pgdb.AssetStore
-	traffic     *traffic.Traffic       // process-wide recording proxy (may be nil)
-	enrich      *enrich.Engine         // engine-side asset auto-completion (DNS/HTTP)
-	interceptor *intercept.Interceptor // user-configured tool-call interception rules
+	enrich      *enrich.Engine     // engine-side asset auto-completion (DNS/HTTP)
+	interceptor *audit.Interceptor // user-configured tool-call interception rules
 
 	companyMu sync.Mutex // serializes task/company-scope commits with live handle registration
 	// taskStateMu preserves commit order between PostgreSQL lifecycle writes and
@@ -253,7 +250,6 @@ type Manager struct {
 	mu          sync.RWMutex
 	tasks       map[string]*Task
 	active      string
-	trafficOn   bool // traffic capture switch (off by default; settings.traffic_capture)
 	llmRecOn    bool // LLM recording switch (off by default; settings.llm_record)
 	// Web search switch and source (off by default; settings.web_search_*). brave-free needs braveKey; tavily needs tavilyKey.
 	// webSearchProxy is a separate egress proxy (http/https/socks5), unrelated to the MITM proxy that records traffic.
@@ -271,7 +267,6 @@ type Manager struct {
 
 // Settings keys the UI toggles at runtime.
 const (
-	settingTrafficCapture      = "traffic_capture"
 	settingAgentTrafficBinding = "agent_traffic_binding"
 	settingWebSearchOn         = "web_search_enabled"
 	settingWebSearchBackend    = "web_search_backend"
@@ -361,8 +356,9 @@ func (m *Manager) SetWorkers(n int) error {
 // Enrich returns the asset auto-completion engine (may be nil if init failed).
 func (m *Manager) Enrich() *enrich.Engine { return m.enrich }
 
-// NewManager connects to PostgreSQL and, if proxyAddr is non-empty, starts the
-// traffic-recording proxy. PostgreSQL is required (it is the single data source).
+// NewManager connects to PostgreSQL. PostgreSQL is required (it is the single
+// data source). proxyAddr is accepted for signature compatibility and ignored:
+// a excisão ofensiva removeu o proxy de captura MITM.
 func NewManager(dir, proxyAddr string) (*Manager, error) {
 	// Resolve the data dir to an ABSOLUTE path up front. Every data path derives
 	// from it — notably the MITM CA cert, whose path is injected into worker shells
@@ -395,43 +391,9 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 	if err := pg.EnsureLLMUsageTable(); err != nil {
 		log.Printf("[llmusage] create table: %v", err)
 	}
-	m := &Manager{dir: dir, pg: pg, assets: pg.Assets(), tasks: map[string]*Task{}, interceptor: intercept.New(pg)}
-	if proxyAddr != "" {
-		tr, err := traffic.Open(filepath.Join(dir, "traffic"), proxyAddr)
-		if err != nil {
-			log.Printf("[traffic] disabled: %v", err)
-		} else {
-			err = tr.RecoverHostDeleteStages(func(_ int64, taskID int64) (bool, error) {
-				if taskID <= 0 {
-					return false, errors.New("archived traffic staging log is missing the task ID")
-				}
-				task, taskErr := pg.GetTask(taskID)
-				if taskErr != nil {
-					return false, taskErr
-				}
-				// Archived/permanently deleted tasks are hidden from GetTask. A
-				// restored task is visible and needs the staged traffic put back.
-				return task == nil, nil
-			})
-			if err != nil {
-				_ = tr.Close()
-				_ = pg.Close()
-				return nil, fmt.Errorf("recover traffic delete staging: %w", err)
-			}
-		}
-		if tr != nil {
-			m.traffic = tr
-			go func() {
-				log.Printf("[traffic] recording proxy on %s (set HTTP_PROXY=%s + trust _ca CA)", proxyAddr, tr.ProxyAddr())
-				if err := tr.Start(); err != nil {
-					log.Printf("[traffic] proxy stopped: %v", err)
-				}
-			}()
-		}
-	}
-	// Asset auto-completion engine (§5): HTTP probes routed through the recording
-	// proxy (via m.ProxyAddr, which honors the traffic-capture toggle).
-	m.trafficOn = pg.GetBool(settingTrafficCapture, false)
+	m := &Manager{dir: dir, pg: pg, assets: pg.Assets(), tasks: map[string]*Task{}, interceptor: audit.New(pg)}
+	// Asset auto-completion engine (§5): HTTP probes routed through the egress proxy
+	// (via m.ProxyAddr, which returns the global proxy when configured).
 	// LLM recording switch (off by default). The recorder reads this flag on every call.
 	m.llmRecOn = pg.GetBool(settingLLMRecord, false)
 	// Load persisted web-search config (default: off, ddgs).
@@ -456,41 +418,11 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 	if v, ok, _ := pg.GetSetting(settingGlobalProxy); ok {
 		m.globalProxy = strings.TrimSpace(v)
 	}
-	if m.traffic != nil {
-		if err := m.traffic.SetUpstreamProxy(m.globalProxy); err != nil {
-			log.Printf("[proxy] global proxy %q invalid, ignored: %v", m.globalProxy, err)
-		}
-	}
 	m.enrich = enrich.New(m.assets, m.ProxyAddr, 4)
 	// Reconcile the seeded browser MCP with the persisted capture state, so a
 	// restart with capture already on keeps Playwright routed through the proxy.
 	m.syncBrowserMCPProxy()
 	return m, nil
-}
-
-// TrafficEnabled reports whether traffic capture is on (default off). When off,
-// no proxy/traffic tools/prompt are injected into agents (nothing is recorded).
-func (m *Manager) TrafficEnabled() bool {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.trafficOn
-}
-
-// SetTrafficEnabled persists and applies the traffic-capture toggle. Callers must
-// rebuild the agents (applyLLM) afterwards so the new proxy/tools/prompt take hold.
-func (m *Manager) SetTrafficEnabled(on bool) error {
-	if err := m.pg.SetBool(settingTrafficCapture, on); err != nil {
-		return err
-	}
-	m.mu.Lock()
-	m.trafficOn = on
-	m.mu.Unlock()
-	// Inject (on) or strip (off) the recording proxy + CA on the browser MCP so
-	// Playwright routes through the MITM. Must run after the flag flip above, since
-	// ProxyAddr/ProxyCACert honor it. putSettings rebuilds agents next (applyLLM),
-	// which re-spawns the MCP with the new args/env.
-	m.syncBrowserMCPProxy()
-	return nil
 }
 
 // LLMRecordEnabled reports whether LLM request/response recording is on
@@ -749,15 +681,12 @@ func encodeJSON(v any) json.RawMessage {
 // traffic tools, gated by the global capture switch: empty when capture is off, so
 // no agent gets traffic_search/traffic_get regardless of binding.
 func (m *Manager) HostTools() []actool.CoreTool {
-	if m.traffic == nil || !m.TrafficEnabled() {
-		return nil
-	}
-	return m.traffic.Tools()
+	// A captura MITM foi removida (excisão ofensiva); não há tools de traffic.
+	return nil
 }
 
-func (m *Manager) Assets() *pgdb.AssetStore  { return m.assets }
-func (m *Manager) PG() *pgdb.DB              { return m.pg }
-func (m *Manager) Traffic() *traffic.Traffic { return m.traffic }
+func (m *Manager) Assets() *pgdb.AssetStore { return m.assets }
+func (m *Manager) PG() *pgdb.DB             { return m.pg }
 
 // ProxyAddr returns the egress proxy address agents route target traffic through:
 //   - capture ON  → the recording MITM proxy (which itself exits via the global
@@ -768,9 +697,6 @@ func (m *Manager) Traffic() *traffic.Traffic { return m.traffic }
 // So the global proxy takes effect in both modes: at the MITM's upstream when
 // capturing, in the agent's own bash env / WebFetch when not.
 func (m *Manager) ProxyAddr() string {
-	if m.traffic != nil && m.TrafficEnabled() {
-		return m.traffic.ProxyAddr()
-	}
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.globalProxy
@@ -782,10 +708,9 @@ func (m *Manager) ProxyAddr() string {
 // preserves real target certs, so no custom CA is needed there. Its emptiness is
 // also the worker's "recording off" signal (see workerSystem).
 func (m *Manager) ProxyCACert() string {
-	if m.traffic == nil || !m.TrafficEnabled() {
-		return ""
-	}
-	return m.traffic.CACertPath()
+	// A captura MITM foi removida: agentes falam direto com os certs reais do
+	// alvo através do egress proxy (quando configurado), sem CA customizada.
+	return ""
 }
 
 // GlobalProxy returns the configured global egress proxy URL (empty = direct).
@@ -802,7 +727,7 @@ func (m *Manager) GlobalProxy() string {
 func (m *Manager) SetGlobalProxy(raw string) error {
 	raw = strings.TrimSpace(raw)
 	if raw != "" {
-		if _, err := traffic.ValidateProxyURL(raw); err != nil {
+		if err := validateProxyURL(raw); err != nil {
 			return err
 		}
 	}
@@ -812,11 +737,6 @@ func (m *Manager) SetGlobalProxy(raw string) error {
 	m.mu.Lock()
 	m.globalProxy = raw
 	m.mu.Unlock()
-	if m.traffic != nil {
-		if err := m.traffic.SetUpstreamProxy(raw); err != nil {
-			return err
-		}
-	}
 	// Keep the browser MCP's egress in sync with the new global proxy too.
 	m.syncBrowserMCPProxy()
 	return nil
@@ -825,9 +745,6 @@ func (m *Manager) SetGlobalProxy(raw string) error {
 func (m *Manager) Close() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.traffic != nil {
-		m.traffic.Close()
-	}
 	return m.pg.Close()
 }
 
@@ -850,7 +767,7 @@ func unixNanoOrZero(t *time.Time) int64 {
 	return t.UnixNano()
 }
 
-func taskFromPG(pt *pgdb.Task, store *pgdb.ExplorationStore, ic *intercept.Interceptor) *Task {
+func taskFromPG(pt *pgdb.Task, store *pgdb.ExplorationStore, ic *audit.Interceptor) *Task {
 	return &Task{
 		ID: strconv.FormatInt(pt.ID, 10), ExpID: pt.ExplorationID,
 		Name:       pt.Name,
@@ -1509,27 +1426,13 @@ func (m *Manager) DeleteTask(id string, opts DeleteTaskOptions) (DeleteTaskResul
 		result.FilesDeleted = fileStage.deleted
 	}
 
-	var trafficStage *traffic.HostDeleteStage
 	var prepare func(pgdb.TaskDeletePreparation) error
-	if opts.DeleteTraffic && m.traffic != nil {
-		prepare = func(p pgdb.TaskDeletePreparation) error {
-			if len(p.TrafficHosts) == 0 {
-				return nil
-			}
-			trafficStage, err = m.traffic.StageDeleteHostsExact(p.TrafficHosts)
-			if err != nil {
-				return err
-			}
-			result.TrafficDeleted = trafficStage.Deleted()
-			return nil
-		}
-	}
 
 	dbResult, err := m.pg.DeleteTaskCascadePrepared(
 		n, opts.DeleteAssets, opts.DeleteFindings, opts.DeleteLLMRecords, prepare,
 	)
 	if err != nil {
-		return result, rollbackTaskDelete(err, trafficStage, fileStage)
+		return result, rollbackTaskDelete(err, fileStage)
 	}
 	result.AssetsDeleted = dbResult.AssetsDeleted
 	result.AssetsDetached = dbResult.AssetsDetached
@@ -1541,11 +1444,6 @@ func (m *Manager) DeleteTask(id string, opts DeleteTaskOptions) (DeleteTaskResul
 	// typed so the HTTP layer can still tear down the task runtime instead of
 	// incorrectly reviving a task whose database row is already gone.
 	var finalizeErrs []error
-	if trafficStage != nil {
-		if err := trafficStage.Commit(); err != nil {
-			finalizeErrs = append(finalizeErrs, fmt.Errorf("finalize traffic deletion: %w", err))
-		}
-	}
 	if fileStage != nil {
 		if err := fileStage.commit(); err != nil {
 			finalizeErrs = append(finalizeErrs, fmt.Errorf("finalize task file deletion: %w", err))
@@ -1568,15 +1466,9 @@ func (e *taskDeleteCommittedError) Error() string {
 
 func (e *taskDeleteCommittedError) Unwrap() error { return e.err }
 
-func rollbackTaskDelete(cause error, trafficStage *traffic.HostDeleteStage, fileStage *taskFileDeleteStage) error {
+func rollbackTaskDelete(cause error, fileStage *taskFileDeleteStage) error {
 	errs := []error{cause}
-	// Reverse the preparation order. Both restorations are attempted even if the
-	// first one fails, and errors.Join preserves the original PostgreSQL error.
-	if trafficStage != nil {
-		if err := trafficStage.Rollback(); err != nil {
-			errs = append(errs, fmt.Errorf("restore traffic after task delete failure: %w", err))
-		}
-	}
+	// Reverse the preparation order. errors.Join preserves the original PostgreSQL error.
 	if fileStage != nil {
 		if err := fileStage.rollback(); err != nil {
 			errs = append(errs, fmt.Errorf("restore task files after task delete failure: %w", err))
@@ -1903,4 +1795,26 @@ func (t *Task) drainTriggers() []agent.TriggerEvent {
 	ev := t.pendingTriggers
 	t.pendingTriggers = nil
 	return ev
+}
+
+// validateProxyURL valida uma URL de egress proxy (http/https/socks5). Inline
+// após a excisão ofensiva remover o pacote traffic, que antes hospedava esta
+// validação para o upstream do proxy MITM.
+func validateProxyURL(raw string) error {
+	raw = strings.TrimSpace(raw)
+	u, err := url.Parse(raw)
+	if err != nil {
+		return fmt.Errorf("parse proxy address %q: %w", raw, err)
+	}
+	switch u.Scheme {
+	case "http", "https", "socks5":
+	case "":
+		return fmt.Errorf("proxy %q is missing a scheme (use http://, https://, or socks5://)", raw)
+	default:
+		return fmt.Errorf("unsupported proxy scheme %q (use http, https, or socks5)", u.Scheme)
+	}
+	if u.Host == "" {
+		return fmt.Errorf("proxy %q is missing a host", raw)
+	}
+	return nil
 }

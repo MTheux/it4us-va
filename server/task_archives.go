@@ -15,7 +15,6 @@ import (
 
 	"github.com/MTheux/it4us-va/agent"
 	pgdb "github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/traffic"
 )
 
 const taskArchivePollInterval = 2 * time.Second
@@ -172,14 +171,6 @@ func (s *Server) archiveTask(job *pgdb.TaskArchive) (runErr error) {
 	if snapshot.ExplorationID != task.ExplorationID {
 		return errors.New("the task's exploration record changed during the archive snapshot")
 	}
-	if s.m.traffic != nil && len(snapshot.Hosts) > 0 {
-		_ = s.m.pg.UpdateTaskArchiveProgress(job.ID, "snapshot_traffic", 38)
-		trafficCount, err := s.m.traffic.ExportHosts(snapshot.Hosts, filepath.Join(fileStage.payload, "traffic"))
-		if err != nil {
-			return err
-		}
-		snapshot.DataCounts["traffic"] = trafficCount
-	}
 	archivePath := taskArchivePath(s.m.dir, job.ID, taskID)
 	evidenceSnapshots, err := pgdb.ArchiveEvidenceSnapshots(snapshot)
 	if err != nil {
@@ -199,32 +190,12 @@ func (s *Server) archiveTask(job *pgdb.TaskArchive) (runErr error) {
 			_ = os.Remove(archivePath)
 		}
 	}()
-	var trafficStage *traffic.HostDeleteStage
-	if s.m.traffic != nil && len(snapshot.ExclusiveHosts) > 0 {
-		_ = s.m.pg.UpdateTaskArchiveProgress(job.ID, "compact_traffic", 68)
-		trafficStage, err = s.m.traffic.StageDeleteHostsExactForArchive(snapshot.ExclusiveHosts, job.ID, job.TaskID)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			if !committed {
-				runErr = errors.Join(runErr, trafficStage.Rollback())
-			}
-		}()
-	}
 	_ = s.m.pg.UpdateTaskArchiveProgress(job.ID, "compact_database", 78)
 	if err := s.m.pg.CompleteTaskArchive(job.ID, snapshot, archivePath, checksum, originalSize, compressedSize); err != nil {
 		return err
 	}
 	committed = true
 	removePackage = false
-	if trafficStage != nil {
-		if err := trafficStage.Commit(); err != nil {
-			warning := "archive completed, but cleaning the exclusive traffic hot store failed (the archive package can still restore it): " + err.Error()
-			log.Printf("[task-archive] task %s: %s", taskID, warning)
-			_ = s.m.pg.AppendTaskArchiveWarning(job.ID, warning)
-		}
-	}
 	if err := fileStage.commit(); err != nil {
 		warning := "archive completed, but cleaning the staging directory failed: " + err.Error()
 		log.Printf("[task-archive] task %s: %s", taskID, warning)
@@ -308,12 +279,6 @@ func (s *Server) restoreTaskArchivePayload(job *pgdb.TaskArchive, snapshot *pgdb
 				_ = llmRecordsFile.Close()
 			}
 		}()
-	}
-	if s.m.traffic != nil {
-		_ = s.m.pg.UpdateTaskArchiveProgress(job.ID, "restore_traffic", 35)
-		if _, err := s.m.traffic.ImportArchive(filepath.Join(extracted, "traffic")); err != nil {
-			return err
-		}
 	}
 	_ = s.m.pg.UpdateTaskArchiveProgress(job.ID, "restore_files", 55)
 	files, err := installTaskArchiveFiles(s.m.dir, extracted, strconv.FormatInt(job.TaskID, 10), job.ID)
