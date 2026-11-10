@@ -50,6 +50,7 @@ type Client interface {
 	UploadImage(ctx context.Context, projectID, name string, data []byte) (ref string, err error)
 	Render(ctx context.Context, projectID string) (RenderResult, error)
 	ExportPDF(ctx context.Context, projectID, dest string) error
+	ProjectURL(projectID string) string
 }
 
 type httpClient struct {
@@ -60,6 +61,10 @@ type httpClient struct {
 // NewHTTPClient returns a Client backed by the SysReptor REST API.
 func NewHTTPClient(cfg Config) Client {
 	return &httpClient{cfg: cfg, hc: &http.Client{Timeout: 60 * time.Second}}
+}
+
+func (c *httpClient) ProjectURL(projectID string) string {
+	return strings.TrimRight(c.cfg.BaseURL, "/") + "/projects/" + projectID + "/"
 }
 
 func (c *httpClient) url(path string) string {
