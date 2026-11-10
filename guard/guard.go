@@ -14,8 +14,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/MTheux/it4us-va/intercept"
 	"github.com/Autumn-27/norma/hook"
+	"github.com/MTheux/it4us-va/intercept"
 )
 
 // AuditEntry records one gated tool call.
@@ -90,13 +90,9 @@ func (g *Guard) applyIntercept(ctx context.Context, ev hook.Event) hook.Result {
 	ctx = intercept.WithCall(ctx, ev.ToolName, ev.Input)
 	dec, matched := g.interceptor.Match(ev.ToolName, ev.Input)
 	if !matched {
-		// No rule matched. Ask the LLM fallback judge (if enabled); when it is off
-		// or unwired, keep current behavior and allow.
-		d, judged := g.interceptor.Judge(ctx, ev.ToolName, ev.Input)
-		if !judged {
-			return hook.Result{}
-		}
-		dec = d
+		// Nenhuma regra casou. O juiz LLM foi removido na excisão ofensiva; o
+		// comportamento padrão é permitir (a decisão de escopo fica só nas regras).
+		return hook.Result{}
 	}
 	switch dec.Action {
 	case "deny":
@@ -106,18 +102,6 @@ func (g *Guard) applyIntercept(ctx context.Context, ev hook.Event) hook.Result {
 	case "allow":
 		// Record explicit rule and model approvals so review details remain auditable.
 		g.interceptor.Log(ctx, intercept.ConvIDFromContext(ctx), dec, ev.ToolName, ev.Input, "allowed")
-		return hook.Result{}
-	case "ask":
-		// If the worker context is already cancelled (task stopped / killed), block
-		// immediately without creating a pending record — avoids orphaned DB entries
-		// and makes execOne complete fast, reducing the race against drainSynthetic.
-		if ctx.Err() != nil {
-			return g.block(ev.ToolName, systemBlockMessage("work cancelled; platform safety controls blocked execution"), "")
-		}
-		convID := intercept.ConvIDFromContext(ctx)
-		if !g.interceptor.HandleAsk(ctx, convID, dec, ev.ToolName, ev.Input) {
-			return g.block(ev.ToolName, systemBlockMessage("manual approval not granted (user rejected or approval timed out)"), "")
-		}
 		return hook.Result{}
 	}
 	return hook.Result{}

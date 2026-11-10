@@ -110,11 +110,7 @@ func TestInterceptDetailHTTP(t *testing.T) {
 			t.Fatalf("%s: %d", tc.path, r.Code)
 		}
 	}
-	decisionPath := fmt.Sprintf("/api/intercept/pending/%d/decide", id)
-	if r := do(http.MethodPost, decisionPath, `{"decision":"denied"}`, true); r.Code != 200 {
-		t.Fatalf("decide: %d %s", r.Code, r.Body.String())
-	}
-	if r := do(http.MethodPost, decisionPath, `{"decision":"allowed"}`, true); r.Code != 409 {
-		t.Fatalf("duplicate decision: %d", r.Code)
-	}
+	// A aprovação interativa (/api/intercept/pending/{id}/decide) foi removida na
+	// excisão ofensiva (Plano 3): os viewers de auditoria (history/detail/execution)
+	// sobrevivem; o endpoint de decisão não existe mais.
 }
