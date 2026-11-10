@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nmaprun scanner="nmap" args="nmap -sV -Pn -oX - 10.119.240.20" start="1762300100">
+<host starttime="1762300100" endtime="1762300110">
+<status state="up" reason="user-set"/>
+<address addr="10.119.240.20" addrtype="ipv4"/>
+<ports>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack"/><service name="https" product="nginx" version="1.24.0" method="probed" conf="10"/></port>
+</ports>
+</host>
+</nmaprun>

@@ -1,0 +1,20 @@
+{
+  "host": "10.119.240.50",
+  "shares": [
+    {
+      "name": "PUBLIC$",
+      "permission": "READ, WRITE",
+      "access": "ANONYMOUS",
+      "files": [
+        {"name": "backup.zip", "size": 10485760, "content_preview": "AWS_SECRET_ACCESS_KEY=AKIAZ3XAMPLESECRETval"}
+      ]
+    },
+    {
+      "name": "Financeiro",
+      "permission": "READ",
+      "access": "Everyone",
+      "files": [{"name": "folha-pagamento.xlsx", "size": 204800}]
+    },
+    {"name": "ADMIN$", "permission": "NO ACCESS", "access": "Administrators"}
+  ]
+}

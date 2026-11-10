@@ -1,0 +1,7 @@
+{
+  "Certificate Templates": {
+    "0": {"Template Name": "ForeSeaUser", "Enabled": true, "[!] Vulnerabilities": {"ESC1": "a", "ESC2": "b", "ESC3": "c"}},
+    "1": {"Template Name": "ForeSeaAdmin", "Enabled": true, "[!] Vulnerabilities": {"ESC8": "x", "ESC4": "y"}},
+    "2": {"Template Name": "WebServer", "Enabled": true}
+  }
+}
