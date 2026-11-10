@@ -78,6 +78,24 @@ var riskByPort = map[int]riskService{
 	27017: {db.SeverityHigh, "MongoDB"},
 }
 
+// riskByService classifies a sensitive service by nmap's service name, so a
+// service identified by -sV on a NON-STANDARD port is still flagged (avoiding
+// false negatives when a DB/RDP listens off its default port).
+var riskByService = map[string]riskService{
+	"ms-sql-s":     {db.SeverityHigh, "Microsoft SQL Server"},
+	"ms-wbt-server": {db.SeverityHigh, "RDP"},
+	"microsoft-ds": {db.SeverityMedium, "SMB"},
+	"netbios-ssn":  {db.SeverityMedium, "NetBIOS"},
+	"mysql":        {db.SeverityHigh, "MySQL"},
+	"postgresql":   {db.SeverityHigh, "PostgreSQL"},
+	"oracle-tns":   {db.SeverityHigh, "Oracle DB"},
+	"mongodb":      {db.SeverityHigh, "MongoDB"},
+	"ldap":         {db.SeverityMedium, "LDAP"},
+	"wsman":        {db.SeverityMedium, "WinRM"},
+	"ftp":          {db.SeverityHigh, "FTP (texto claro)"},
+	"telnet":       {db.SeverityHigh, "Telnet (texto claro)"},
+}
+
 // ParseNmap turns nmap -oX XML into Candidates for sensitive exposed services.
 func ParseNmap(raw []byte) ([]Candidate, error) {
 	var run nmapRun
@@ -102,7 +120,11 @@ func ParseNmap(raw []byte) ([]Candidate, error) {
 			}
 			risk, ok := riskByPort[p.PortID]
 			if !ok {
-				continue
+				// porta não-padrão: tenta classificar pelo nome do serviço (-sV)
+				risk, ok = riskByService[strings.ToLower(p.Service.Name)]
+				if !ok {
+					continue
+				}
 			}
 			banner := strings.TrimSpace(p.Service.Product + " " + p.Service.Version)
 			if banner == "" {

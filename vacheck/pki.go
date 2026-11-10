@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -124,6 +125,7 @@ func ParseADCS(raw []byte) ([]Candidate, error) {
 		for esc := range tpl.Vulnerabilities {
 			escs = append(escs, esc)
 		}
+		sort.Strings(escs) // ordem estável do conjunto de ESCs (mapa itera aleatório)
 		out = append(out, Candidate{
 			Check: "adcs.template", VulnClass: "adcs-template-vulneravel", Severity: db.SeverityHigh,
 			Asset:    Asset{Host: tpl.Name, Service: "adcs"},
@@ -133,5 +135,6 @@ func ParseADCS(raw []byte) ([]Candidate, error) {
 			Tags:     []string{"foresea:adcs"},
 		})
 	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Asset.Host < out[j].Asset.Host })
 	return out, nil
 }

@@ -56,3 +56,14 @@ func TestParseNmap_TruncatedNoPanic(t *testing.T) {
 		t.Fatal("esperava erro em XML truncado")
 	}
 }
+
+func TestParseNmap_NonStandardPortByService(t *testing.T) {
+	raw := []byte(`<?xml version="1.0"?><nmaprun><host><status state="up"/><address addr="10.0.0.9" addrtype="ipv4"/><ports><port protocol="tcp" portid="14330"><state state="open"/><service name="ms-sql-s" product="Microsoft SQL Server 2016"/></port></ports></host></nmaprun>`)
+	got, err := vacheck.ParseNmap(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) == 0 {
+		t.Fatal("serviço sensível (ms-sql-s) em porta não-padrão deveria virar candidate pelo nome do serviço")
+	}
+}

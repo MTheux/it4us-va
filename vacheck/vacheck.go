@@ -7,7 +7,10 @@
 // later layer, not to this package.
 package vacheck
 
-import "sort"
+import (
+	"sort"
+	"sync"
+)
 
 // Asset is the host/service a Candidate is about.
 type Asset struct {
@@ -46,11 +49,16 @@ type Check struct {
 	Parse        Parser
 }
 
-var registry = map[string]Check{}
+var (
+	regMu    sync.RWMutex
+	registry = map[string]Check{}
+)
 
 // Register adds a check to the global registry. It panics on duplicate ID so a
 // collision is caught at init time, not silently shadowed.
 func Register(c Check) {
+	regMu.Lock()
+	defer regMu.Unlock()
 	if _, dup := registry[c.ID]; dup {
 		panic("vacheck: ID de check duplicado: " + c.ID)
 	}
@@ -59,6 +67,8 @@ func Register(c Check) {
 
 // All returns every registered check, ordered by ID.
 func All() []Check {
+	regMu.RLock()
+	defer regMu.RUnlock()
 	out := make([]Check, 0, len(registry))
 	for _, c := range registry {
 		out = append(out, c)
@@ -69,6 +79,8 @@ func All() []Check {
 
 // Get returns the check with the given ID.
 func Get(id string) (Check, bool) {
+	regMu.RLock()
+	defer regMu.RUnlock()
 	c, ok := registry[id]
 	return c, ok
 }

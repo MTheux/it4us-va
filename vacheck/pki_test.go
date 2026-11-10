@@ -87,3 +87,28 @@ func TestParsePKI_GarbageNoPanic(t *testing.T) {
 		t.Fatal("esperava erro em JSON malformado")
 	}
 }
+
+func TestParseADCS_Deterministic(t *testing.T) {
+	raw, err := os.ReadFile("testdata/certipy-multi.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	first, err := vacheck.ParseADCS(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(first) != 2 {
+		t.Fatalf("esperava 2 templates vulneráveis, veio %d", len(first))
+	}
+	for i := 0; i < 30; i++ {
+		got, _ := vacheck.ParseADCS(raw)
+		if len(got) != len(first) {
+			t.Fatalf("contagem instável na iteração %d", i)
+		}
+		for j := range got {
+			if got[j].Evidence != first[j].Evidence || got[j].Title != first[j].Title {
+				t.Fatalf("saída não-determinística na iteração %d, pos %d:\n  %q\n  %q", i, j, first[j].Evidence, got[j].Evidence)
+			}
+		}
+	}
+}
