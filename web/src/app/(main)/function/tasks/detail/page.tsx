@@ -45,7 +45,6 @@ import { CoverageGraphTab } from "./_tabs/coverage-graph-tab";
 import { CredentialsTab } from "./_tabs/credentials-tab";
 import { FindingsTab } from "./_tabs/findings-tab";
 import { GraphTab } from "./_tabs/graph-tab";
-import { InterceptTab } from "./_tabs/intercept-tab";
 import { OverviewTab } from "./_tabs/overview-tab";
 import { ReportTab } from "./_tabs/report-tab";
 import { RetestsTab } from "./_tabs/retests-tab";
@@ -61,7 +60,6 @@ const TABS = [
   { value: "assets", label: "Test assets" },
   { value: "credentials", label: "Credentials" },
   { value: "coverage", label: "Asset coverage" },
-  { value: "intercept", label: "Interception approval" },
   { value: "report", label: "Report" },
 ];
 
@@ -406,11 +404,6 @@ function TaskDetailInner() {
             {TABS.map((t) => (
               <TabsTrigger key={t.value} value={t.value}>
                 {t.label}
-                {t.value === "intercept" && interceptPendingCount > 0 && (
-                  <span className="ml-1.5 inline-flex h-4 min-w-[16px] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-semibold leading-none text-white">
-                    {interceptPendingCount > 99 ? "99+" : interceptPendingCount}
-                  </span>
-                )}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -445,9 +438,6 @@ function TaskDetailInner() {
         </TabsContent>
         <TabsContent value="coverage" className="mt-0">
           <CoverageGraphTab taskId={id} coverageEnabled={task?.coverage_enabled !== false} />
-        </TabsContent>
-        <TabsContent value="intercept" className="mt-0">
-          <InterceptTab taskId={id} />
         </TabsContent>
         <TabsContent value="report" className="mt-0">
           <ReportTab taskId={id} />

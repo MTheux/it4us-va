@@ -1168,35 +1168,6 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* pending approvals */}
-          {pendingCount > 0 && (
-            <div className="mt-3">
-              <div className="mb-1.5 text-[10px] font-medium text-amber-400">Pending approvals ({pendingCount})</div>
-              <div className="flex flex-col gap-1.5">
-                {pending.slice(0, 3).map((p) => (
-                  <Link
-                    key={p.id}
-                    href="/system/intercept/approvals"
-                    className="flex items-center justify-between rounded-lg border border-amber-500/20 bg-amber-500/5 px-2.5 py-2 hover:bg-amber-500/10"
-                  >
-                    <div className="min-w-0">
-                      <div className="text-[10px] font-medium">{p.tool_name}</div>
-                      <div className="text-[9px] text-muted-foreground">{p.agent_name}</div>
-                    </div>
-                    <ArrowUpRightIcon className="size-3 shrink-0 text-amber-400" />
-                  </Link>
-                ))}
-                {pendingCount > 3 && (
-                  <Link
-                    href="/system/intercept/approvals"
-                    className="text-center text-[10px] text-muted-foreground hover:text-foreground"
-                  >
-                    {pendingCount - 3} more…
-                  </Link>
-                )}
-              </div>
-            </div>
-          )}
 
           {pendingCount === 0 && (
             <div className="mt-3 rounded-lg border bg-muted/10 px-3 py-3 text-center text-[10px] text-muted-foreground">
