@@ -141,6 +141,13 @@ const FormatOllama llm.Format = "ollama"
 // empty BaseURL, the SDK would fall back to OpenAI's public endpoint.
 const DefaultOllamaBaseURL = "http://127.0.0.1:11434/v1"
 
+// DefaultOpenCodeBaseURL é o endpoint compatível OpenAI do servidor OpenCode local
+// (`opencode serve`). OpenCode roteia internamente para o provider/modelo configurado.
+const DefaultOpenCodeBaseURL = "http://127.0.0.1:4096/v1"
+
+// DefaultOpenCodeModel é o modelo padrão quando o provider é OpenCode.
+const DefaultOpenCodeModel = "claude-opus-4-8"
+
 // ollamaPlaceholderKey is sent as the Bearer token when no key is configured.
 // Ollama ignores authorization, but a concrete value keeps the SDK from
 // falling back to OPENAI_API_KEY (which would silently ship a real cloud key
@@ -180,7 +187,7 @@ func compactionConfig(windowTokens int) *compaction.Config {
 
 // FromEnv resolves the LLM provider config:
 //
-//	IT4US_LLM_PROVIDER = anthropic|openai|openai-responses|ollama (default: inferred from keys)
+//	IT4US_LLM_PROVIDER = anthropic(claude)|openai|openai-responses|ollama|opencode (default: inferred from keys)
 //	IT4US_LLM_MODEL    = model id        (default: per provider)
 //	IT4US_LLM_BASE_URL = endpoint        (optional; ollama defaults to localhost:11434/v1)
 //	IT4US_LLM_PROXY    = proxy URL        (optional; http/https/socks5)
@@ -233,6 +240,22 @@ func FromEnv() (Config, bool) {
 		}
 		if c.Model == "" {
 			c.Model = "llama3.2"
+		}
+	case "opencode":
+		// OpenCode expõe uma API compatível com OpenAI e roteia internamente para
+		// o provider/modelo configurado no próprio OpenCode. Não exige chave de
+		// nuvem aqui: herda OPENAI_API_KEY se houver, senão usa um sentinel que o
+		// endpoint local ignora, evitando o gate de chave.
+		c.Format = llm.FormatOpenAI
+		if c.BaseURL == "" {
+			c.BaseURL = DefaultOpenCodeBaseURL
+		}
+		c.APIKey = oaiKey
+		if c.APIKey == "" {
+			c.APIKey = "opencode-local"
+		}
+		if c.Model == "" {
+			c.Model = DefaultOpenCodeModel
 		}
 	default:
 		c.Format = llm.FormatAnthropic
@@ -290,6 +313,21 @@ func ConfigFrom(provider, model, baseURL, apiKey, proxy string) Config {
 		}
 		if c.Model == "" {
 			c.Model = "llama3.2"
+		}
+	case "opencode":
+		// OpenCode: API compatível OpenAI. Tolera URL completa e sufixo /v1.
+		c.Format = llm.FormatOpenAI
+		c.BaseURL = strings.TrimRight(strings.TrimSuffix(strings.TrimSpace(c.BaseURL), "/chat/completions"), "/")
+		if c.BaseURL == "" {
+			c.BaseURL = DefaultOpenCodeBaseURL
+		} else if !strings.HasSuffix(c.BaseURL, "/v1") {
+			c.BaseURL += "/v1"
+		}
+		if c.APIKey == "" {
+			c.APIKey = "opencode-local"
+		}
+		if c.Model == "" {
+			c.Model = DefaultOpenCodeModel
 		}
 	default:
 		c.Format = llm.FormatAnthropic
