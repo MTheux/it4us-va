@@ -1,0 +1,16 @@
+{
+  "Certificate Authorities": {
+    "0": {"CA Name": "FORESEA-CA", "DNS Name": "ca01.foresea.local"}
+  },
+  "Certificate Templates": {
+    "0": {
+      "Template Name": "ForeSeaUser",
+      "Enabled": true,
+      "[!] Vulnerabilities": {"ESC1": "'FORESEA\\\\Domain Users' can enroll, enrollee supplies subject and template allows client authentication"}
+    },
+    "1": {
+      "Template Name": "WebServer",
+      "Enabled": true
+    }
+  }
+}
