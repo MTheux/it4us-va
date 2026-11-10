@@ -12,7 +12,7 @@ import (
 type fakeClient struct {
 	created   []FindingPayload
 	projectID string
-	renderMsg []string
+	renderMsg []RenderMessage
 	pdfPath   string
 }
 
@@ -71,7 +71,7 @@ func TestGenerateZeroFindings(t *testing.T) {
 }
 
 func TestGenerateFailsOnRenderMessages(t *testing.T) {
-	fc := &fakeClient{renderMsg: []string{"warning: No anchor #uuid"}}
+	fc := &fakeClient{renderMsg: []RenderMessage{{Level: "warning", Message: "No anchor #uuid"}}}
 	findings := []*db.DBFinding{{Name: "x", VulnClass: "c", Severity: "low", Summary: "s"}}
 	_, err := Generate(context.Background(), fc, nil, findings, "VA bug", t.TempDir())
 	if err == nil || !strings.Contains(err.Error(), "No anchor") {
@@ -79,6 +79,20 @@ func TestGenerateFailsOnRenderMessages(t *testing.T) {
 	}
 	if fc.pdfPath != "" {
 		t.Error("PDF não deveria ter sido exportado com render sujo")
+	}
+}
+
+func TestGenerateIgnoresBenignWarnings(t *testing.T) {
+	// "Empty field" (metadados não preenchidos) é warning benigno: não deve
+	// impedir a geração do rascunho — o humano preenche na revisão.
+	fc := &fakeClient{renderMsg: []RenderMessage{{Level: "warning", Message: "Empty field", Location: "Projeto/start_date"}}}
+	findings := []*db.DBFinding{{Name: "TLS fraco", VulnClass: "tls.weak", Severity: "low", Summary: "s"}}
+	res, err := Generate(context.Background(), fc, nil, findings, "VA ok", t.TempDir())
+	if err != nil {
+		t.Fatalf("warning benigno não deveria bloquear: %v", err)
+	}
+	if _, statErr := os.Stat(res.PDFPath); statErr != nil {
+		t.Errorf("PDF não gerado apesar de warning benigno: %v", statErr)
 	}
 }
 

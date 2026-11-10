@@ -70,12 +70,15 @@ func TestCreateProjectReturnsID(t *testing.T) {
 	}
 }
 
-func TestRenderParsesMessages(t *testing.T) {
+func TestRenderUsesGETAndParsesMessages(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			t.Errorf("method=%q want GET", r.Method)
+		}
 		if !strings.HasSuffix(r.URL.Path, "/check/") {
 			t.Errorf("path=%q", r.URL.Path)
 		}
-		_, _ = w.Write([]byte(`{"messages":[{"level":"warning","message":"No anchor #x"}]}`))
+		_, _ = w.Write([]byte(`{"messages":[{"level":"warning","message":"Empty field","location":{"id":"Projeto","path":"start_date"}},{"level":"warning","message":"No anchor #x"}]}`))
 	}))
 	defer srv.Close()
 	c := NewHTTPClient(Config{BaseURL: srv.URL, Token: "tok"})
@@ -83,8 +86,13 @@ func TestRenderParsesMessages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(res.Messages) != 1 || !strings.Contains(res.Messages[0], "No anchor") {
-		t.Errorf("messages=%v", res.Messages)
+	if len(res.Messages) != 2 {
+		t.Fatalf("messages=%v", res.Messages)
+	}
+	// Empty field is benign; only the anchor defect blocks.
+	block := res.Blocking()
+	if len(block) != 1 || !strings.Contains(block[0].Message, "No anchor") {
+		t.Errorf("blocking=%v", block)
 	}
 }
 

@@ -35,11 +35,37 @@ type FindingPayload struct {
 	RetestStatus       string
 }
 
+// RenderMessage is one message SysReptor returns when checking a project.
+type RenderMessage struct {
+	Level    string
+	Message  string
+	Location string
+}
+
+func (m RenderMessage) String() string {
+	s := m.Level + ": " + m.Message
+	if m.Location != "" {
+		s += " @" + m.Location
+	}
+	return s
+}
+
 // RenderResult carries the messages SysReptor returns when checking a project.
-// A non-empty Messages after a VA render means the report is not clean (e.g. the
-// "No anchor" pagination defect) and must not be shipped.
 type RenderResult struct {
-	Messages []string
+	Messages []RenderMessage
+}
+
+// Blocking returns the messages that must stop a VA export: render errors and
+// the "No anchor" pagination defect. Benign warnings (e.g. unfilled metadata
+// fields on a fresh project) do not block — the human fills those in review.
+func (r RenderResult) Blocking() []RenderMessage {
+	var out []RenderMessage
+	for _, m := range r.Messages {
+		if strings.EqualFold(m.Level, "error") || strings.Contains(strings.ToLower(m.Message), "anchor") {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // Client talks to SysReptor. Isolated behind an interface so the pipeline is
@@ -162,7 +188,7 @@ func (c *httpClient) UploadImage(ctx context.Context, projectID, name string, da
 }
 
 func (c *httpClient) Render(ctx context.Context, projectID string) (RenderResult, error) {
-	resp, err := c.do(ctx, http.MethodPost, "/api/v1/pentestprojects/"+projectID+"/check/", nil, "application/json")
+	resp, err := c.do(ctx, http.MethodGet, "/api/v1/pentestprojects/"+projectID+"/check/", nil, "")
 	if err != nil {
 		return RenderResult{}, err
 	}
@@ -172,8 +198,12 @@ func (c *httpClient) Render(ctx context.Context, projectID string) (RenderResult
 	}
 	var out struct {
 		Messages []struct {
-			Level   string `json:"level"`
-			Message string `json:"message"`
+			Level    string `json:"level"`
+			Message  string `json:"message"`
+			Location struct {
+				ID   string `json:"id"`
+				Path string `json:"path"`
+			} `json:"location"`
 		} `json:"messages"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
@@ -181,13 +211,17 @@ func (c *httpClient) Render(ctx context.Context, projectID string) (RenderResult
 	}
 	var res RenderResult
 	for _, m := range out.Messages {
-		res.Messages = append(res.Messages, strings.TrimSpace(m.Level+": "+m.Message))
+		loc := m.Location.Path
+		if loc == "" {
+			loc = m.Location.ID
+		}
+		res.Messages = append(res.Messages, RenderMessage{Level: m.Level, Message: m.Message, Location: loc})
 	}
 	return res, nil
 }
 
 func (c *httpClient) ExportPDF(ctx context.Context, projectID, dest string) error {
-	resp, err := c.do(ctx, http.MethodPost, "/api/v1/pentestprojects/"+projectID+"/generate/", nil, "application/json")
+	resp, err := c.do(ctx, http.MethodPost, "/api/v1/pentestprojects/"+projectID+"/generate/", bytes.NewReader([]byte("{}")), "application/json")
 	if err != nil {
 		return err
 	}

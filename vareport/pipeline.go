@@ -80,9 +80,13 @@ func Generate(ctx context.Context, cli Client, store *evidence.Store, findings [
 	if err != nil {
 		return Result{}, fmt.Errorf("render/check: %w", err)
 	}
-	if len(rr.Messages) > 0 {
+	if block := rr.Blocking(); len(block) > 0 {
+		msgs := make([]string, len(block))
+		for i, m := range block {
+			msgs[i] = m.String()
+		}
 		return Result{ProjectID: projectID, ProjectURL: url, FindingCount: len(payloads)},
-			fmt.Errorf("render com mensagens (laudo NÃO exportado, revisar projeto %s): %s", url, strings.Join(rr.Messages, "; "))
+			fmt.Errorf("render com erro (laudo NÃO exportado, revisar projeto %s): %s", url, strings.Join(msgs, "; "))
 	}
 
 	// 6. Export the draft PDF.

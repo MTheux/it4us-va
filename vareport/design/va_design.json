@@ -1,0 +1,505 @@
+{
+  "id": "c0c686ae-e716-428a-8183-f99a04e9f3e2",
+  "scope": "global",
+  "name": "IT4US Padrão VA — Avaliação de Vulnerabilidades",
+  "language": "pt-PT",
+  "status": "finished",
+  "tags": [],
+  "details": "http://127.0.0.1:8000/api/v1/projecttypes/c0c686ae-e716-428a-8183-f99a04e9f3e2",
+  "assets": "http://127.0.0.1:8000/api/v1/projecttypes/c0c686ae-e716-428a-8183-f99a04e9f3e2/assets",
+  "report_template": "<div data-sysreptor-generated=\"page-header\" id=\"header\">\n    <div id=\"header-right\">\n        <img src=\"/assets/name/logo-it4us.png\" alt=\"logo\" />\n    </div>\n</div>\n\n<div data-sysreptor-generated=\"page-footer\" id=\"footer\">\n    <div id=\"footer-left\"><em>Confidencial</em></div>\n    <div id=\"footer-center\">{{ report.title }}</div>\n</div>\n\n\n    <div v-if=\"report.draft\" id=\"watermark\">DRAFT</div>\n\n\n\n<section id=\"page-cover\" data-sysreptor-generated=\"page-cover\">\n    <div class=\"page-cover-title\">\n        <h1>Relatório Técnico</h1>\n        <h2>{{ report.title }}</h2>\n        <h3>{{ formatDate(report.report_date, 'long') }}</h3>\n    </div>\n</section>\n<pagebreak />\n\n    <section>\n    <div>\n<table>\n  <tr>\n    <th colspan=\"2\" class=\"text-center\"><h2>IDENTIFICAÇÃO DO DOCUMENTO</h2></th>\n  </tr>\n  <tr>\n    <td class=\"find-table-key\">Título</td>\n    <td>{{ report.title }}</td>\n  </tr>\n  <tr>\n    <td class=\"find-table-key\">Versão</td>\n    <td>{{ report.version }}</td>\n  </tr>\n\n  <tr>\n    <td class=\"find-table-key\">Data de Criação</td>\n    <td>{{ formatDate(report.report_date, 'medium') }}</td>\n  </tr>\n  <tr>\n    <td class=\"find-table-key\">Período de testes</td>\n    <td>{{ formatDate(report.start_date, 'medium') }} até {{ formatDate(report.end_date, 'medium') }}</td>\n  </tr>\n  <tr>\n    <td class=\"find-table-key\">Criado por</td>\n    <td>{{ report.authors }}</td>\n  </tr>\n</table>\n    </div>\n\n</section>\n<pagebreak />\n\n\n<table-of-contents id=\"toc\" v-slot=\"tocItems\">\n    <h1>Índice</h1>\n    <ul>\n        <li v-for=\"item in tocItems\" :class=\"'toc-level' + item.level\">\n            <ref :to=\"item.id\" />\n        </li>\n    </ul>\n    <pagebreak />\n</table-of-contents>\n\n<section>\n    <h1 class=\"in-toc\">Confidencial</h1>\n    <p>\n    <strong> Este documento é de propriedade da {{ report.customer_name }}.</strong><br><br>\n    Todas as informações contidas aqui são confidenciais e não devem ser copiadas ou divulgadas antes do consentimento formal da empresa.<br><br>\n    Se você recebeu este documento indevidamente ou por engano, por favor, informe este fato ao remetente e o destrua imediatamente.\n    </p>\n</section>\n<pagebreak />\n<section>\n    \n\n    <h1 class=\"in-toc\">Metodologia</h1>\n    <p>\n    A metodologia utilizada neste teste visa analisar os níveis de segurança implementados, iniciando sem qualquer informação fornecida pelo cliente. O teste começa na fase de coleta de informações, onde as informações públicas sobre o alvo são coletadas, então passamos para a aplicação fase de reconhecimento e identificação, onde identificamos versões de software, tipos de sistema etc. Depois disso, iniciamos uma varredura manual para encontrar possíveis vetores de ataque, somente após este reconhecimento começar a fase de detecção de vulnerabilidade e, posteriormente, a exploração.\n    </p>\n   \n    \n    <h1 class=\"in-toc\">Limitação</h1>\n    <p>\n    Salientamos que o resultado apresentado deste relatório reflete apenas o momento em que o ambiente foi analisado e aponta vulnerabilidades encontradas, sem contudo garantir que todas as possíveis vulnerabilidades existentes no ambiente estejam relatadas neste documento. \n    </p>\n</section>\n<pagebreak />\n<section>\n    <h1 id=\"executive-summary\" class=\"in-toc numbered\">Sumário Executivo</h1>\n\n    <div>\n        <h2 id=\"executive-summary-overview\" class=\"in-toc numbered\">Introdução</h2>\n        <markdown v-if=\"report.executive_summary\" :text=\"report.executive_summary\" />\n    </div>\n    <div>\n        <h2 id=\"scope\" class=\"in-toc numbered\">Objetivos e Escopo</h2>\n        <markdown :text=\"report.scope\" />\n    </div>\n        <div v-if=\"report.provided_users\">\n        <h2 id=\"provided-users\" class=\"in-toc numbered\">Credenciais e Acesso</h2>\n        <markdown :text=\"report.provided_users\" />\n    </div>\n    <pagebreak />\n    <div>\n        <h2 id=\"finding-summary\" class=\"in-toc numbered\">Resumo de Vulnerabilidades</h2>\n\n        <table>\n            <thead>\n                <tr>\n                    <th class=\"text-center nowrap\">#</th>\n                    <th>Título</th>\n                    <th class=\"text-center\">Risco</th>\n                    <th v-if=\"report.retest\" class=\"text-center\">Status do reteste</th>\n                    <th class=\"text-center\">Página</th>\n                </tr>\n            </thead>\n            <tbody>\n                <tr v-for=\"(finding, index) in findings\" class=\"table-row-link\">\n                    <td class=\"nowrap\">\n                        <ref :to=\"finding.id\">{{ index + 1 }}</ref>\n                    </td>\n                    <td>\n                        <ref :to=\"finding.id\">{{ finding.title }}</ref>\n                    </td>\n                    <td :class=\"'risk-bg-' + finding.severity.value\">\n                        <ref :to=\"finding.id\" class=\"text-center\">{{ finding.severity.label }}</ref>\n                    </td>\n                    <td v-if=\"report.retest\" :class=\"'retest-status-' + finding.retest_status.value\">\n                        <ref :to=\"finding.id\" class=\"text-center\">{{ finding.retest_status.label }}</ref>\n                    </td>\n                    <td>\n                        <ref :to=\"finding.id\" class=\"ref-page text-center\" />\n                    </td>\n                </tr>\n            </tbody>\n        </table>\n    </div>\n    <div>\n        <br>\n        <!-- <h3 id=\"findings-summary\" class=\"\">Risco</h3> -->\n<p>No decorrer dos testes,\n  <template v-if=\"finding_stats.count_critical > 0 || finding_stats.count_high > 0 || finding_stats.count_medium > 0 || finding_stats.count_low > 0 || finding_stats.count_info > 0\">\n    identificamos\n    <comma-and-join and=\" e \">\n      <template #critical v-if=\"finding_stats.count_critical > 0\">\n        <strong class=\"risk-critical\">{{ finding_stats.count_critical }} {{ finding_stats.count_critical > 1 ? 'vulnerabilidades Críticas' : 'vulnerabilidade Crítica' }}</strong>\n      </template>\n\n      <template #high v-if=\"finding_stats.count_high > 0\">\n        <strong class=\"risk-high\">{{ finding_stats.count_high }} {{ finding_stats.count_high > 1 ? 'vulnerabilidades Altas' : 'vulnerabilidade Alta' }}</strong>\n      </template>\n\n      <template #medium v-if=\"finding_stats.count_medium > 0\">\n        <strong class=\"risk-medium\">{{ finding_stats.count_medium }} {{ finding_stats.count_medium > 1 ? 'vulnerabilidades Médias' : 'vulnerabilidade Média' }}</strong>\n      </template>\n\n      <template #low v-if=\"finding_stats.count_low > 0\">\n        <strong class=\"risk-low\">{{ finding_stats.count_low }} {{ finding_stats.count_low > 1 ? 'vulnerabilidades Baixas' : 'vulnerabilidade Baixa' }}</strong>\n      </template>\n\n      <template #info v-if=\"finding_stats.count_info > 0\">\n        <strong class=\"risk-info\">{{ finding_stats.count_info }} {{ finding_stats.count_info > 1 ? 'pontos informativos' : 'ponto Informativo' }}</strong>\n      </template>\n    </comma-and-join>.\n  </template>\n\n  <template v-else>\n    não identificamos nenhuma vulnerabilidade.\n  </template>\n</p>\n\n        <figure>\n            \n            <chart :width=\"10\" :height=\"7\" :config=\"{\n                plugins: [ chartjsPlugins.DataLabels ],\n                type: 'bar', \n                data: {\n                    labels: ['Crítico', 'Alto', 'Médio', 'Baixo', 'Info'],\n                    datasets: [{\n                        data: [\n                            finding_stats.count_critical,\n                            finding_stats.count_high,\n                            finding_stats.count_medium,\n                            finding_stats.count_low,\n                            finding_stats.count_info\n                        ],\n                        backgroundColor: [\n                            cssvar('--color-risk-critical'), \n                            cssvar('--color-risk-high'), \n                            cssvar('--color-risk-medium'), \n                            cssvar('--color-risk-low'), \n                            cssvar('--color-risk-info')\n                        ],\n                    }]\n                },\n                options: {\n                    layout: {padding: {top: 40}},\n                    scales: {y: {beginAtZero: true, ticks: {precision: 0}}}, \n                    plugins: {legend: {display: false},\n                    datalabels: {align: 'top', anchor: 'end', color: 'black',\n                    labels: {\n                    title:\n                        { font:\n                            { weight: 'bold', size: '14pt' }\n                        }\n                        }\n                        }\n                        },\n                }\n            }\" />\n            <figcaption>Vulnerabilidades por Risco</figcaption>\n        </figure>\n    </div>\n</section>\n<pagebreak />\n\n<section v-if=\"report.narrativa_sections.length > 0\" class=\"narrativa\">\n    <h1 id=\"narrativa\" class=\"in-toc numbered\">Execução dos testes</h1>\n\n    <div v-for=\"narrativa_section in report.narrativa_sections\">\n        <h2 class=\"in-toc numbered\">{{ narrativa_section.title }}</h2>\n        <markdown :text=\"narrativa_section.content\" />\n    </div>\n</section>\n\n<section>\n    <h1 id=\"findings\" class=\"in-toc numbered\">Vulnerabilidades</h1>\n    \n    <div v-for=\"(finding, index) in findings\">\n        <table class=\"finding-header\">\n            <thead>\n            <tr>\n                <th colspan=\"2\">\n                    <h2 :id=\"finding.id\" class=\"in-toc text-center\">\n                        {{ index + 1 }}:\n                        {{ finding.title }}\n                    </h2>\n                </th>\n            </tr>\n            <tr>\n                <td class=\"find-table-key\">Risco</td>\n                <td class=\"text-center\" :class=\"'risk-bg-' + finding.severity.value\">\n                    {{ finding.severity.label }}\n                </td>\n            </tr>\n            <!-- Se for reteste -->\n            <tr v-if=\"report.retest\">\n                <td class=\"find-table-key\">Status do reteste</td>\n                <td class=\"text-center\" :class=\"'retest-status-' + finding.retest_status.value\">\n                    {{ finding.retest_status.label }}\n            </td>\n            </tr>\n            <!-- end -->\n            <tr>\n                <td class=\"find-table-key\">Resumo</td>\n                <td>\n                    <markdown :text=\"finding.summary\" />\n                </td>\n            </tr>\n            <tr>\n                <td class=\"find-table-key\">Impacto</td>\n                <td>\n                    <span v-if=\"finding.impact.length === 0\">-</span>\n                    <span v-else-if=\"finding.impact.length > 0\">\n                    <markdown :text=\"finding.impact\">\n                    </markdown>\n                    </span>\n                </td>\n            </tr>\n            <tr>\n                <td class=\"find-table-key\">Alvo(s) afetado(s)</td>\n                <td>\n                    <span v-if=\"finding.affected_components.length === 0\">-</span>\n                    <span v-else-if=\"finding.affected_components.length === 1\">{{ finding.affected_components[0]\n                        }}</span>\n                    <ul v-else :class=\"{'finding-systems': true, 'finding-systems-cols': finding.affected_components.length >= 4}\">\n                        <li v-for=\"c in finding.affected_components\">{{ c }}</li>\n                    </ul>\n                </td>\n            </tr>\n            <tr>\n                <td class=\"find-table-key\">Referências</td>\n                <td>\n                    <span v-if=\"finding.references.length === 0\">-</span>\n                    <span v-else-if=\"finding.references.length === 1\">{{ finding.references[0] }}</span>\n                    <ul v-else>\n                        <li v-for=\"r in finding.references\">{{ r }}</li>\n                    </ul>\n                </td>\n            </tr>\n            </thead>\n        </table>\n\n        <span v-if=\"!report.retest\">\n        <h3 v-if=\"finding.description\">Detalhes</h3>\n        <markdown v-if=\"finding.description\" :text=\"finding.description\" />\n\n        <h3>Recomendação</h3>\n        <markdown :text=\"finding.recommendation\" />\n        </span>\n        <span v-if=\"report.retest\">\n        <h3>Detalhes do Reteste</h3>\n        <br>\n        <markdown :text=\"finding.retest_notes\" />\n        </span>\n        <pagebreak />\n    </div>\n</section>\n\n<section>\n    \n\n    <h1 class=\"in-toc\">Conclusão</h1>\n    <p>\n     A realização deste teste de segurança permitiu identificar vulnerabilidades e problemas de segurança que poderiam causar um impacto na integridade dos dados aos negócios do cliente. Com isso podemos concluir que o teste atingiu o objetivo proposto. Podemos concluir que a avaliação de segurança como o teste de invasão apresentado neste relatório é fundamental para identificar vulnerabilidades, testar e melhorar controles e mecanismos de defesa afim de garantir um bom grau de segurança da informação em seu ambiente digital.\n    </p>\n   \n</section>",
+  "report_styles": "@import \"/assets/global/base.css\";\n @font-face {\n     font-family: 'Neuropol X';\n     font-weight: 400;\n     src: url('/assets/name/neuropol-x-rg.otf') \n}\n/* Define variables */\n :root {\n     --color-risk-critical: #6c1bad;\n     --color-risk-high: #d33417;\n     --color-risk-medium: #cc942c;\n     --color-risk-low: #0096FF;\n     --color-risk-info: #2e9e62;\n}\n/* Font */\n html {\n     font-family: \"Exo\", sans-serif;\n     font-size: 12pt;\n     font-weight: 500;\n}\n/* Justification */\n p {\n     text-align: justify;\n     text-align-last: start;\n}\n/* Links */\n a {\n     font-style: italic;\n     text-decoration: none;\n     color:inherit;\n}\n/* Code blocks */\n pre code {\n     border: 1px solid black;\n     font-family: \"Source Code Pro\";\n     font-size: 8pt;\n     font-weight: 600;\n}\n/* Table */\nth {\n     color: azure;\n     background-color: #539466;\n}\nh1 {\n  padding-bottom: 10px;\n  border-bottom: solid 1px #96b3a6;\n}\n\nh2 {\n  padding-top: 10px;\n  padding-bottom: 10px;\n}\n/* Classes for risk colors */\n .risk-critical {\n     color: var(--color-risk-critical) !important;\n     font-weight: bold;\n}\n .risk-high {\n     color: var(--color-risk-high) !important;\n     font-weight: bold;\n}\n .risk-medium {\n     color: var(--color-risk-medium) !important;\n     font-weight: bold;\n}\n .risk-low {\n     color: var(--color-risk-low) !important;\n     font-weight: bold;\n}\n .risk-info {\n     color: var(--color-risk-info) !important;\n     font-weight: bold;\n}\n .risk-bg-critical {\n     background-color: var(--color-risk-critical) !important;\n     color: white !important;\n     white-space:nowrap;\n}\n .risk-bg-high {\n     background-color: var(--color-risk-high) !important;\n     color: white !important;\n     white-space:nowrap;\n}\n .risk-bg-medium {\n     background-color: var(--color-risk-medium) !important;\n     color: white !important;\n     white-space:nowrap;\n}\n .risk-bg-low {\n     background-color: var(--color-risk-low) !important;\n     color: white !important;\n     white-space:nowrap;\n}\n .risk-bg-info {\n     background-color: var(--color-risk-info) !important;\n     color: white !important;\n     white-space:nowrap;\n}\n/* Classes for retest status colors */\n .retest-status-open {\n     background-color: var(--color-risk-high) !important;\n     color: white !important;\n}\n .retest-status-partial {\n     background-color: var(--color-risk-medium) !important;\n     color: white !important;\n}\n .retest-status-resolved {\n     background-color: var(--color-risk-info) !important;\n     color: white !important;\n}\n/* Table styling */\n table, th, td {\n     border: none;\n     border-collapse: separate;\n\n}\n.nowrap {\n  white-space: nowrap !important;\n}\n tr {\n     background-color: #d9f0e5;\n     font-weight: 600;\n     font-size: 10pt;\n}\n tr:nth-child(even) {\n     background-color: #7ca08e;\n    /* Row alternate shading */\n}\n tr.table-row-link td {\n     padding: 0;\n}\n tr.table-row-link td a {\n     display: block;\n     padding: 0.2em 0.5em 0.2em 0.5em;\n     color: inherit;\n     text-decoration: none;\n     font-style: inherit;\n}\n td.table-key {\n     height: 3em;\n     width: 10em;\n     color: azure;\n     background-color: #208547;\n     font-weight: 600;\n}\n/* Tabela de findings */\n table.finding-header {\n    /* border-collapse: separate;\n     */\n     border: none;\n}\n .finding-header tr td {\n     border: none;\n}\n td.find-table-key {\n     height: 2em;\n     width: 10em;\n     color: azure;\n     background-color: #165e31;\n}\n .finding-header th:first-child {\n     font-family: Exo;\n     border: none;\n     border-top-left-radius: 12px;\n     border-top-right-radius: 12px;\n}\n\n/* Fim da Tabela de findings */\n/* Helper class for referencing page number */\n .ref-page::before {\n     content: \"\" !important;\n}\n .ref-page::after {\n     content: target-counter(attr(href), page) !important;\n}\n .ref-page .ref-title {\n     display: none !important;\n}\n/* Styling affected_components list in findings */\n .finding-systems {\n     padding-left: 1em;\n}\n .finding-systems-cols {\n     column-count: 2;\n     padding-top: 1em;\n     margin-bottom: 1em;\n}\n/* Footnotes */\n @page {\n     @footnote {\n         border-top: 1px solid black;\n    }\n}\n footnote {\n     font-size: 8pt;\n}\n/* Watermark */\n #watermark {\n     position: fixed;\n     top: 8cm;\n     left: 2cm;\n     transform: rotate(-45deg);\n     font-size: 100pt;\n     opacity: 0.2;\n}\n\n/* #region toc */\n #toc li {\n     /* font-size: 12pt !important; */\n     list-style: none;\n     margin: 0;\n     padding: 0;\n}\n #toc .ref::before {\n     padding-right: 0.5em;\n}\n #toc .ref::after {\n     content: \" \" leader(\".\") \" \" target-counter(attr(href), page);\n}\n #toc .toc-level1 {\n     font-size: 1.2rem;\n     font-weight: bold;\n     margin-top: 0.8rem;\n}\n #toc .toc-level2 {\n     font-size: 1.1rem;\n     font-weight: 500;\n     margin-top: 0.5rem;\n     margin-left: 2rem;\n}\n #toc .toc-level3 {\n     font-size: 1rem;\n     font-weight: 400;\n     margin-top: 0.4rem;\n     margin-left: 4rem;\n}\n #toc .toc-level4 {\n     font-size: 1rem;\n     font-weight: 400;\n     margin-top: 0.4rem;\n     margin-left: 4rem;\n}\n/* #endregion toc */\n/* #region footer */\n #footer-left {\n     font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;\n     font-size: 10pt;\n     position: running(footer-left);\n}\n #footer-center {\n     font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;\n     font-size: 10pt;\n     position: running(footer-center);\n}\n @page {\n     @bottom-left {\n         content: element(footer-left);\n    }\n     @bottom-center {\n         content: element(footer-center);\n    }\n     @bottom-right-corner {\n         content: counter(page);\n         font-size: 11pt;\n    }\n}\n/* #endregion footer */\n/* #region header */\n @page {\n     margin: 30mm 20mm 25mm 20mm;\n     @top-right {\n         content: element(header-right);\n         margin-bottom: 0mm;\n         width: 50%;\n    }\n}\n #header-right {\n     position: running(header-right);\n     text-align: end;\n}\n #header-right img {\n     height: 15mm;\n     width: auto;\n}\n/* #endregion header */\n/* #region page-cover */\n#page-cover .page-cover-title {\n  position: absolute;\n  top: 5mm;\n  left: 0;\n  width: 14cm;\n}\n\n#page-cover .page-cover-title h1 {\n  font-size: 32pt;\n  color: #000000;\n  font-weight: 300;\n}\n\n#page-cover .page-cover-title h2 {\n  font-size: 24pt;\n  font-weight: 400;\n  color: rgb(0, 0, 0);\n}\n\n#page-cover .page-cover-title h3 {\n  font-size: 16pt;\n  font-weight: 300;\n  color: rgb(0, 0, 0);\n}\n\n#page-cover .page-cover-title h1, h2, h3 {\n  margin: 0em;\n}\n\n@page :first {\n  @top-right {\n    content: none !important;\n  }\n  @bottom-left {\n    content: none !important;\n  }\n\n  background: url('/assets/name/Capa-it4us.jpg');\n  background-size: contain;\n  background-position: center;\n  background-repeat: no-repeat;\n  background-attachment: fixed;\n\n  /* Hide footer*/\n  @bottom-center {\n    content: none !important;\n  }\n  @bottom-right-corner {\n    content: none !important;\n  }\n}\n/* #region page-backcover */\n.page-backcover {\n  page: page-backcover;\n}\n@page page-backcover {\n  @top-right {\n    content: none !important;\n  }\n  @bottom-left {\n    content: none !important;\n  }\n\n  background: url('/assets/name/Capa-it4us.jpg');\n  background-size: contain;\n  background-position: center;\n  background-repeat: no-repeat;\n  background-attachment: fixed;\n  /* Hide footer*/\n  @bottom-center {\n    content: none !important;\n  }\n  @bottom-right-corner {\n    content: none !important;\n  }\n}\n\n.page-backcover-address {\n  display: flex;\n  font-size: 13pt;\n  color: whitesmoke;\n  position: absolute;\n  top: 85%; \n  left: 50%;\n  transform: translate(-50%, -50%);\n  width: 140mm;\n}\n\n.page-backcover-url {\n    font-size: 24pt;\n    font-weight: bold;\n    color: #E7353B;\n    display:inline-block;\n    padding: 25px 0;\n    margin-right: 100px;\n    border-top: 2px solid  #E7353B;\n    border-bottom: 2px solid  #E7353B;\n}\n\n.page-backcover-center {\n  display: flex; /* Add this to make the div a flex container */\n  align-items: center; /* Add this to vertically center the logo and text */\n  color: #E7353B;\n  font-weight: 400;\n  font-size: 26pt;\n  position: absolute;\n  top: 40%;\n  left: 50%;\n  transform: translate(-50%, -50%);\n  width: 110mm;\n}\n\n.page-backcover-center img {\n  margin-right: 20px; /* Add some space between the logo and the text */\n}\n\n/* #endregion page-backcover */",
+  "report_preview_data": {
+    "report": {
+      "title": "Avaliação de Vulnerabilidades Web AppX",
+      "version": "1.0",
+      "authors": "José Ciclano (IT4us)",
+      "target": "Aplicação Web AppX",
+      "customer_name": "Cliente Exemplo",
+      "project_manager": "GERENTE",
+      "start_date": "2024-03-03",
+      "end_date": "2024-03-13",
+      "report_date": "2024-03-16",
+      "duration": "10 Dias",
+      "retest": false,
+      "draft": false,
+      "executive_summary": "(WEB)\n\nNo período de **{{ formatDate(report.start_date, 'medium') }}** até **{{ formatDate(report.end_date, 'medium') }}** foi realizado teste de segurança na **{{ report.target }}**, pertencente à **{{ report.customer_name }}**, com duração de {{ report.duration }}.\n\nNas próximas seções, iremos detalhar as etapas do teste, explicando os procedimentos realizados, as metodologias aplicadas e as ferramentas utilizadas. Também apresentaremos a análise das vulnerabilidades encontradas e uma avaliação da atual postura de segurança da organização.\n\nO intuito deste relatório é demonstrar a eficácia da abordagem adotada e fornecer recomendações valiosas para o fortalecimento contínuo da estratégia de segurança cibernética.\n\n\n(INFRA)\n\nEntre os dias {{ formatDate(report.start_date, 'medium') }} e {{ formatDate(report.end_date, 'medium') }}, foi realizado um avaliação de vulnerabilidades na infraestrutura das redes internas da {{ report.customer_name }}, através do método BLACKBOX/GREY/WHITE\n\nEste relatório detalhará as não conformidades identificadas bem como as recomendações para mitigar os riscos associados às mesmas.",
+      "scope": "Com o objetivo de avaliar a segurança da **{{ report.target }}**, executamos as seguintes atividades:\n\n**1. Avaliação de vulnerabilidades externo na camada de aplicação**\n* Identificar vulnerabilidades de segurança, incluindo injeção de SQL, XSS, CSRF, IDORs e outras fraquezas comuns.\n* Fornecer recomendações práticas para corrigir as vulnerabilidades identificadas e melhorar a segurança geral do ambiente testado.\n  \nEste relatório aborda os seguintes sistemas e ativos especificados para avaliação:\n\n| Sistema / URL / Endereço IP | Descrição |\n|:---|:---|\n| 10.0.0.1 | System1 |\n| 10.0.0.2 | System2 |\n| 10.0.0.3 | System3 |\n| 10.0.0.4 | System4 |",
+      "provided_users": "Foi fornecido acesso via VPN XXX para os testes, além das seguintes credenciais:\n\n* **Admin**: admin1@example.com\n* **User**: user1@example.com\n* **User**: user2@example.com\n",
+      "narrativa_sections": [
+        {
+          "content": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\nCorrupti eligendi ea iure quas, in sunt placeat voluptatum corrupti esse temporibus non, non nam nulla itaque ipsa eaque ipsam voluptatem quasi omnis aliquid. Facere dolorum officia veritatis porro voluptate perspiciatis cupiditate mollitia, earum magnam cum animi officiis asperiores voluptatum praesentium quaerat ab, dolores reprehenderit delectus aspernatur laboriosam excepturi quae minima error voluptatem? Labore blanditiis esse vitae ducimus veniam enim dolore delectus nihil voluptatum iste, officia odio reprehenderit illum numquam facilis quibusdam obcaecati delectus ut earum impedit, odit eveniet amet ipsum enim quod, accusantium ex distinctio iusto ipsam quam nostrum inventore sed quia libero? Laborum eligendi expedita cupiditate pariatur quidem dolor repellat excepturi earum debitis, sequi sed beatae suscipit incidunt voluptatem, quisquam harum in odio sunt inventore deleniti, culpa nesciunt pariatur error reiciendis expedita nobis sequi?\nVoluptate sint corporis explicabo deleniti adipisci, corporis expedita possimus natus iusto, ipsam quis maiores non laboriosam rerum natus dolor beatae quasi quaerat, neque possimus veniam error iste, fugiat vel esse quas est eligendi suscipit fuga provident. Provident blanditiis similique iste nostrum eligendi neque asperiores, exercitationem hic expedita incidunt dolorum, consectetur maiores aliquam molestias corrupti amet recusandae nam eos provident consequatur?",
+          "title": "distinctio itaque"
+        },
+        {
+          "content": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\nEius vel necessitatibus nobis distinctio dolores laudantium saepe commodi ab, magnam eos omnis saepe voluptatem obcaecati accusantium. Dolor itaque aperiam ea eius, sit cumque officiis magni hic laboriosam, sint cupiditate quasi eligendi aliquid atque deserunt, nobis optio iusto quos nam nesciunt aliquid consequatur, excepturi nesciunt natus quaerat reiciendis vel ut tenetur? Minus impedit laudantium harum tempore quos eius incidunt consectetur quam, ratione ad assumenda quo asperiores modi harum earum excepturi perferendis dolor fugiat, debitis eveniet quo exercitationem fugit at inventore nostrum, rerum fuga ullam adipisci mollitia voluptates eaque laborum aliquam quasi repellendus explicabo, quisquam ut repudiandae. Alias distinctio dolorem laudantium repellendus beatae sunt repellat exercitationem obcaecati qui, nulla porro asperiores qui eum iste dolorum optio incidunt sed, porro laudantium blanditiis vel deleniti ipsa incidunt sint adipisci dolorum asperiores?\nQuia rem nisi, nostrum ab qui est impedit velit quibusdam laudantium ullam ipsam, voluptatem dolor facere numquam repellendus tempora, voluptate assumenda quia, nobis doloremque quo impedit vitae eius aut? Aliquid animi amet beatae alias in commodi vel veniam libero, sint suscipit voluptatum modi, qui vitae error facilis, deleniti esse cumque incidunt numquam, laborum quas inventore odio minima? Temporibus omnis odit beatae ab magnam ullam aliquid velit, dicta numquam sit quam velit quae inventore minima non culpa eveniet, amet quisquam exercitationem enim eaque optio voluptate molestiae unde autem eos, recusandae quia in numquam tempore voluptatibus repellat vel perspiciatis, illum praesentium incidunt deserunt dolorem ullam?",
+          "title": "quibusdam architecto"
+        }
+      ]
+    },
+    "findings": [
+      {
+        "id": "a10eed1a-07f5-46ef-bf3a-b78208e72272",
+        "created": "2025-03-11T17:50:00.596474+00:00",
+        "order": 1,
+        "title": "Demo Finding Critical",
+        "severity": "critical",
+        "summary": "TODO Resumo curto da vulnerabilidade.",
+        "impact": "TODO: Impacto do achado (o quê um atacante conseguiria fazer? quais são as consequências em caso de exploração?)",
+        "affected_components": [
+          "https://example.com"
+        ],
+        "references": [
+          "https://example.com"
+        ],
+        "description": "TODO Detalhes e evidências da exploração",
+        "recommendation": "TODO Recomendações para correção ou mitigação.",
+        "retest_status": "new",
+        "retest_notes": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\nAut consequatur porro laborum id pariatur in labore voluptatum, reprehenderit fuga nam aut facilis quisquam rerum molestias itaque labore, tempora magnam voluptatum ea nisi quisquam exercitationem nam laborum, nobis a reiciendis, repellat dignissimos quos doloribus soluta corrupti sint adipisci accusantium possimus quidem magnam? Nobis omnis facilis sit sint, dolor quae minima sed obcaecati ipsa consequuntur assumenda.\nRecusandae assumenda perferendis qui aperiam sequi enim temporibus, incidunt quasi dolorem, cum veritatis quae temporibus ipsam error nostrum harum consequatur, illum officia est perferendis. Fuga nemo dolorem pariatur molestias dolor molestiae, aut quas nam ut ex?"
+      },
+      {
+        "id": "25a70e70-515e-4664-b7ab-dffc2f2fe12e",
+        "created": "2025-03-11T17:50:00.596596+00:00",
+        "order": 2,
+        "title": "Demo Finding High",
+        "severity": "high",
+        "summary": "TODO Resumo curto da vulnerabilidade.",
+        "impact": "TODO: Impacto do achado (o quê um atacante conseguiria fazer? quais são as consequências em caso de exploração?)",
+        "affected_components": [
+          "https://example.com"
+        ],
+        "references": [
+          "https://example.com"
+        ],
+        "description": "TODO Detalhes e evidências da exploração",
+        "recommendation": "TODO Recomendações para correção ou mitigação.",
+        "retest_status": "open",
+        "retest_notes": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\nReiciendis officia fugit dolorem delectus pariatur modi accusantium quibusdam autem, facere corporis consectetur delectus, optio odio nemo libero? Odit sit ad mollitia ducimus necessitatibus enim laborum deserunt, ab id molestiae ducimus exercitationem enim, adipisci iusto saepe fugit deserunt tempore unde enim hic minima eveniet atque, modi tempora doloremque ipsam nesciunt quo repudiandae quia, amet explicabo temporibus nemo maiores numquam aperiam aliquid voluptate?\nNemo vero voluptatibus officia aliquam illum inventore consectetur iure necessitatibus laboriosam, eos dolorem quas suscipit mollitia, consequatur natus corporis sit illo suscipit enim quasi et velit, excepturi aliquam distinctio sunt quam nam? Dignissimos ut cumque sit voluptatem autem ducimus eius iure, minus corporis voluptates ea quia nostrum nihil molestias, asperiores magni id incidunt repellat, necessitatibus qui accusamus eum ipsum veniam labore."
+      },
+      {
+        "id": "4611963c-d89c-4468-b7aa-d8635aa90c02",
+        "created": "2025-03-11T17:50:00.596934+00:00",
+        "order": 3,
+        "title": "Médio Demo com descrição mais longa que o normal",
+        "severity": "medium",
+        "summary": "TODO Resumo curto da vulnerabilidade.",
+        "impact": "TODO: Impacto do achado (o quê um atacante conseguiria fazer? quais são as consequências em caso de exploração?)",
+        "affected_components": [],
+        "references": [],
+        "description": "TODO Detalhes e evidências da exploração",
+        "recommendation": "TODO Recomendações para correção ou mitigação.",
+        "retest_status": "new",
+        "retest_notes": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\nTotam necessitatibus asperiores minima accusantium eius, excepturi ipsa nesciunt a quisquam doloremque, maxime at tenetur ducimus unde voluptates doloribus quaerat culpa? Amet vitae itaque commodi, mollitia voluptas temporibus sapiente reprehenderit architecto velit neque repudiandae laudantium nisi enim, magni harum quas minus accusamus, deserunt doloremque illo culpa corrupti facere delectus architecto impedit rem animi, perferendis dolore id provident maiores? Quisquam ad deleniti distinctio iure, nesciunt dicta nam nemo fugiat quas dignissimos voluptatem culpa, accusamus iste optio ut commodi, atque nemo itaque explicabo temporibus, saepe distinctio quia maiores reiciendis necessitatibus unde architecto atque dolorum enim nisi.\nRerum dignissimos nisi fugit cumque nostrum culpa tempore, cum soluta quasi, expedita quibusdam doloribus esse repellat, molestias ratione ducimus odit et, quae sapiente culpa quibusdam voluptate fugit odio iusto minus rerum blanditiis? Blanditiis labore inventore ab voluptate qui quam ipsum corporis alias eos, similique doloribus quisquam deserunt totam, consequatur aspernatur vitae autem adipisci ipsum ducimus fuga. Dolore impedit maxime assumenda ut repudiandae, nostrum nesciunt corrupti totam quas reiciendis ut eveniet ex, nesciunt architecto reprehenderit suscipit pariatur voluptatem non similique molestiae provident eligendi temporibus, amet mollitia non temporibus debitis velit deserunt accusamus nisi eveniet asperiores. Tenetur doloremque voluptatem animi aut, laboriosam dicta repellat."
+      },
+      {
+        "id": "7ecef42b-d76e-4b29-93ad-2f52d0eee4d8",
+        "created": "2025-03-11T17:50:00.597043+00:00",
+        "order": 4,
+        "title": "Demo Finding Low",
+        "severity": "low",
+        "summary": "TODO Resumo curto da vulnerabilidade.",
+        "impact": "TODO: Impacto do achado (o quê um atacante conseguiria fazer? quais são as consequências em caso de exploração?)",
+        "affected_components": [],
+        "references": [],
+        "description": "TODO Detalhes e evidências da exploração",
+        "recommendation": "TODO Recomendações para correção ou mitigação.",
+        "retest_status": "open",
+        "retest_notes": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\nNecessitatibus voluptas voluptatem iste veniam cumque eius consectetur accusamus voluptates dolorum ea, minus quae cupiditate tenetur architecto nulla voluptas illum, iure temporibus cupiditate eligendi libero reprehenderit accusamus. Iure dolor natus dignissimos deleniti dolorem praesentium reiciendis veniam voluptatem facere nisi, unde illum exercitationem minus saepe consectetur incidunt, error unde incidunt, ullam optio sapiente, aperiam quae repellat itaque est delectus nobis iure recusandae reiciendis? Sapiente fuga aspernatur quasi mollitia, consequatur veritatis nostrum praesentium perferendis vero, illum neque placeat quis voluptas ut nihil alias dolore non quas facilis, aliquid ducimus mollitia nihil qui ut incidunt odit, amet quisquam enim. Cupiditate ipsam dolorum sapiente quam aperiam tempora nesciunt molestias illum ut, porro beatae recusandae sit delectus ut, voluptatibus quam reprehenderit laboriosam corrupti labore, consequatur eaque quae repellendus explicabo optio fuga, nisi officia distinctio.\nDelectus porro nihil eligendi neque ullam tenetur assumenda soluta fuga eaque, aut at minus exercitationem odio aliquam nulla odit voluptates nam hic, distinctio culpa cum laborum ipsa nisi pariatur velit ipsam, iste tempora consequuntur sapiente quos inventore eos amet doloribus nulla libero obcaecati. Nesciunt maiores ipsum alias fuga unde id error quam repellendus quibusdam, cumque itaque consequuntur magni saepe voluptatem ullam est incidunt doloremque quam, in nam ipsam quisquam?"
+      },
+      {
+        "id": "a9d63147-9f08-4fc0-a436-ae2643d41db7",
+        "created": "2025-03-11T17:50:00.597168+00:00",
+        "order": 5,
+        "title": "Informativo Demo",
+        "severity": "info",
+        "summary": "TODO Resumo curto da vulnerabilidade.",
+        "impact": "",
+        "affected_components": [
+          "Active Directory (domínio exemplo.local)"
+        ],
+        "references": [],
+        "description": "TODO Detalhes e evidências da exploração",
+        "recommendation": "TODO Recomendações para correção ou mitigação.",
+        "retest_status": "new",
+        "retest_notes": "Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.\nDeserunt minus minima accusamus, quis veritatis deleniti corporis labore pariatur rem quas fugit atque, odio optio ducimus laboriosam eius amet, repudiandae ipsam cumque accusantium autem. Autem exercitationem voluptatibus quaerat, quae tenetur quam?\nQuas ipsam fugiat architecto ea dolor tempora at, odit aliquid sint tenetur praesentium deserunt pariatur autem quam dolorum perspiciatis, in vero perspiciatis molestias sed ipsam minima suscipit quo odio laborum maiores. Doloremque vitae libero aperiam maxime odio repellat ad, in eius id ipsa deserunt non, quos nemo quae rem quasi nihil id, cupiditate vero expedita commodi consequuntur autem repudiandae cumque voluptatum quo."
+      }
+    ]
+  },
+  "report_sections": [
+    {
+      "id": "Projeto",
+      "label": "Projeto",
+      "fields": [
+        {
+          "id": "title",
+          "type": "string",
+          "label": "Título",
+          "origin": "core",
+          "default": "Avaliação de Vulnerabilidades Web AppX",
+          "pattern": null,
+          "required": true,
+          "help_text": null,
+          "spellcheck": false
+        },
+        {
+          "id": "version",
+          "type": "string",
+          "label": "Versão",
+          "origin": "custom",
+          "default": "1.0",
+          "pattern": null,
+          "required": true,
+          "help_text": null,
+          "spellcheck": false
+        },
+        {
+          "id": "authors",
+          "type": "string",
+          "label": "Criado por",
+          "origin": "custom",
+          "default": "José Ciclano (IT4US)",
+          "pattern": null,
+          "required": true,
+          "help_text": null,
+          "spellcheck": false
+        },
+        {
+          "id": "target",
+          "type": "string",
+          "label": "Alvo principal do avaliação de vulnerabilidades (VA)",
+          "origin": "custom",
+          "default": "Aplicação Web AppX",
+          "pattern": null,
+          "required": true,
+          "help_text": null,
+          "spellcheck": false
+        },
+        {
+          "id": "customer_name",
+          "type": "string",
+          "label": "Cliente",
+          "origin": "custom",
+          "default": "Cliente Exemplo",
+          "pattern": null,
+          "required": true,
+          "help_text": null,
+          "spellcheck": false
+        },
+        {
+          "id": "project_manager",
+          "type": "string",
+          "label": "Gerente de Projeto",
+          "origin": "custom",
+          "default": "GERENTE PROJETOS (IT4US)",
+          "pattern": null,
+          "required": true,
+          "help_text": null,
+          "spellcheck": false
+        },
+        {
+          "id": "start_date",
+          "type": "date",
+          "label": "Pentest Start Date",
+          "origin": "custom",
+          "default": null,
+          "required": true,
+          "help_text": null
+        },
+        {
+          "id": "end_date",
+          "type": "date",
+          "label": "Pentest End Date",
+          "origin": "custom",
+          "default": null,
+          "required": true,
+          "help_text": null
+        },
+        {
+          "id": "report_date",
+          "type": "date",
+          "label": "Data do Relatório",
+          "origin": "custom",
+          "default": null,
+          "required": true,
+          "help_text": null
+        },
+        {
+          "id": "duration",
+          "type": "string",
+          "label": "Duration",
+          "origin": "custom",
+          "default": "X dias",
+          "pattern": null,
+          "required": true,
+          "help_text": null,
+          "spellcheck": false
+        },
+        {
+          "id": "retest",
+          "type": "boolean",
+          "label": "É Reteste?",
+          "origin": "custom",
+          "default": false,
+          "help_text": null
+        },
+        {
+          "id": "draft",
+          "type": "boolean",
+          "label": "É Draft?",
+          "origin": "custom",
+          "default": false,
+          "help_text": null
+        }
+      ]
+    },
+    {
+      "id": "executive_summary",
+      "label": "Sumário Executivo",
+      "fields": [
+        {
+          "id": "executive_summary",
+          "type": "markdown",
+          "label": "Sumário Executivo",
+          "origin": "custom",
+          "default": "(WEB)\n\nNo período de **{{ formatDate(report.start_date, 'medium') }}** até **{{ formatDate(report.end_date, 'medium') }}** foi realizado teste de segurança na **{{ report.target }}**, pertencente à **{{ report.customer_name }}**, com duração de {{ report.duration }}.\n\nNas próximas seções, iremos detalhar as etapas do teste, explicando os procedimentos realizados, as metodologias aplicadas e as ferramentas utilizadas. Também apresentaremos a análise das vulnerabilidades encontradas e uma avaliação da atual postura de segurança da organização.\n\nO intuito deste relatório é demonstrar a eficácia da abordagem adotada e fornecer recomendações valiosas para o fortalecimento contínuo da estratégia de segurança cibernética.\n\n\n(INFRA)\n\nEntre os dias {{ formatDate(report.start_date, 'medium') }} e {{ formatDate(report.end_date, 'medium') }}, foi realizado um avaliação de vulnerabilidades na infraestrutura das redes internas da {{ report.customer_name }}, através do método BLACKBOX/GREY/WHITE\n\nEste relatório detalhará as não conformidades identificadas bem como as recomendações para mitigar os riscos associados às mesmas.",
+          "required": true,
+          "help_text": null
+        },
+        {
+          "id": "scope",
+          "type": "markdown",
+          "label": "Escopo e Objetivo",
+          "origin": "custom",
+          "default": "Com o objetivo de avaliar a segurança da **{{ report.target }}**, executamos as seguintes atividades:\n\n**1. Avaliação de vulnerabilidades externo na camada de aplicação**\n* Identificar vulnerabilidades de segurança, incluindo injeção de SQL, XSS, CSRF, IDORs e outras fraquezas comuns.\n* Fornecer recomendações práticas para corrigir as vulnerabilidades identificadas e melhorar a segurança geral do ambiente testado.\n  \nEste relatório aborda os seguintes sistemas e ativos especificados para avaliação:\n\n| Sistema / URL / Endereço IP | Descrição |\n|:---|:---|\n| 10.0.0.1 | System1 |\n| 10.0.0.2 | System2 |\n| 10.0.0.3 | System3 |\n| 10.0.0.4 | System4 |",
+          "required": false,
+          "help_text": null
+        },
+        {
+          "id": "provided_users",
+          "type": "markdown",
+          "label": "Credenciais e Acesso",
+          "origin": "custom",
+          "default": "Foi fornecido acesso via das seguintes credenciais:\n\n* **Admin**: admin1@example.com\n* **User**: user1@example.com\n* **User**: user2@example.com",
+          "required": true,
+          "help_text": null
+        }
+      ]
+    },
+    {
+      "id": "Narrativa",
+      "label": "Narrativa",
+      "fields": [
+        {
+          "id": "narrativa_sections",
+          "type": "list",
+          "items": {
+            "id": "",
+            "type": "object",
+            "label": "",
+            "origin": "custom",
+            "help_text": null,
+            "properties": [
+              {
+                "id": "content",
+                "type": "markdown",
+                "label": "Conteúdo",
+                "origin": "custom",
+                "default": null,
+                "required": true,
+                "help_text": null
+              },
+              {
+                "id": "title",
+                "type": "string",
+                "label": "Título",
+                "origin": "custom",
+                "default": null,
+                "pattern": null,
+                "required": true,
+                "help_text": null,
+                "spellcheck": false
+              }
+            ]
+          },
+          "label": "Narrativa",
+          "origin": "custom",
+          "default": null,
+          "required": false,
+          "help_text": null
+        }
+      ]
+    }
+  ],
+  "finding_fields": [
+    {
+      "id": "title",
+      "type": "string",
+      "label": "Título",
+      "origin": "core",
+      "default": "TODO finding title",
+      "pattern": null,
+      "required": true,
+      "help_text": null,
+      "spellcheck": false
+    },
+    {
+      "id": "severity",
+      "type": "enum",
+      "label": "Risco",
+      "origin": "predefined",
+      "choices": [
+        {
+          "label": "Info",
+          "value": "info"
+        },
+        {
+          "label": "Baixo",
+          "value": "low"
+        },
+        {
+          "label": "Médio",
+          "value": "medium"
+        },
+        {
+          "label": "Alto",
+          "value": "high"
+        },
+        {
+          "label": "Crítico",
+          "value": "critical"
+        }
+      ],
+      "default": null,
+      "required": true,
+      "help_text": null
+    },
+    {
+      "id": "summary",
+      "type": "markdown",
+      "label": "Resumo",
+      "origin": "predefined",
+      "default": "TODO Resumo curto da vulnerabilidade.",
+      "required": true,
+      "help_text": null
+    },
+    {
+      "id": "impact",
+      "type": "markdown",
+      "label": "Impacto",
+      "origin": "predefined",
+      "default": "TODO: Impacto do achado (o quê um atacante conseguiria fazer? quais são as consequências em caso de exploração?)",
+      "required": true,
+      "help_text": null
+    },
+    {
+      "id": "affected_components",
+      "type": "list",
+      "items": {
+        "id": "",
+        "type": "string",
+        "label": "Component",
+        "origin": "predefined",
+        "default": "TODO affected component",
+        "pattern": null,
+        "required": true,
+        "help_text": null,
+        "spellcheck": false
+      },
+      "label": "Ativos Afetados",
+      "origin": "predefined",
+      "default": null,
+      "required": true,
+      "help_text": null
+    },
+    {
+      "id": "references",
+      "type": "list",
+      "items": {
+        "id": "",
+        "type": "string",
+        "label": "Reference",
+        "origin": "predefined",
+        "default": "TODO Referências",
+        "pattern": null,
+        "required": true,
+        "help_text": null,
+        "spellcheck": false
+      },
+      "label": "Referências",
+      "origin": "predefined",
+      "default": null,
+      "required": false,
+      "help_text": null
+    },
+    {
+      "id": "description",
+      "type": "markdown",
+      "label": "Detalhes",
+      "origin": "predefined",
+      "default": "TODO Detalhes e evidências da exploração",
+      "required": true,
+      "help_text": null
+    },
+    {
+      "id": "recommendation",
+      "type": "markdown",
+      "label": "Recomendação",
+      "origin": "predefined",
+      "default": "TODO Recomendações para correção ou mitigação.",
+      "required": true,
+      "help_text": null
+    },
+    {
+      "id": "retest_status",
+      "type": "enum",
+      "label": "Status do Reteste",
+      "origin": "predefined",
+      "choices": [
+        {
+          "label": "Não Corrigido",
+          "value": "open"
+        },
+        {
+          "label": "Corrigido",
+          "value": "resolved"
+        },
+        {
+          "label": "Parcialmente Corrigido",
+          "value": "partial"
+        },
+        {
+          "label": "Modificado",
+          "value": "changed"
+        },
+        {
+          "label": "Aceito",
+          "value": "accepted"
+        },
+        {
+          "label": "Novo",
+          "value": "new"
+        }
+      ],
+      "default": "new",
+      "required": false,
+      "help_text": null
+    },
+    {
+      "id": "retest_notes",
+      "type": "markdown",
+      "label": "Notas do Reteste",
+      "origin": "predefined",
+      "default": "TODO Notas e evidências do reteste.",
+      "required": false,
+      "help_text": null
+    }
+  ],
+  "finding_ordering": [
+    {
+      "field": "severity",
+      "order": "desc"
+    }
+  ],
+  "finding_grouping": null,
+  "default_notes": []
+}
