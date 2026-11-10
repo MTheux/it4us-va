@@ -15,7 +15,8 @@ services:
     restart: unless-stopped
 
   it4us:
-    image: autumn27/it4us:${IT4US_TAG:-latest}
+    build: .
+    image: it4us-va:${IT4US_TAG:-local}
     depends_on:
       postgres:
         condition: service_healthy

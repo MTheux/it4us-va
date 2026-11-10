@@ -8,6 +8,6 @@ export const APP_CONFIG = {
   copyright: `© ${currentYear}, IT4US VA.`,
   meta: {
     title: "IT4US VA — Console de Avaliação de Vulnerabilidade",
-    description: "Console do sistema de pentest autônomo guiado por LLM",
+    description: "Console de avaliação de vulnerabilidade (VA) guiado por IA",
   },
 };
