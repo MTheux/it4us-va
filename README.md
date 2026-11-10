@@ -30,35 +30,20 @@ Plataforma de avaliação de vulnerabilidade (VA) não-intrusiva guiada por IA (
 | :---: |
 | ![Asset coverage graph](screenshots/assets_test.png) |
 
-| Traffic recording | Human-in-the-loop chat |
-| :---: | :---: |
-| ![Traffic](screenshots/traffic.png) | ![Chat](screenshots/chat.png) |
+| Human-in-the-loop chat |
+| :---: |
+| ![Chat](screenshots/chat.png) |
 
 | Agent management | LLM configuration |
 | :---: | :---: |
 | ![Agent](screenshots/agents.png) | ![LLM](screenshots/llm.png) |
 
-| Interception approvals | Backend logs |
-| :---: | :---: |
-| ![Interception](screenshots/intercept.png) | ![Logs](screenshots/logs.png) |
+| Backend logs |
+| :---: |
+| ![Logs](screenshots/logs.png) |
 
 
 ---
-
-## Approval record details
-
-The global "Approval Records", the in-task "Interception Approvals", and the approval cards in conversations all support expanding to view details. The display structure references the
-[AegisHook approval details component](https://github.com/RuoJi6/AegisHook/blob/main/web/src/components/CallDetail.vue), reusing IT4US VA's components and theme:
-
-
-## Traffic capture browser extension
-
-The bundled browser extension (`extension/`) turns your own browsing into agent-visible evidence: log into an authenticated target once (captchas, email OTP and 2FA included), and the captured requests/responses land in IT4US VA's traffic store like proxy-recorded traffic, ready to search and bind to findings:
-
-- Load the unpacked extension from `extension/` (Chrome/Edge, Developer Mode → Load unpacked);
-- In the popup, set your IT4US VA URL and token, then press **Start capture** on the tab you are browsing;
-- Use the site normally; text requests/responses are batched to `POST /api/traffic/ingest` (authenticated). Binary bodies (images, fonts) are skipped, bodies are truncated at 256 KiB, batches are capped at 50 entries;
-- Press **Stop** when done. Everything stays in your local traffic store.
 
 ## Asset sync (ScopeSentry)
 
@@ -238,7 +223,7 @@ Optional: `IT4US_LLM_PROVIDER` (anthropic | openai | openai-responses | ollama) 
 
 **Concurrency**: the number of work agents per task is configured in "System Settings" (default 3).
 
-**Common flags**: `./start.sh -addr :8787 -proxy :8788` (`-addr` frontend+API, `-proxy` traffic recording proxy). The startup script passes arguments through to `it4us` verbatim.
+**Common flags**: `./start.sh -addr :8787` (`-addr` frontend+API). The startup script passes arguments through to `it4us` verbatim. (O flag `-proxy` foi descontinuado com a remoção da captura MITM e é aceito/ignorado por compatibilidade.)
 
 ### Reverse proxy deployment (HTTPS / only exposing 443)
 
@@ -307,7 +292,7 @@ O IT4US VA é uma **plataforma de avaliação de vulnerabilidade (VA) não-intru
 ```mermaid
 flowchart TB
   subgraph FE["Frontend Next.js (go:embed embedded single binary)"]
-    UI["Dashboard · Tasks · Assets · Coverage graph · Traffic · Workspace · System settings"]
+    UI["Dashboard · Tasks · Assets · Coverage graph · Workspace · System settings"]
   end
   subgraph SRV["server (Go net/http)"]
     API["REST /api/*  JWT auth  SSE"]
@@ -325,8 +310,7 @@ flowchart TB
     EGRAPH["Exploration graph  exploration_nodes / anchors / activity"]
   end
   subgraph SUB["Supporting subsystems"]
-    PROXY["Traffic recording proxy  MITM + CA tracing"]
-    GUARD["guard / intercept  tool approval gate"]
+    GUARD["guard  ScopeGuard: escopo/rate + trilha de auditoria"]
     ENR["enrich  DNS / HTTP async enrichment"]
     EXT["MCP · skills · memory · report"]
   end
@@ -341,7 +325,6 @@ flowchart TB
   WK --> DB
   MA --> DB
   GO --> DB
-  WK -->|"Bash / HTTP fully traced"| PROXY
   WK --> GUARD
   WK --> ENR
   PL -.-> EXT
@@ -356,7 +339,7 @@ flowchart TB
 | **engine** | One `plannerLoop` + N worker goroutines per task; intent claiming, timeout/pause/drain |
 | **agent** | goals / planner / worker / mainagent; `ToolSet` exposes the dual graphs as LLM tools |
 | **db** | Postgres persistence of the dual graphs (pgx); the schema is embedded via `go:embed` and idempotently applied on every start |
-| **Supporting** | Recording MITM proxy, approval gate, async enrichment, MCP/skills/memory/report |
+| **Supporting** | ScopeGuard (escopo/rate + auditoria), async enrichment, MCP/skills/memory/report |
 
 ### Dual-graph architecture: exploration graph + asset graph
 
@@ -407,7 +390,6 @@ sequenceDiagram
   participant P as planner
   participant FR as frontier intent queue
   participant W as worker
-  participant PX as recording proxy
   participant DB as dual graphs + activity
 
   EV-->>P: wake up
@@ -416,8 +398,7 @@ sequenceDiagram
   Note over P,FR: most wake-ups dispatch 0 (no new direction means done)
   W->>FR: claimNext claims one intent
   W->>DB: fetch the raw assets of the intent's asset_ids as initial information
-  W->>PX: real tool execution (Kali / Bash / HTTP)
-  PX-->>W: response (fully traced + CA verified)
+  W->>W: real tool execution (Kali / Bash / HTTP), registrada na trilha de auditoria
   W->>DB: write back fact / asset / finding + per-step activity
   DB-->>EV: graph change
   EV-->>P: wake again (closed loop)

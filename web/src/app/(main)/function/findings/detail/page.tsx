@@ -10,7 +10,6 @@ import { toast } from "sonner";
 
 import { CopyButton } from "@/components/copy-button";
 import { FindingRetestPanel } from "@/components/finding-retest-panel";
-import { FindingTrafficPanel } from "@/components/finding-traffic-panel";
 import { Markdown } from "@/components/markdown";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -187,13 +186,6 @@ function FindingDetailInner() {
                   )}
                 </CardContent>
               </Card>
-              <FindingTrafficPanel
-                key={id}
-                findingId={id}
-                contextTask={contextTaskId || undefined}
-                readOnly={finding.inherited}
-                onChanged={load}
-              />
               {/* Below evidence: detailed report (rendered Markdown) */}
               <Card>
                 <CardHeader className="flex-row items-center justify-between">
