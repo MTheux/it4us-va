@@ -18,10 +18,10 @@ import (
 
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/audit"
 	pgdb "github.com/MTheux/it4us-va/db"
 	"github.com/MTheux/it4us-va/enrich"
 	"github.com/MTheux/it4us-va/guard"
-	"github.com/MTheux/it4us-va/intercept"
 )
 
 // Task is one engagement: a description + goal + its own exploration store,
@@ -239,8 +239,8 @@ type Manager struct {
 	dir         string
 	pg          *pgdb.DB
 	assets      *pgdb.AssetStore
-	enrich      *enrich.Engine         // engine-side asset auto-completion (DNS/HTTP)
-	interceptor *intercept.Interceptor // user-configured tool-call interception rules
+	enrich      *enrich.Engine     // engine-side asset auto-completion (DNS/HTTP)
+	interceptor *audit.Interceptor // user-configured tool-call interception rules
 
 	companyMu sync.Mutex // serializes task/company-scope commits with live handle registration
 	// taskStateMu preserves commit order between PostgreSQL lifecycle writes and
@@ -391,7 +391,7 @@ func NewManager(dir, proxyAddr string) (*Manager, error) {
 	if err := pg.EnsureLLMUsageTable(); err != nil {
 		log.Printf("[llmusage] create table: %v", err)
 	}
-	m := &Manager{dir: dir, pg: pg, assets: pg.Assets(), tasks: map[string]*Task{}, interceptor: intercept.New(pg)}
+	m := &Manager{dir: dir, pg: pg, assets: pg.Assets(), tasks: map[string]*Task{}, interceptor: audit.New(pg)}
 	// Asset auto-completion engine (§5): HTTP probes routed through the egress proxy
 	// (via m.ProxyAddr, which returns the global proxy when configured).
 	// LLM recording switch (off by default). The recorder reads this flag on every call.
@@ -767,7 +767,7 @@ func unixNanoOrZero(t *time.Time) int64 {
 	return t.UnixNano()
 }
 
-func taskFromPG(pt *pgdb.Task, store *pgdb.ExplorationStore, ic *intercept.Interceptor) *Task {
+func taskFromPG(pt *pgdb.Task, store *pgdb.ExplorationStore, ic *audit.Interceptor) *Task {
 	return &Task{
 		ID: strconv.FormatInt(pt.ID, 10), ExpID: pt.ExplorationID,
 		Name:       pt.Name,

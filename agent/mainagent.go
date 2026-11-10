@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/MTheux/it4us-va/audit"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // MainAgent is the thin human-interface orchestrator (docs §4.2 / §7). The human
@@ -136,7 +136,7 @@ func (m *MainAgent) Chat(ctx context.Context, taskID int64, mainSeg int, as *db.
 	defer cleanup()
 	// this task's working directory <workDir>/tasks/<taskID>, created up front.
 	mainDir := ensureRunDir(m.workDir, taskID, 0)
-	ctx = intercept.WithReviewWorkingDirectory(ctx, mainDir)
+	ctx = audit.WithReviewWorkingDirectory(ctx, mainDir)
 	system, boundary := deferredSystem(mainAgentSystem(goal, m.workDir, mainDir), def)
 	opts := agentcore.Options{
 		Provider:        m.prov,

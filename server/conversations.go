@@ -14,8 +14,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/audit"
 	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 	"github.com/MTheux/it4us-va/sidequestion"
 )
 
@@ -467,7 +467,7 @@ func (s *Server) runConversation(c *db.Conversation, msg, busyKey string, userMe
 	// Only the human-message handler supplies this field, before adding the
 	// attachment manifest. Scheduler/retest prompts must not be labelled as users.
 	if len(userMessage) == 1 {
-		ctx = intercept.WithReviewContext(ctx, "", intercept.ReviewBackground{Source: intercept.BackgroundUserMessage, Text: userMessage[0]})
+		ctx = audit.WithReviewContext(ctx, "", audit.ReviewBackground{Source: audit.BackgroundUserMessage, Text: userMessage[0]})
 	}
 	go s.runConversationTurn(ctx, cancel, c, msg, busyKey)
 }
@@ -486,7 +486,7 @@ func (s *Server) runConversationSync(c *db.Conversation, msg, busyKey string) {
 func (s *Server) conversationRunContext(id int64, busyKey string) (context.Context, context.CancelCauseFunc) {
 	// Per-run cancellable context so a manual stop (pgStopConversation) can abort
 	// just this session. Registered under chatMu so the stop handler can find it.
-	ctx, cancel := context.WithCancelCause(intercept.WithConvID(s.ctx, id))
+	ctx, cancel := context.WithCancelCause(audit.WithConvID(s.ctx, id))
 	s.chatMu.Lock()
 	s.chatCancel[busyKey] = cancel
 	s.chatMu.Unlock()

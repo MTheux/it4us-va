@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/MTheux/it4us-va/audit"
 	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 )
 
 func TestInterceptDetailHTTP(t *testing.T) {
@@ -24,7 +24,7 @@ func TestInterceptDetailHTTP(t *testing.T) {
 	t.Cleanup(func() { _ = d.Close() })
 	// Exercise the authenticated HTTP surface without starting unrelated task
 	// schedulers or mutating the process-global tool assembly used by other tests.
-	m := &Manager{pg: d, interceptor: intercept.New(d)}
+	m := &Manager{pg: d, interceptor: audit.New(d)}
 	s := &Server{m: m, jwtKey: []byte("approval-http-test-signing-key")}
 	h := s.Handler()
 	token, err := signJWT(s.jwtKey)

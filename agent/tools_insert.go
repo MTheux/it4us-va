@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/MTheux/it4us-va/db"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // assetInterceptCandidates extracts the domain/IP/URL candidate strings of an

@@ -6,8 +6,8 @@ import (
 	"iter"
 	"testing"
 
-	"github.com/MTheux/it4us-va/db"
 	"github.com/Autumn-27/norma/llm"
+	"github.com/MTheux/it4us-va/db"
 )
 
 type failingProvider struct{ err error }
@@ -77,4 +77,3 @@ func TestEscalationAdvancesAfterConsecutiveFailures(t *testing.T) {
 		t.Fatalf("exhaust calls=%d want 2", exhaustCalls)
 	}
 }
-

@@ -23,8 +23,8 @@ import (
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/Autumn-27/norma/transcript"
 	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/audit"
 	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 	"github.com/MTheux/it4us-va/llmpool"
 	"github.com/MTheux/it4us-va/llmrec"
 	"github.com/MTheux/it4us-va/report"
@@ -3578,7 +3578,7 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx, cancel := context.WithCancelCause(s.ctx)
-	ctx = intercept.WithReviewContext(ctx, "", intercept.ReviewBackground{Source: intercept.BackgroundUserMessage, Text: req.Message})
+	ctx = audit.WithReviewContext(ctx, "", audit.ReviewBackground{Source: audit.BackgroundUserMessage, Text: req.Message})
 	s.chatBusy[t.ID] = true
 	s.chatCancel[t.ID] = cancel
 	s.chatMu.Unlock()

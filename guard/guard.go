@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/Autumn-27/norma/hook"
-	"github.com/MTheux/it4us-va/intercept"
+	"github.com/MTheux/it4us-va/audit"
 )
 
 // AuditEntry records one gated tool call.
@@ -33,17 +33,17 @@ type Guard struct {
 	audit       []AuditEntry
 	attrib      map[string]int // failure attribution counts (Observer / G5)
 	reg         *hook.Registry
-	interceptor *intercept.Interceptor // optional; nil disables user-configured rules
+	interceptor *audit.Interceptor // optional; nil disables user-configured rules
 }
 
 // New creates a Guard without user-configured intercept rules (used for pentest
 // tasks where the Interceptor is not yet available).
 func New() *Guard { return newGuard(nil) }
 
-// NewWithInterceptor creates a Guard with user-configured intercept rules.
-func NewWithInterceptor(ic *intercept.Interceptor) *Guard { return newGuard(ic) }
+// NewWithAudit creates a Guard with user-configured intercept rules.
+func NewWithAudit(ic *audit.Interceptor) *Guard { return newGuard(ic) }
 
-func newGuard(ic *intercept.Interceptor) *Guard {
+func newGuard(ic *audit.Interceptor) *Guard {
 	g := &Guard{attrib: map[string]int{}, interceptor: ic}
 	g.reg = hook.NewRegistry().
 		On(hook.PreToolUse, g.preToolUse).
@@ -87,7 +87,7 @@ func (g *Guard) applyIntercept(ctx context.Context, ev hook.Event) hook.Result {
 	if !g.interceptor.IsToolEnabled(ev.ToolName) {
 		return hook.Result{}
 	}
-	ctx = intercept.WithCall(ctx, ev.ToolName, ev.Input)
+	ctx = audit.WithCall(ctx, ev.ToolName, ev.Input)
 	dec, matched := g.interceptor.Match(ev.ToolName, ev.Input)
 	if !matched {
 		// Nenhuma regra casou. O juiz LLM foi removido na excisão ofensiva; o
@@ -97,11 +97,11 @@ func (g *Guard) applyIntercept(ctx context.Context, ev hook.Event) hook.Result {
 	switch dec.Action {
 	case "deny":
 		// Note: a deny hit does not block for approval; it directly logs a denied entry (visible on the history / task interception pages).
-		g.interceptor.Log(ctx, intercept.ConvIDFromContext(ctx), dec, ev.ToolName, ev.Input, "denied")
+		g.interceptor.Log(ctx, audit.ConvIDFromContext(ctx), dec, ev.ToolName, ev.Input, "denied")
 		return g.block(ev.ToolName, systemBlockMessage(dec.Message), "")
 	case "allow":
 		// Record explicit rule and model approvals so review details remain auditable.
-		g.interceptor.Log(ctx, intercept.ConvIDFromContext(ctx), dec, ev.ToolName, ev.Input, "allowed")
+		g.interceptor.Log(ctx, audit.ConvIDFromContext(ctx), dec, ev.ToolName, ev.Input, "allowed")
 		return hook.Result{}
 	}
 	return hook.Result{}

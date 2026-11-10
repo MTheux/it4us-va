@@ -7,7 +7,7 @@
 //
 // A excisão ofensiva (Plano 3) removeu a ação "ask" (aprovação MITM-interativa)
 // e o juiz LLM; uma regra legada "ask" degrada para "deny" (fail-closed).
-package intercept
+package audit
 
 import (
 	"context"

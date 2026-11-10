@@ -11,11 +11,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/MTheux/it4us-va/agent"
-	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
 	"github.com/Autumn-27/norma/harness"
 	"github.com/Autumn-27/norma/llm"
+	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/audit"
+	"github.com/MTheux/it4us-va/db"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -1048,7 +1048,7 @@ func (e *Engine) runIntent(ctx context.Context, t *Task, name string, worker *ag
 		emit(a)
 	}
 	label := fmt.Sprintf("%s · #%d", name, iid)
-	workCtx = intercept.WithTaskContext(workCtx, t.ID, label, taskEmit)
+	workCtx = audit.WithTaskContext(workCtx, t.ID, label, taskEmit)
 	// nudges deliberately sits outside the model_error rerun loop: the idle-turn rerun
 	// cap is a per-intent total, and one rerun round must not reset it back to zero.
 	hooks := steerHooks{

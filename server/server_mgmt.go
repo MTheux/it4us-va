@@ -23,10 +23,10 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/MTheux/it4us-va/agent"
-	"github.com/MTheux/it4us-va/db"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/skill"
+	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // validSkillName checks the agentskills.io name constraints, widened so a skill can

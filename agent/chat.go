@@ -6,14 +6,14 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/guard"
-	"github.com/MTheux/it4us-va/intercept"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/permission"
 	actool "github.com/Autumn-27/norma/tool"
 	"github.com/Autumn-27/norma/transcript"
+	"github.com/MTheux/it4us-va/audit"
+	"github.com/MTheux/it4us-va/db"
+	"github.com/MTheux/it4us-va/guard"
 )
 
 // ChatAgent is the generic, task-independent conversational runner behind the chat
@@ -113,7 +113,7 @@ func (c *ChatAgent) Chat(ctx context.Context, agentKey, sessionID, message strin
 	// Isolates file writes across conversations, mirroring how workers use i<intentID>/.
 	sessionWorkDir := filepath.Join(c.workDir, "sessions", sessionID)
 	_ = os.MkdirAll(sessionWorkDir, 0o755)
-	ctx = intercept.WithReviewWorkingDirectory(ctx, sessionWorkDir)
+	ctx = audit.WithReviewWorkingDirectory(ctx, sessionWorkDir)
 
 	// Pure assistant: DefaultTools as the base; AugmentTools layers in the key's
 	// visible skills/MCP and lets the DB tools table filter/override. DefaultTools

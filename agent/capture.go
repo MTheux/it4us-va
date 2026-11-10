@@ -6,12 +6,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/intercept"
-	"github.com/MTheux/it4us-va/sidequestion"
 	"github.com/Autumn-27/norma/agentcore"
 	"github.com/Autumn-27/norma/harness"
 	"github.com/Autumn-27/norma/llm"
+	"github.com/MTheux/it4us-va/audit"
+	"github.com/MTheux/it4us-va/db"
+	"github.com/MTheux/it4us-va/sidequestion"
 )
 
 // captureRun drives one agent turn-to-completion over Session.Prompt and emits a
@@ -35,7 +35,7 @@ func captureRun(ctx context.Context, opts agentcore.Options, input string, emit 
 // multiple prompts on the SAME conversation (e.g. a settlement round that reuses
 // the worker's accumulated context after the main run hit max_turns).
 func captureRunSession(ctx context.Context, s *agentcore.Session, input string, emit func(db.Activity)) (string, harness.TerminalReason, error) {
-	ctx, auditTrace := intercept.WithTrace(ctx, input, approvalHistory(s.Messages()))
+	ctx, auditTrace := audit.WithTrace(ctx, input, approvalHistory(s.Messages()))
 	defer auditTrace.Finish()
 	var reason harness.TerminalReason
 	rec := func(r db.Activity) {
