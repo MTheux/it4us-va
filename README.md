@@ -2,10 +2,10 @@
 
 # IT4US VA
 
-AI autonomous penetration testing system (Go backend + Next.js frontend)
+Plataforma de avaliação de vulnerabilidade (VA) não-intrusiva guiada por IA (backend Go + frontend Next.js)
 
 
- Fork of [IT4US VA by Autumn-27](https://github.com/Autumn-27) · English translation of the Chinese source · maintained publicly under AGPL-3.0
+ Fork do [artex (Autumn-27/artex)](https://github.com/Autumn-27/artex) · reconvertido pela IT4US para avaliação de vulnerabilidade não-intrusiva · mantido publicamente sob AGPL-3.0
 
 </div>
 
@@ -300,7 +300,7 @@ In this version, history is viewed via vulnerability details and sessions; it is
 
 ## System architecture
 
-IT4US VA is an **LLM multi-agent-driven autonomous penetration testing system**: a Go monolithic backend (with embedded Next.js frontend) + PostgreSQL; agent capabilities are provided by the [`norma`](https://github.com/Autumn-27/norma) SDK (`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`). At its core is a **dual-graph architecture**, plus two autonomy mechanisms built around it: **process-level information exchange between workers** and the **planner's multi-round shared todolist that stabilizes attack chains**.
+O IT4US VA é uma **plataforma de avaliação de vulnerabilidade (VA) não-intrusiva, guiada por múltiplos agentes de IA**: um backend monolítico em Go (with embedded Next.js frontend) + PostgreSQL; agent capabilities are provided by the [`norma`](https://github.com/Autumn-27/norma) SDK (`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`). No núcleo há uma **arquitetura de grafo duplo**, mais dois mecanismos de autonomia em torno dela: **troca de informação entre workers em nível de processo** e o **todolist compartilhado multi-rodada do planejador, que estabiliza as cadeias de avaliação**.
 
 ### Overall layering
 
@@ -464,7 +464,7 @@ flowchart TB
   R3["round 3 (② produced a fact)  dispatch intent ③"] --> T3
 ```
 
-Thus, even in an "event-driven + stateless session" environment, the attack chain still **advances steadily, without repetition or reordering**: this is the key to IT4US VA autonomously completing multi-step exploitation chains.
+Thus, even in an "event-driven + stateless session" environment, a cadeia de avaliação ainda **avança de forma estável, sem repetição ou reordenação**: essa é a chave para o IT4US VA conduzir autonomamente cadeias de avaliação multi-etapa, parando no achado (sem exploração).
 
 ---
 
