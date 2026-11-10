@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { DraxenCore } from "@/components/draxen-core";
+import { It4usCore } from "@/components/it4us-core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -62,7 +62,7 @@ export default function SetupPage() {
 
   return (
     <div className="flex h-dvh">
-      {/* Left panel — Draxen Core proof */}
+      {/* Left panel — IT4US VA Core proof */}
       <div className="proof hidden flex-col justify-between gap-6 p-12 text-left lg:flex lg:w-1/2">
         <div className="proof-grid" aria-hidden="true" />
         <div className="proof-glow" aria-hidden="true" />
@@ -79,10 +79,10 @@ export default function SetupPage() {
         </div>
         <div className="core-frame relative">
           <div className="core-frame-label">
-            <span>DRAXEN CORE</span>
+            <span>IT4US VA CORE</span>
             <span>ASCII / VISUAL</span>
           </div>
-          <DraxenCore className="core-canvas" />
+          <It4usCore className="core-canvas" />
           <div className="core-frame-label">
             <span>ESCOPO → EVIDÊNCIA → CORREÇÃO</span>
             <span>LIVE</span>
@@ -103,7 +103,7 @@ export default function SetupPage() {
             <p className="mx-auto max-w-xl text-muted-foreground">
               {unavailable
                 ? "O backend ou o banco de dados está temporariamente indisponível. Para evitar sobrescrever uma senha já definida nesta instância, a configuração foi temporariamente bloqueada — restaure o serviço e tente novamente."
-                : "Primeira vez usando o Draxen? Defina uma senha de login para a conta (no mínimo 8 caracteres)"}
+                : "Primeira vez usando o IT4US VA? Defina uma senha de login para a conta (no mínimo 8 caracteres)"}
             </p>
           </div>
           {unavailable ? (

@@ -1,0 +1,7 @@
+IT4US VA
+Sistema de Avaliação de Vulnerabilidade (VA) da IT4US.
+
+Esta é uma obra derivada do projeto ARTEX (https://github.com/Autumn-27/artex),
+licenciado sob AGPL-3.0. O miolo ofensivo original foi removido e o fluxo foi
+reconvertido para avaliação de vulnerabilidade não-intrusiva. Os créditos do
+código-base original pertencem aos autores do ARTEX. Veja LICENSE (AGPL-3.0).

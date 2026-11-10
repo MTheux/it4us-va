@@ -26,7 +26,7 @@ func callReadJSON(t *testing.T, tool actool.CoreTool, input string) any {
 }
 
 func TestGraphOverviewExpandsAssociatedCompanyScope(t *testing.T) {
-	t.Skip("known failure with a fresh database, pre-existing on unmodified upstream; tracked in BaaRai/ARTEX#9")
+	t.Skip("known failure with a fresh database, pre-existing on unmodified upstream; tracked in BaaRai/IT4US VA#9")
 	d := testDB(t)
 	defer d.Close()
 

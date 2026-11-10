@@ -41,7 +41,7 @@ type ToolSeed struct {
 // "bind to whom" trade-off, and most of their documentation lives in Prompt() (this
 // table only covers Description(), which would create misleading half-coverage).
 // Not seeded → no DB row → ToolResolve passes them through untouched, behavior
-// identical to before. Only artex's own domain tools enter the table as manageable.
+// identical to before. Only it4us's own domain tools enter the table as manageable.
 func builtinToolsByAgent() map[string][]actool.CoreTool {
 	ts := NewToolSet(nil, "")
 	return map[string][]actool.CoreTool{

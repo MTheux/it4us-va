@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# ARTEX update script: (1) Docker update (pull new image and rebuild)  (2) local build update (rebuild the binary)
+# IT4US VA update script: (1) Docker update (pull new image and rebuild)  (2) local build update (rebuild the binary)
 # Counterpart of install.sh: install handles the first-time setup, update upgrades to a new version.
-# No manual DB migration needed — artex idempotently re-runs schema.sql on every start (with ADD COLUMN/CREATE
+# No manual DB migration needed — it4us idempotently re-runs schema.sql on every start (with ADD COLUMN/CREATE
 # INDEX IF NOT EXISTS), so "restart equals migrate". Data (pgdata volume, ./data, ./skills) is not affected.
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
@@ -27,26 +27,26 @@ update_docker(){
     || die "docker / docker compose not detected; install and deploy with ./install.sh first"
   [ -f .env ] || die ".env not found; run ./install.sh first to complete the initial deployment"
 
-  # Optional: upgrade to a specific version tag (empty = keep ARTEX_TAG from .env, default latest)
+  # Optional: upgrade to a specific version tag (empty = keep IT4US_TAG from .env, default latest)
   local tag; tag="$(ask 'Target image tag (press Enter to keep .env / latest)' '')"
   if [ -n "$tag" ]; then
-    if grep -q '^ARTEX_TAG=' .env; then
-      sed -i.bak "s|^ARTEX_TAG=.*|ARTEX_TAG=${tag}|" .env && rm -f .env.bak
+    if grep -q '^IT4US_TAG=' .env; then
+      sed -i.bak "s|^IT4US_TAG=.*|IT4US_TAG=${tag}|" .env && rm -f .env.bak
     else
-      printf '\nARTEX_TAG=%s\n' "$tag" >> .env
+      printf '\nIT4US_TAG=%s\n' "$tag" >> .env
     fi
-    ok "ARTEX_TAG set to ${tag}"
+    ok "IT4US_TAG set to ${tag}"
   fi
 
-  # Touch only artex: postgres is pinned to 16-alpine and does not need upgrading along
-  # (pulling it wastes bandwidth, and a major version bump risks compatibility). artex
+  # Touch only it4us: postgres is pinned to 16-alpine and does not need upgrading along
+  # (pulling it wastes bandwidth, and a major version bump risks compatibility). it4us
   # declares depends_on postgres, so an up with the service name starts pg if needed and leaves a running one untouched.
-  info "Pulling new image (artex only)…"
-  docker compose pull artex
-  info "Rebuilding and starting (schema migrates automatically on artex restart)…"
-  docker compose up -d artex
+  info "Pulling new image (it4us only)…"
+  docker compose pull it4us
+  info "Rebuilding and starting (schema migrates automatically on it4us restart)…"
+  docker compose up -d it4us
   ok "Update complete → http://localhost:8787"
-  info "View logs: docker compose logs -f artex"
+  info "View logs: docker compose logs -f it4us"
   info "Clean up old images (optional): docker image prune -f"
 }
 
@@ -66,12 +66,12 @@ update_local(){
     warn "npm not detected: building a backend **without the embedded frontend** (run the frontend separately with npm run dev)"
     CGO_ENABLED=0 go build -o it4us ./cmd/it4us
   fi
-  ok "Build complete → ./artex"
-  warn "Restart the running artex process to take effect (schema migrates automatically on restart)"
+  ok "Build complete → ./it4us"
+  warn "Restart the running it4us process to take effect (schema migrates automatically on restart)"
 }
 
 echo "=============================="
-echo "  ARTEX Update"
+echo "  IT4US VA Update"
 echo "  1) Docker update (pull new image and rebuild)"
 echo "  2) Local update (rebuild with go)"
 echo "=============================="

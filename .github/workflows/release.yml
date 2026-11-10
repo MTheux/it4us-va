@@ -50,22 +50,22 @@ jobs:
           path: server/webui/dist
       - name: Build and package with build.sh
         env:
-          ARTEX_TARGET_OS: ${{ matrix.goos }}
-          ARTEX_TARGET_ARCH: ${{ matrix.goarch }}
-          ARTEX_BUILD_VERSION: ${{ github.ref_name }}
-          ARTEX_SKIP_FRONTEND: "1"
-          ARTEX_SKIP_NPM_CI: "1"
+          IT4US_TARGET_OS: ${{ matrix.goos }}
+          IT4US_TARGET_ARCH: ${{ matrix.goarch }}
+          IT4US_BUILD_VERSION: ${{ github.ref_name }}
+          IT4US_SKIP_FRONTEND: "1"
+          IT4US_SKIP_NPM_CI: "1"
           # UPX self-extracting ELF binaries crash on some Linux kernels, virtualization
           # setups, and security policies. Releases use Go linker trimming and zip
           # compression, prioritizing portability.
-          ARTEX_COMPRESS: "0"
-          ARTEX_PACKAGE: "1"
-          ARTEX_PACKAGE_DIR: dist
+          IT4US_COMPRESS: "0"
+          IT4US_PACKAGE: "1"
+          IT4US_PACKAGE_DIR: dist
         run: |
-          ./build.sh --target "${ARTEX_TARGET_OS}/${ARTEX_TARGET_ARCH}"
+          ./build.sh --target "${IT4US_TARGET_OS}/${IT4US_TARGET_ARCH}"
       - name: Smoke test Linux amd64 binary
         if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
-        run: dist/artex-linux-amd64/artex -h
+        run: dist/it4us-linux-amd64/it4us -h
       - uses: actions/upload-artifact@v4
         with:
           name: pkg-${{ matrix.goos }}-${{ matrix.goarch }}
@@ -75,7 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bin-linux-${{ matrix.goarch }}
-          path: dist/artex-linux-${{ matrix.goarch }}/artex
+          path: dist/it4us-linux-${{ matrix.goarch }}/it4us
 
   # ③ Collect all zips → create the GitHub Release
   release:

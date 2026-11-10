@@ -66,7 +66,7 @@ export function ChangePasswordDialog({
           <DialogHeader>
             <DialogTitle>Change password</DialogTitle>
             <DialogDescription>
-              O usuário é fixo como <b>Draxen</b>. Digite a senha atual para confirmar; tokens de login emitidos antes da troca continuam válidos até expirarem.
+              O usuário é fixo como <b>IT4US VA</b>. Digite a senha atual para confirmar; tokens de login emitidos antes da troca continuam válidos até expirarem.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 py-4">

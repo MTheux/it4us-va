@@ -19,7 +19,7 @@ const (
 	// the feature — the real enable condition is "whether any channel is configured".
 	settingNotifyEnabled = "notify_enabled"
 	// settingNotifyPublicBaseURL is the externally reachable address used to build
-	// detail back-links for vulnerabilities (e.g. https://artex.example.com). If left
+	// detail back-links for vulnerabilities (e.g. https://it4us.example.com). If left
 	// empty, messages carry no back-link button. There is no reusable external-address
 	// setting in the project, so a new one is added here.
 	settingNotifyPublicBaseURL = "notify_public_base_url"

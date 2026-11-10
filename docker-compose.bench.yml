@@ -1,5 +1,5 @@
-# ARTEX Tencent TSec Benchmark evaluation image — one-command local build + run.
-# Independent of the production docker-compose.yml (multi-service: artex+postgres).
+# IT4US VA Tencent TSec Benchmark evaluation image — one-command local build + run.
+# Independent of the production docker-compose.yml (multi-service: it4us+postgres).
 # Usage:
 #   cp bench/.env.example bench/.env   # fill in LLM_API_KEY / BENCHMARK_TOKEN etc.
 #   docker compose -f docker-compose.bench.yml up --build      # build and run in the foreground (watch logs)
@@ -9,12 +9,12 @@
 # Browser: http://localhost:8787 (log in with ADMIN_PASSWORD)
 
 services:
-  artex-bench:
+  it4us-bench:
     build:
       context: .
       dockerfile: Dockerfile.bench
-    image: artex-bench:latest
-    container_name: artex-bench
+    image: it4us-bench:latest
+    container_name: it4us-bench
     env_file:
       - bench/.env
     # Shares the network with the physical machine: the container uses the host network stack directly and can reach the target machine network on the host/VPN.
@@ -24,4 +24,4 @@ services:
     restart: "no"
 
 volumes:
-  artex_bench_data:
+  it4us_bench_data:

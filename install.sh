@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ARTEX install script: 1) all-Docker  2) local build & run
+# IT4US VA install script: 1) all-Docker  2) local build & run
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)"
 
@@ -49,7 +49,7 @@ install_docker(){
   docker compose pull || true
   docker compose up -d
   ok "started → http://localhost:8787"
-  info "view logs: docker compose logs -f artex"
+  info "view logs: docker compose logs -f it4us"
 }
 
 # ── 2) Local build & run ──────────────────────────────
@@ -61,16 +61,16 @@ install_local(){
     2)
       ensure_docker
       local pw; pw="$(ask 'Postgres password (press Enter for random)' "$(rand)")"
-      docker run -d --name artex-pg -p 5432:5432 \
-        -e POSTGRES_USER=artex -e POSTGRES_PASSWORD="$pw" -e POSTGRES_DB=artex \
-        -v artex-pg:/var/lib/postgresql/data postgres:16-alpine
-      DB_HOST=127.0.0.1 DB_PORT=5432 DB_USER=artex DB_PASS="$pw" DB_NAME=artex DB_SSL=disable ;;
+      docker run -d --name it4us-pg -p 5432:5432 \
+        -e POSTGRES_USER=it4us -e POSTGRES_PASSWORD="$pw" -e POSTGRES_DB=it4us \
+        -v it4us-pg:/var/lib/postgresql/data postgres:16-alpine
+      DB_HOST=127.0.0.1 DB_PORT=5432 DB_USER=it4us DB_PASS="$pw" DB_NAME=it4us DB_SSL=disable ;;
     *)
       DB_HOST="$(ask 'Database host' 127.0.0.1)"
       DB_PORT="$(ask 'Port' 5432)"
-      DB_USER="$(ask 'User' artex)"
+      DB_USER="$(ask 'User' it4us)"
       DB_PASS="$(ask 'Password' '')"
-      DB_NAME="$(ask 'Database name' artex)"
+      DB_NAME="$(ask 'Database name' it4us)"
       DB_SSL="$(ask 'sslmode (disable/require)' disable)" ;;
   esac
 
@@ -104,14 +104,14 @@ JSON
     warn "npm not detected: building a backend WITHOUT the embedded frontend (run npm run dev separately for the frontend)"
     CGO_ENABLED=0 go build -o it4us ./cmd/it4us
   fi
-  ok "build complete → ./artex"
+  ok "build complete → ./it4us"
 
   info "starting... (Ctrl-C to exit)"
-  ./artex
+  ./it4us
 }
 
 echo "=============================="
-echo "  ARTEX Install"
+echo "  IT4US VA Install"
 echo "  1) All-Docker install"
 echo "  2) Run locally (go build)"
 echo "=============================="

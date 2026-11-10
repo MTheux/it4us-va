@@ -14,13 +14,13 @@ func TestMain(m *testing.M) {
 	// Own database per package (#80): stop contending on the shared tables of
 	// a single test database during parallel ./... runs.
 	db.SuffixTestDatabase("evidence")
-	if os.Getenv("ARTEX_PG_DSN") == "" {
+	if os.Getenv("IT4US_PG_DSN") == "" {
 		os.Exit(m.Run())
 	}
 	os.Exit(runEvidenceSuite(m))
 }
 func runEvidenceSuite(m *testing.M) int {
-	pg, err := db.Open(os.Getenv("ARTEX_PG_DSN"))
+	pg, err := db.Open(os.Getenv("IT4US_PG_DSN"))
 	if err != nil {
 		panic(err)
 	}

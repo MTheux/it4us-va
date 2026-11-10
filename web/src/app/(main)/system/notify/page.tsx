@@ -312,7 +312,7 @@ export default function NotifyPage() {
             <Label htmlFor="n-base">Link-back URL</Label>
             <Input
               id="n-base"
-              placeholder="https://draxen.example.com"
+              placeholder="https://it4us.example.com"
               value={baseURL}
               onChange={(e) => setBaseURL(e.target.value)}
             />

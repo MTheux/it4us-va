@@ -54,7 +54,7 @@
 
 /* Default theme styles (used when no data-theme-preset is set or when 'default' is selected).
 These serve as the fallback; there is no separate default.css file. */
-/* Draxen identity — "Ultron": grafite + carmim + branco. Dark-only;
+/* IT4US VA identity — "Ultron": grafite + carmim + branco. Dark-only;
    :root e .dark carregam a mesma paleta escura para evitar qualquer flash claro. */
 :root {
   --radius: 0.5rem;
@@ -90,7 +90,7 @@ These serve as the fallback; there is no separate default.css file. */
   --sidebar-border: #ffffff14;
   --sidebar-ring: #E7274A;
 
-  /* fonts — Draxen usa o stack de sistema */
+  /* fonts — IT4US VA usa o stack de sistema */
   --font-sans: var(--font-barlow), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
   --font-display: var(--font-barlow-condensed), var(--font-barlow), sans-serif;
@@ -138,7 +138,7 @@ These serve as the fallback; there is no separate default.css file. */
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans), system-ui, sans-serif;
-    /* Ambiência Draxen: glow carmim radial + gradiente grafite diagonal. */
+    /* Ambiência IT4US VA: glow carmim radial + gradiente grafite diagonal. */
     background-image:
       radial-gradient(circle at 50% 42%, #6e0f1f2b 0, transparent 36%),
       linear-gradient(135deg, #0b090a 0%, #050506 58%, #0b0708 100%);
@@ -304,7 +304,7 @@ html {
 }
 
 
-/* ===== Draxen login — linguagem "PTaaS" (Draxen Core) ===== */
+/* ===== IT4US VA login — linguagem "PTaaS" (IT4US VA Core) ===== */
 .proof {
   position: relative;
   overflow: hidden;
@@ -359,7 +359,7 @@ html {
   line-height: 1.55;
   color: #a6a2ab;
 }
-/* moldura do Draxen Core */
+/* moldura do IT4US VA Core */
 .core-frame {
   position: relative;
   flex: 1;
@@ -406,9 +406,9 @@ html {
   width: 7px; height: 7px; border-radius: 50%;
   background: #E7274A;
   box-shadow: 0 0 0 0 #E7274A80;
-  animation: draxen-pulse 2.1s ease-out infinite;
+  animation: it4us-pulse 2.1s ease-out infinite;
 }
-@keyframes draxen-pulse {
+@keyframes it4us-pulse {
   0%   { box-shadow: 0 0 0 0 #E7274A80; }
   70%  { box-shadow: 0 0 0 9px #E7274A00; }
   100% { box-shadow: 0 0 0 0 #E7274A00; }

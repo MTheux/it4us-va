@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { auth, type CurrentUser } from "@/lib/auth";
 
-const FALLBACK: CurrentUser = { id: "1", name: "Draxen", username: "draxen", email: "", avatar: "", role: "operator" };
+const FALLBACK: CurrentUser = { id: "1", name: "IT4US VA", username: "it4us", email: "", avatar: "", role: "operator" };
 
 export function useCurrentUser(): CurrentUser {
   const [user, setUser] = useState<CurrentUser>(FALLBACK);

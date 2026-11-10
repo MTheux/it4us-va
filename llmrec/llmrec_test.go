@@ -83,10 +83,10 @@ func (meteredStreamProvider) Stream(context.Context, llm.CompletionRequest) iter
 }
 
 func TestSideUsageRecordedOnceOnConsumerCancellation(t *testing.T) {
-	t.Skip("timing-sensitive: passes locally, flaky on CI runners; tracked in BaaRai/ARTEX#9")
-	dsn := os.Getenv("ARTEX_PG_DSN")
+	t.Skip("timing-sensitive: passes locally, flaky on CI runners; tracked in BaaRai/IT4US VA#9")
+	dsn := os.Getenv("IT4US_PG_DSN")
 	if dsn == "" {
-		t.Skip("requires isolated ARTEX_PG_DSN")
+		t.Skip("requires isolated IT4US_PG_DSN")
 	}
 	pg, err := db.Open(dsn)
 	if err != nil {

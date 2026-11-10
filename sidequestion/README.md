@@ -1,4 +1,4 @@
-# ARTEX `/btw`
+# IT4US VA `/btw`
 
 Regular chats, task MainAgents, and the current task's own Workers support independent side questions. Type `/btw question` in the main input box to submit; an empty `/btw` or the "Side questions" button opens the history. Desktop uses a resizable sidebar; mobile uses a Drawer.
 
@@ -63,4 +63,4 @@ Questions are capped at 4000 characters. No snapshot, model configuration change
 
 Automated checks, real model usage, and known limitations: see [VALIDATION.md](VALIDATION.md).
 
-Independent request reference: [Grok CLI side-question.ts (pinned commit)](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/utils/side-question.ts); run isolation reference: [OpenCode (pinned commit)](https://github.com/anomalyco/opencode/tree/b3f1a96c6dd7adeb28b36dd11add1998fc84d67b). ARTEX's context uses norma's structured messages, not text spliced from frontend logs.
+Independent request reference: [Grok CLI side-question.ts (pinned commit)](https://github.com/superagent-ai/grok-cli/blob/fb97af83f06dca873281d60168430f06c8de6324/src/utils/side-question.ts); run isolation reference: [OpenCode (pinned commit)](https://github.com/anomalyco/opencode/tree/b3f1a96c6dd7adeb28b36dd11add1998fc84d67b). IT4US VA's context uses norma's structured messages, not text spliced from frontend logs.

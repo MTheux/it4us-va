@@ -19,11 +19,11 @@ const merriweather = localFont({ src: "../../../node_modules/geist/dist/fonts/ge
 const lora = localFont({ src: "../../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2", variable: "--font-lora" });
 const playfairDisplay = localFont({ src: "../../../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2", variable: "--font-playfair-display" });
 const geistMono = localFont({ src: "../../../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2", variable: "--font-geist-mono" });
-// Draxen identity fonts (self-hosted, offline-safe).
+// IT4US VA identity fonts (self-hosted, offline-safe).
 // Space Grotesk / IBM Plex Mono — "landing" language.
 const spaceGrotesk = localFont({ src: "./files/space-grotesk.woff2", variable: "--font-space-grotesk" });
 const ibmPlexMono = localFont({ src: "./files/ibm-plex-mono.woff2", variable: "--font-ibm-plex-mono" });
-// Barlow / Barlow Condensed / JetBrains Mono — "PTaaS" language (Draxen Core look).
+// Barlow / Barlow Condensed / JetBrains Mono — "PTaaS" language (IT4US VA Core look).
 const barlow = localFont({
   src: [
     { path: "./files/barlow-400.woff2", weight: "400", style: "normal" },

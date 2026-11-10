@@ -10,7 +10,7 @@
 #   cd web && npm run build:static && cd ..
 #   cp -r web/out server/webui/dist
 #   CGO_ENABLED=0 GOARCH=amd64 go build -tags embedui -o dist/amd64/it4us ./cmd/it4us
-#   docker build -t artex:local .
+#   docker build -t it4us:local .
 FROM python:3.12-slim-bookworm
 ARG TARGETARCH
 # Common tools: ripgrep / curl / vim, plus a set of recon staples (add/remove as needed).
@@ -56,7 +56,7 @@ RUN set -eux; \
     ffuf -V >/dev/null; dalfox --version >/dev/null 2>&1 || true; sqlmap --version >/dev/null
 
 # bbot recursive recon orchestrator (#117): blacklanternsecurity/bbot, AGPL-3.0
-# (same license as ARTEX; standalone CLI dependency, not linked code). Pinned
+# (same license as IT4US VA; standalone CLI dependency, not linked code). Pinned
 # version, own venv to isolate from the image python. Module dependencies are
 # preinstalled (--install-all-deps) so scans never need pip at runtime, which
 # would fail under a program's egress allowlist.
@@ -83,10 +83,10 @@ RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@late
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-# pre-built binary for the matching architecture (dist/amd64/it4us or dist/arm64/artex)
-COPY dist/${TARGETARCH}/it4us /app/artex
+# pre-built binary for the matching architecture (dist/amd64/it4us or dist/arm64/it4us)
+COPY dist/${TARGETARCH}/it4us /app/it4us
 # Daemon startup script: relaunches the process after a crash and forwards SIGTERM
-# to artex — docker stop only signals PID 1; without forwarding, artex never receives it,
+# to it4us — docker stop only signals PID 1; without forwarding, it4us never receives it,
 # cannot shut down gracefully, and is hard-killed by SIGKILL after 10 seconds.
 COPY start.sh /app/start.sh
 RUN chmod +x /app/it4us /app/start.sh

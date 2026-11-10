@@ -1,4 +1,4 @@
-// Draxen Core network art — a lightweight, dependency-free SVG port of the
+// IT4US VA Core network art — a lightweight, dependency-free SVG port of the
 // landing page's 3D "flow" visualization. The mesh is deterministic (seeded),
 // so it is computed once at module load and rendered as a static SVG; no 3D,
 // no animation libraries, safe for the offline static export.
@@ -50,13 +50,13 @@ function project(point: Pt, yaw: number, pitch: number, zoom: number) {
 const MESH = makeMesh(132);
 const PROJECTED = MESH.points.map((p) => project(p, 0.42, 0.12, 1));
 
-export function DraxenMesh({ className }: { className?: string }) {
+export function It4usMesh({ className }: { className?: string }) {
   return (
     <svg
-      className={className ?? "draxen-mesh"}
+      className={className ?? "it4us-mesh"}
       viewBox="-1 -1 2 2"
       role="img"
-      aria-label="Visualização do Draxen Core"
+      aria-label="Visualização do IT4US VA Core"
     >
       <g className="mesh-edges" fill="none">
         {MESH.edges.map(([a, b], i) => (

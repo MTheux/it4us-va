@@ -1,5 +1,5 @@
 // Package agent wires real LLM-driven planner and work agents (on top of the
-// agent-core SDK) to the dual SQLite graph. See the ARTEX architecture design doc
+// agent-core SDK) to the dual SQLite graph. See the IT4US VA architecture design doc
 // §4.3 (planner) and §4.4 (work agent).
 //
 // Provider configuration is read from the environment so the system runs with
@@ -180,13 +180,13 @@ func compactionConfig(windowTokens int) *compaction.Config {
 
 // FromEnv resolves the LLM provider config:
 //
-//	ARTEX_LLM_PROVIDER = anthropic|openai|openai-responses|ollama (default: inferred from keys)
-//	ARTEX_LLM_MODEL    = model id        (default: per provider)
-//	ARTEX_LLM_BASE_URL = endpoint        (optional; ollama defaults to localhost:11434/v1)
-//	ARTEX_LLM_PROXY    = proxy URL        (optional; http/https/socks5)
+//	IT4US_LLM_PROVIDER = anthropic|openai|openai-responses|ollama (default: inferred from keys)
+//	IT4US_LLM_MODEL    = model id        (default: per provider)
+//	IT4US_LLM_BASE_URL = endpoint        (optional; ollama defaults to localhost:11434/v1)
+//	IT4US_LLM_PROXY    = proxy URL        (optional; http/https/socks5)
 //	ANTHROPIC_API_KEY / OPENAI_API_KEY         = credentials (unused for ollama)
 func FromEnv() (Config, bool) {
-	prov := os.Getenv("ARTEX_LLM_PROVIDER")
+	prov := os.Getenv("IT4US_LLM_PROVIDER")
 	anthKey := os.Getenv("ANTHROPIC_API_KEY")
 	oaiKey := os.Getenv("OPENAI_API_KEY")
 
@@ -202,12 +202,12 @@ func FromEnv() (Config, bool) {
 	}
 
 	c := Config{
-		BaseURL: os.Getenv("ARTEX_LLM_BASE_URL"),
-		Model:   os.Getenv("ARTEX_LLM_MODEL"),
-		Proxy:   strings.TrimSpace(os.Getenv("ARTEX_LLM_PROXY")),
-		// Streaming by default; ARTEX_LLM_STREAM=false/0/off explicitly switches to
+		BaseURL: os.Getenv("IT4US_LLM_BASE_URL"),
+		Model:   os.Getenv("IT4US_LLM_MODEL"),
+		Proxy:   strings.TrimSpace(os.Getenv("IT4US_LLM_PROXY")),
+		// Streaming by default; IT4US_LLM_STREAM=false/0/off explicitly switches to
 		// non-streaming.
-		Stream: !isFalsy(os.Getenv("ARTEX_LLM_STREAM")),
+		Stream: !isFalsy(os.Getenv("IT4US_LLM_STREAM")),
 	}
 	switch prov {
 	case "openai":

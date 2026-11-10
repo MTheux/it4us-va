@@ -13,7 +13,7 @@ Attribution: adapted from the `edr-bypass-re` playbook of [zhaoxuya520/reverse-s
 
 - Authorized environments only: your own lab machines and VMs, or hosts covered by written engagement scope (SoW, test contract, program scope statement). Nothing here may ever be applied to an unowned or out-of-scope system.
 - The deliverable is measurement and a report: which telemetry sources detected which technique, at what stage, with what fidelity. Findings go to the engagement's responsible-disclosure channel.
-- ARTEX tasks run in a Linux container. Every step here needs an authorized Windows lab VM reachable from the task environment; if none is provisioned, report the gap and stop. Never simulate observations you did not make.
+- IT4US VA tasks run in a Linux container. Every step here needs an authorized Windows lab VM reachable from the task environment; if none is provisioned, report the gap and stop. Never simulate observations you did not make.
 - Report placeholders only: `{target_ip}`, `{hostname}`, `{user}`. Anonymize before anything leaves the lab.
 
 ## Applicable task types

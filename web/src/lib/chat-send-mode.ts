@@ -9,7 +9,7 @@ import { getLocalStorageValue, setLocalStorageValue } from "@/lib/local-storage.
 // re-set. See issue #39 — 0.3.2 turned Ctrl+Enter send into Enter send; this brings the old binding back as an option.
 export type ChatSendMode = "enter" | "ctrl-enter";
 
-export const CHAT_SEND_MODE_KEY = "artex_chat_send_mode";
+export const CHAT_SEND_MODE_KEY = "it4us_chat_send_mode";
 export const DEFAULT_CHAT_SEND_MODE: ChatSendMode = "enter";
 
 export const CHAT_SEND_MODE_OPTIONS: { value: ChatSendMode; label: string }[] = [

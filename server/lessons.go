@@ -23,7 +23,7 @@ import (
 // The flag is read per task-bundle build, so changing it needs a new task or a
 // task-agent invalidation, not a restart.
 func rsiLessonsMode() string {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("ARTEX_RSI_LESSONS"))) {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv("IT4US_RSI_LESSONS"))) {
 	case "shadow":
 		return "shadow"
 	case "inject":

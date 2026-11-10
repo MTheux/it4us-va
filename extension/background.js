@@ -1,7 +1,7 @@
-// ARTEX Traffic Capture — background service worker.
+// IT4US VA Traffic Capture — background service worker.
 //
 // Captures the network activity of one tab through the chrome.debugger API
-// (Network domain) and pushes text request/response pairs to the ARTEX
+// (Network domain) and pushes text request/response pairs to the IT4US VA
 // ingest endpoint in batches. State lives in chrome.storage.session so the
 // popup and the (short-lived) service worker share one view; the queue is
 // deliberately in-memory — a browser restart drops unsent entries, which is
@@ -46,7 +46,7 @@ async function start() {
   if (session.capturing) return { ok: true };
   const { serverUrl, token } = await getConfig();
   if (!serverUrl || !token) {
-    return { ok: false, error: "Set the ARTEX URL and token first." };
+    return { ok: false, error: "Set the IT4US VA URL and token first." };
   }
   const tabId = await getActiveTabId();
   if (tabId == null) return { ok: false, error: "No active tab." };

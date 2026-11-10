@@ -4,7 +4,7 @@
 #
 # Triggers (see bot.yml):
 #   - issue opened: exactly one triage comment per issue
-#   - comment containing @artex-bot: answers that comment (works in PR
+#   - comment containing @it4us-bot: answers that comment (works in PR
 #     threads too, since issue_comment fires there)
 #   - pull request opened: one first-look review comment
 # The bot never posts an approving review and never replies to itself,
@@ -13,7 +13,7 @@ set -uo pipefail
 
 MAX_CHARS=8000
 FOOTER='---
-🤖 automated reply from the repo bot. A human maintainer reads everything. Ping me in any comment with `@artex-bot`.'
+🤖 automated reply from the repo bot. A human maintainer reads everything. Ping me in any comment with `@it4us-bot`.'
 
 log() { echo "[bot] $*"; }
 
@@ -135,8 +135,8 @@ $(repo_context)" json)
   issue_comment)
     number=$(jq -r '.issue.number' <<<"$ev")
     body=$(jq -r '.comment.body' <<<"$ev")
-    question="${body#*@artex-bot}"            # strip up to the mention
-    echo "$body" | grep -qi '@artex-bot' || { log "no mention; skipping"; exit 0; }
+    question="${body#*@it4us-bot}"            # strip up to the mention
+    echo "$body" | grep -qi '@it4us-bot' || { log "no mention; skipping"; exit 0; }
     eyes "$number"
     answer=$(ask_model \
       'You are the helper bot of an open-source Go + Next.js repository (an autonomous penetration testing agent system; AGPL-3.0). Someone pinged you with a question about this repository. Answer it concisely and only from what the repository file list suggests; say plainly when you are not sure and suggest opening a proper issue. Maximum 180 words, plain markdown, reply in the language of the question.' \

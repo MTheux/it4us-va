@@ -1,9 +1,9 @@
-# ARTEX L3 benchmark
+# IT4US VA L3 benchmark
 
 Measures whether the product can find and prove real vulnerabilities in a real
 application, unprompted, against an executable oracle. That is the "operation"
 level most model benchmarks do not reach: recognition benchmarks hand the model
-a snippet and ask a question, while this harness hands ARTEX a running app and
+a snippet and ask a question, while this harness hands IT4US VA a running app and
 reads what it reports.
 
 Method discipline adapted from capability-matrix (MIT) and VulnHunter's
@@ -57,8 +57,8 @@ Standing rules, enforced by the runner:
 ```bash
 cd scripts/benchmark
 
-# against a locally deployed ARTEX, with an independent judge endpoint
-ARTEX_TOKEN=<jwt or mint via ARTEX_JWT_KEY=/app/jwt.key copy> \
+# against a locally deployed IT4US VA, with an independent judge endpoint
+IT4US_TOKEN=<jwt or mint via IT4US_JWT_KEY=/app/jwt.key copy> \
 JUDGE_BASE_URL=https://api.example.com JUDGE_MODEL=<other-model> JUDGE_API_KEY=... \
 python3 run_bench.py --corpus juice-shop --subject-model glm-5.3
 ```
@@ -67,12 +67,12 @@ Environment contract:
 
 | Variable / flag | Meaning |
 |---|---|
-| `ARTEX_BASE` / `--artex-url` | ARTEX base URL (default `http://localhost:8787`) |
-| `ARTEX_TOKEN` or `ARTEX_JWT_KEY` | API bearer token, or the server's jwt.key to mint one |
+| `IT4US_BASE` / `--it4us-url` | IT4US VA base URL (default `http://localhost:8787`) |
+| `IT4US_TOKEN` or `IT4US_JWT_KEY` | API bearer token, or the server's jwt.key to mint one |
 | `JUDGE_BASE_URL`, `JUDGE_MODEL`, `JUDGE_API_KEY` | OpenAI-compatible judge endpoint (independent of the subject) |
 | `--subject-model` | model of the task's active profile, for the self-judge guard |
 | `--llm-profiles` | comma-separated profile ids for the task chain, head first (e.g. `3,2`); stamped into the result |
-| `--target-host` | host the task should target, as reachable from ARTEX (use `172.17.0.1` when ARTEX runs in a container and the corpus runs on the host) |
+| `--target-host` | host the task should target, as reachable from IT4US VA (use `172.17.0.1` when IT4US VA runs in a container and the corpus runs on the host) |
 | `--image` / `--port` / `--corpus-url` | corpus container image, local port, or an existing deployment |
 | `--task-timeout` | task `timeout_seconds` (default 5400) |
 | `--keep` | keep the corpus container after the run |
@@ -107,7 +107,7 @@ DROST_REPO=/path/to/drost-benchmarks python3 run_bench.py \
     --subject-model deepseek-chat
 ```
 
-- `--target-host 172.17.0.1` when ARTEX runs in a container: the challenge is
+- `--target-host 172.17.0.1` when IT4US VA runs in a container: the challenge is
   published on the host and the task target must be the host gateway (same
   pattern as the MCP server URLs). `--llm-profiles` picks the task's model
   chain, head first.

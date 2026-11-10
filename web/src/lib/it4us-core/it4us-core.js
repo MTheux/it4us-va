@@ -1,12 +1,12 @@
-// Visual adaptation of Draxen Core's projected 3D mesh. No wiki, memory or engine tools.
+// Visual adaptation of IT4US VA Core's projected 3D mesh. No wiki, memory or engine tools.
 import { makeMesh, project, clamp } from './mesh.js';
 import { morphAmount, dragonGlyphs, interpolateGlyph } from './dragon-morph.js';
-export function mountDraxenCore(canvas, initial = {}) {
+export function mountIt4usCore(canvas, initial = {}) {
   const ctx = canvas.getContext('2d');
   if (!ctx) return { update() {}, dispose() {} };
   const mesh = makeMesh(360);
   let glyphs = [], dragonAspect = .78;
-  canvas.setAttribute('aria-label', 'Draxen Core se transformando no dragão ASCII');
+  canvas.setAttribute('aria-label', 'IT4US VA Core se transformando no dragão ASCII');
   const dragon = new Image();
   dragon.onload = () => {
     if (disposed) return;
@@ -35,7 +35,7 @@ export function mountDraxenCore(canvas, initial = {}) {
       refresh();
     } catch { /* Canvas unavailable: keep the existing Core visualization. */ }
   };
-  dragon.src = '/brand/draxen-ascii.png';
+  dragon.src = '/brand/it4us-ascii.png';
   let options = { playing: true, active: true, phase: 0, ...initial };
   let width = 0, height = 0, frame = 0, last = 0, clock = 0, visible = true;
   let yaw = 0.3, pointer = 0, disposed = false;

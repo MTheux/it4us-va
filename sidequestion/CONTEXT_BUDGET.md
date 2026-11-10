@@ -10,12 +10,12 @@
 - [OpenCode session compaction](https://github.com/anomalyco/opencode/blob/b3f1a96c6dd7adeb28b36dd11add1998fc84d67b/packages/core/src/session/compaction.ts): full-request estimation, output/buffer reservation, recent content plus rolling summary, tool-free summary requests; that implementation defaults to a recent budget of 8000 and a summary output cap of 4096 tokens.
 - [OpenCode overflow recovery](https://github.com/anomalyco/opencode/blob/b3f1a96c6dd7adeb28b36dd11add1998fc84d67b/packages/core/src/session/runner/llm.ts): overflow recovery is attempted only when assistant output has not started; the recovered call does not re-enter the same overflow recovery path.
 
-ARTEX borrows the independent output budget, recent content plus rolling summary, and bounded recovery. It keeps norma v0.3.6's structured messages and tool pairing, does not copy Grok's text excerpting, and does not write OpenCode's main-session compaction events into the ARTEX main transcript.
+IT4US VA borrows the independent output budget, recent content plus rolling summary, and bounded recovery. It keeps norma v0.3.6's structured messages and tool pairing, does not copy Grok's text excerpting, and does not write OpenCode's main-session compaction events into the IT4US VA main transcript.
 
 ## Request Budget and Execution
 
 - Messages use norma's per-content-block UTF-8 byte estimate with a 4/3 margin; system prompts, tool schemas, and message framing overhead are also counted. The estimate is not the model's exact token count.
-- Side output defaults to at most 8192 tokens and never exceeds the output cap already set in the main configuration. The service environment variable `ARTEX_BTW_MAX_OUTPUT_TOKENS` can set a cap of 256–32768; it does not modify the product default model or main-task parameters.
+- Side output defaults to at most 8192 tokens and never exceeds the output cap already set in the main configuration. The service environment variable `IT4US_BTW_MAX_OUTPUT_TOKENS` can set a cap of 256–32768; it does not modify the product default model or main-task parameters.
 - The input budget is the context window minus the output cap and a safety margin; unknown windows use the platform default of 200K. The safety margin is 5% of the window, with a minimum of 128 and a maximum of 8192 tokens.
 - Successful Q&A exchanges load in ascending ordinal order, at most 20 per batch. At most 20 exchanges are kept verbatim, with a token budget of at most 1/4 of the input budget and no more than 16K.
 - Overflow exchanges are folded into a rolling summary. The summary carries historical provenance and context time; historical assistant answers are not equivalent to new tool evidence, and the latest main snapshot takes precedence in case of conflict.
@@ -48,9 +48,9 @@ Validation commands (standalone test database only):
 
 ```sh
 go test -race ./sidequestion ./db ./server -run 'TestSide|TestCheckpoint|TestSnapshot|TestBuildRequest|TestService|TestMainSide|TestTaskArchive' -count=1
-go build ./cmd/artex
+go build ./cmd/it4us
 npx tsc --noEmit
 npm run build -- --webpack
 ```
 
-The frontend production build used a standalone copy to avoid overwriting the `.next` of the current preview. The candidate service is at `/private/tmp/artex-btw-budget-candidate`, copied to `/private/tmp/artex-btw-preview/artex` and started; the original binary is backed up as `artex.before-context-budget` in the same directory.
+The frontend production build used a standalone copy to avoid overwriting the `.next` of the current preview. The candidate service is at `/private/tmp/it4us-btw-budget-candidate`, copied to `/private/tmp/it4us-btw-preview/it4us` and started; the original binary is backed up as `it4us.before-context-budget` in the same directory.

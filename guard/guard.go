@@ -123,7 +123,7 @@ func (g *Guard) applyIntercept(ctx context.Context, ev hook.Event) hook.Result {
 	return hook.Result{}
 }
 
-// systemBlockMessage frames an intercept block as an ARTEX platform-governance
+// systemBlockMessage frames an intercept block as an IT4US VA platform-governance
 // decision so the agent does not mistake it for a target-side defense.
 //
 // The bare reasons ("this tool is forbidden" / "user rejected") read exactly like a WAF/403 on
@@ -136,7 +136,7 @@ func (g *Guard) applyIntercept(ctx context.Context, ev hook.Event) hook.Result {
 // Audit/history rows keep the raw reason (see Interceptor.Log); only the
 // model-facing tool_result carries this framing.
 func systemBlockMessage(reason string) string {
-	return "[ARTEX platform control, not target defense] This call was intercepted by the platform. " +
+	return "[IT4US VA platform control, not target defense] This call was intercepted by the platform. " +
 		"Reason: " + reason + ". This operation is forbidden."
 }
 

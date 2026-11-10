@@ -32,7 +32,7 @@ Real model conversations, returned objects, engineering assertions, and the raw 
 | TypeScript and production build | Pass | `npx tsc --noEmit`, `npm run build` |
 | Biome on new frontend modules | Pass | `biome check`, 3 new modules |
 
-With `ARTEX_PG_DSN` configured against a separate disposable database, the automated checks can be reproduced (do not point it at a production database):
+With `IT4US_PG_DSN` configured against a separate disposable database, the automated checks can be reproduced (do not point it at a production database):
 
 ```sh
 go test -race ./agent ./db ./server ./sidequestion ./llmrec ./llmpool \

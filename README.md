@@ -1,11 +1,11 @@
 <div align="center">
 
-# ARTEX
+# IT4US VA
 
 AI autonomous penetration testing system (Go backend + Next.js frontend)
 
 
- Fork of [ARTEX by Autumn-27](https://github.com/Autumn-27) · English translation of the Chinese source · maintained publicly under AGPL-3.0
+ Fork of [IT4US VA by Autumn-27](https://github.com/Autumn-27) · English translation of the Chinese source · maintained publicly under AGPL-3.0
 
 </div>
 
@@ -48,15 +48,15 @@ AI autonomous penetration testing system (Go backend + Next.js frontend)
 ## Approval record details
 
 The global "Approval Records", the in-task "Interception Approvals", and the approval cards in conversations all support expanding to view details. The display structure references the
-[AegisHook approval details component](https://github.com/RuoJi6/AegisHook/blob/main/web/src/components/CallDetail.vue), reusing ARTEX's components and theme:
+[AegisHook approval details component](https://github.com/RuoJi6/AegisHook/blob/main/web/src/components/CallDetail.vue), reusing IT4US VA's components and theme:
 
 
 ## Traffic capture browser extension
 
-The bundled browser extension (`extension/`) turns your own browsing into agent-visible evidence: log into an authenticated target once (captchas, email OTP and 2FA included), and the captured requests/responses land in ARTEX's traffic store like proxy-recorded traffic, ready to search and bind to findings:
+The bundled browser extension (`extension/`) turns your own browsing into agent-visible evidence: log into an authenticated target once (captchas, email OTP and 2FA included), and the captured requests/responses land in IT4US VA's traffic store like proxy-recorded traffic, ready to search and bind to findings:
 
 - Load the unpacked extension from `extension/` (Chrome/Edge, Developer Mode → Load unpacked);
-- In the popup, set your ARTEX URL and token, then press **Start capture** on the tab you are browsing;
+- In the popup, set your IT4US VA URL and token, then press **Start capture** on the tab you are browsing;
 - Use the site normally; text requests/responses are batched to `POST /api/traffic/ingest` (authenticated). Binary bodies (images, fonts) are skipped, bodies are truncated at 256 KiB, batches are capped at 50 entries;
 - Press **Stop** when done. Everything stays in your local traffic store.
 
@@ -66,7 +66,7 @@ Sync asset data directly from [ScopeSentry](https://github.com/Autumn-27/ScopeSe
 
 - On the "**Asset Sync**" page, enter the ScopeSentry address and API Key to connect the data source;
 - Choose the targets and asset types to sync by **project** or **task** (domains / subdomains / IPs / ports / sites / endpoints…);
-- One-click import, merged by company asset scope, straight into ARTEX's asset graph for agents to explore.
+- One-click import, merged by company asset scope, straight into IT4US VA's asset graph for agents to explore.
 
 ---
 
@@ -77,8 +77,8 @@ Sync asset data directly from [ScopeSentry](https://github.com/Autumn-27/ScopeSe
 ### Option 1: one-click install script (recommended)
 
 ```bash
-git clone https://github.com/BaaRai/ARTEX.git
-cd ARTEX
+git clone https://github.com/BaaRai/IT4US VA.git
+cd IT4US VA
 ./install.sh
 ```
 
@@ -92,10 +92,10 @@ Once installed, open **http://localhost:8787** (on first entry, `/setup` sets th
 ### Option 2: Docker Compose (manual)
 
 ```bash
-git clone https://github.com/BaaRai/ARTEX.git
-cd ARTEX
+git clone https://github.com/BaaRai/IT4US VA.git
+cd IT4US VA
 cp .env.example .env          # set POSTGRES_PASSWORD, optionally ANTHROPIC_API_KEY
-docker compose up -d          # pulls the autumn27/artex image + postgres
+docker compose up -d          # pulls the autumn27/it4us image + postgres
 # → http://localhost:8787
 ```
 
@@ -108,15 +108,15 @@ Legacy SSE servers usually establish the event stream with `GET /sse`, then rece
 
 ### Option 3: download prebuilt binaries (Releases)
 
-Download the zip for your platform from [Releases](https://github.com/BaaRai/ARTEX/releases); after extracting you get `artex` + `start.sh` (`start.bat` on Windows) + `skills/` + `config.example.json`:
+Download the zip for your platform from [Releases](https://github.com/BaaRai/IT4US VA/releases); after extracting you get `it4us` + `start.sh` (`start.bat` on Windows) + `skills/` + `config.example.json`:
 
 ```bash
 cp config.example.json config.json   # fill in the database connection
 ./start.sh                           # → http://localhost:8787
 ```
 
-> Please start with `start.sh` / `start.bat` instead of running `./artex` directly. It is a daemon script: if the process crashes, it restarts it after a backoff.
-> To keep it running in the background: `nohup ./start.sh >artex.log 2>&1 &`.
+> Please start with `start.sh` / `start.bat` instead of running `./it4us` directly. It is a daemon script: if the process crashes, it restarts it after a backoff.
+> To keep it running in the background: `nohup ./start.sh >it4us.log 2>&1 &`.
 
 ### Option 4: build the single binary from source
 
@@ -126,7 +126,7 @@ cd web && npm ci && npm run build:static && cd ..
 # 2) copy into the embed directory
 cp -r web/out server/webui/dist
 # 3) build (only -tags embedui embeds the frontend)
-CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
+CGO_ENABLED=0 go build -tags embedui -o it4us ./cmd/it4us
 ./start.sh
 ```
 
@@ -136,13 +136,13 @@ CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
 
 ```bash
 ./build.sh --release
-# output: dist/artex-0.3.3-*.zip
+# output: dist/it4us-0.3.3-*.zip
 ```
 
-UPX self-extracting binaries may be incompatible with some Linux kernels, virtualization environments, or security policies, so they are disabled by default. Use `ARTEX_TARGETS` to customize the targets; when you have confirmed the target runtime is compatible, explicitly pass `--upx` to further shrink the binary:
+UPX self-extracting binaries may be incompatible with some Linux kernels, virtualization environments, or security policies, so they are disabled by default. Use `IT4US_TARGETS` to customize the targets; when you have confirmed the target runtime is compatible, explicitly pass `--upx` to further shrink the binary:
 
 ```bash
-ARTEX_TARGETS=linux/amd64,windows/amd64 ./build.sh --release
+IT4US_TARGETS=linux/amd64,windows/amd64 ./build.sh --release
 ./build.sh --target linux/amd64 --upx
 ```
 
@@ -161,49 +161,49 @@ scripts/backup.sh --keep 7             # db only, keep 7
 Restore a dump into a running stack:
 
 ```bash
-gunzip -c backups/artex-db-<timestamp>.sql.gz | docker compose exec -T postgres \
+gunzip -c backups/it4us-db-<timestamp>.sql.gz | docker compose exec -T postgres \
   psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
 ```
 
 Daily cron example (03:20, operator crontab):
 
 ```
-20 3 * * * cd /path/to/ARTEX && scripts/backup.sh --with-data >> backups/backup.log 2>&1
+20 3 * * * cd /path/to/IT4US VA && scripts/backup.sh --with-data >> backups/backup.log 2>&1
 ```
 
 ## Updating and upgrading
 
-> Upgrading only swaps the program and never touches data: the Postgres volume `pgdata`, `./data` (jwt.key / SQLite, etc.), and `./skills` are all preserved. **No manual database migration is needed**: `artex` idempotently re-runs `schema.sql` on every start (with `ADD COLUMN` / `CREATE INDEX IF NOT EXISTS`), i.e. "restart equals migrate". It is still recommended to back up `./data` and the database before upgrading.
+> Upgrading only swaps the program and never touches data: the Postgres volume `pgdata`, `./data` (jwt.key / SQLite, etc.), and `./skills` are all preserved. **No manual database migration is needed**: `it4us` idempotently re-runs `schema.sql` on every start (with `ADD COLUMN` / `CREATE INDEX IF NOT EXISTS`), i.e. "restart equals migrate". It is still recommended to back up `./data` and the database before upgrading.
 
 ### Option 1: one-click update script
 
 ```bash
-cd ARTEX
+cd IT4US VA
 ./update.sh
 ```
 
 The script first optionally `git pull`s the latest code, then lets you choose **① Docker update** or **② local build update** (matching `install.sh`):
 
-- **① Docker**: you can specify a target image tag (press Enter to keep `.env`'s `ARTEX_TAG`, default `latest`) → `docker compose pull` → `docker compose up -d` (restarting with the new image migrates automatically).
-- **② Local**: rebuild the frontend static assets → recompile `./artex` (restart the process for it to take effect).
+- **① Docker**: you can specify a target image tag (press Enter to keep `.env`'s `IT4US_TAG`, default `latest`) → `docker compose pull` → `docker compose up -d` (restarting with the new image migrates automatically).
+- **② Local**: rebuild the frontend static assets → recompile `./it4us` (restart the process for it to take effect).
 
 ### Option 2: Docker Compose (manual)
 
 ```bash
-cd ARTEX
+cd IT4US VA
 git pull                       # update compose / scripts (optional)
-# pin a version: set ARTEX_TAG=v0.2.0 in .env; otherwise latest is used
-docker compose pull artex
-docker compose up -d artex     # restart with the new image → schema migrates automatically
+# pin a version: set IT4US_TAG=v0.2.0 in .env; otherwise latest is used
+docker compose pull it4us
+docker compose up -d it4us     # restart with the new image → schema migrates automatically
 docker image prune -f          # clean up old images (optional)
 ```
 
 ### Option 3: prebuilt binaries (Releases)
 
-Download the new version's zip from [Releases](https://github.com/BaaRai/ARTEX/releases), stop the old process, then overwrite `artex` and `skills/` (keep your `config.json` and `data/`), and restart:
+Download the new version's zip from [Releases](https://github.com/BaaRai/IT4US VA/releases), stop the old process, then overwrite `it4us` and `skills/` (keep your `config.json` and `data/`), and restart:
 
 ```bash
-cp -r <extracted dir>/skills ./ && cp <extracted dir>/artex ./
+cp -r <extracted dir>/skills ./ && cp <extracted dir>/it4us ./
 ./start.sh
 ```
 
@@ -213,7 +213,7 @@ cp -r <extracted dir>/skills ./ && cp <extracted dir>/artex ./
 git pull
 cd web && npm ci && npm run build:static && cd ..
 cp -r web/out server/webui/dist
-CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
+CGO_ENABLED=0 go build -tags embedui -o it4us ./cmd/it4us
 # restart ./start.sh
 ```
 
@@ -221,24 +221,24 @@ CGO_ENABLED=0 go build -tags embedui -o artex ./cmd/artex
 
 ## Configuration
 
-**Database** (`config.json`, or override with the `ARTEX_PG_DSN` environment variable):
+**Database** (`config.json`, or override with the `IT4US_PG_DSN` environment variable):
 
 ```json
 {
   "database": {
     "host": "127.0.0.1", "port": 5432,
-    "user": "artex", "password": "yourpass",
-    "dbname": "artex", "sslmode": "disable"
+    "user": "it4us", "password": "yourpass",
+    "dbname": "it4us", "sslmode": "disable"
   }
 }
 ```
 
 **LLM**: `export ANTHROPIC_API_KEY=sk-...` (or `OPENAI_API_KEY`); you can also fill it in on the UI's "LLM Configuration" page — which can add a local Ollama server as a keyless provider (format "Ollama", base URL default `http://127.0.0.1:11434/v1`, models loaded from the server).
-Optional: `ARTEX_LLM_PROVIDER` (anthropic | openai | openai-responses | ollama) / `ARTEX_LLM_MODEL` / `ARTEX_LLM_BASE_URL` / `ARTEX_LLM_PROXY`.
+Optional: `IT4US_LLM_PROVIDER` (anthropic | openai | openai-responses | ollama) / `IT4US_LLM_MODEL` / `IT4US_LLM_BASE_URL` / `IT4US_LLM_PROXY`.
 
 **Concurrency**: the number of work agents per task is configured in "System Settings" (default 3).
 
-**Common flags**: `./start.sh -addr :8787 -proxy :8788` (`-addr` frontend+API, `-proxy` traffic recording proxy). The startup script passes arguments through to `artex` verbatim.
+**Common flags**: `./start.sh -addr :8787 -proxy :8788` (`-addr` frontend+API, `-proxy` traffic recording proxy). The startup script passes arguments through to `it4us` verbatim.
 
 ### Reverse proxy deployment (HTTPS / only exposing 443)
 
@@ -291,7 +291,7 @@ In this version, history is viewed via vulnerability details and sessions; it is
 ./dev.sh    # backend(:8787) + traffic proxy(:8788) + frontend next dev(:5173) → http://localhost:5173
 ```
 
-- Backend: `go run ./cmd/artex` (without `-tags embedui`, the frontend is not embedded)
+- Backend: `go run ./cmd/it4us` (without `-tags embedui`, the frontend is not embedded)
 - Frontend: `cd web && npm run dev` (`/api` is reverse-proxied to the backend, with hot reload)
 - Tests: `go test ./...`
 - Mock preview (no backend): `cd web && NEXT_PUBLIC_MOCK=1 npm run dev`
@@ -300,7 +300,7 @@ In this version, history is viewed via vulnerability details and sessions; it is
 
 ## System architecture
 
-ARTEX is an **LLM multi-agent-driven autonomous penetration testing system**: a Go monolithic backend (with embedded Next.js frontend) + PostgreSQL; agent capabilities are provided by the [`norma`](https://github.com/Autumn-27/norma) SDK (`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`). At its core is a **dual-graph architecture**, plus two autonomy mechanisms built around it: **process-level information exchange between workers** and the **planner's multi-round shared todolist that stabilizes attack chains**.
+IT4US VA is an **LLM multi-agent-driven autonomous penetration testing system**: a Go monolithic backend (with embedded Next.js frontend) + PostgreSQL; agent capabilities are provided by the [`norma`](https://github.com/Autumn-27/norma) SDK (`agentcore` / `tool` / `permission` / `harness` / `memory` / `transcript`). At its core is a **dual-graph architecture**, plus two autonomy mechanisms built around it: **process-level information exchange between workers** and the **planner's multi-round shared todolist that stabilizes attack chains**.
 
 ### Overall layering
 
@@ -464,7 +464,7 @@ flowchart TB
   R3["round 3 (② produced a fact)  dispatch intent ③"] --> T3
 ```
 
-Thus, even in an "event-driven + stateless session" environment, the attack chain still **advances steadily, without repetition or reordering**: this is the key to ARTEX autonomously completing multi-step exploitation chains.
+Thus, even in an "event-driven + stateless session" environment, the attack chain still **advances steadily, without repetition or reordering**: this is the key to IT4US VA autonomously completing multi-step exploitation chains.
 
 ---
 
@@ -483,7 +483,7 @@ This means anyone may freely use, modify, and distribute this project, but **der
 
 > ⚠️ **Important**: the open source license itself does not restrict how the software is used. The "Usage restrictions" and "Disclaimer" below are additional terms and a solemn statement from the maintainers to users, so please abide by them.
 
-**ARTEX is an offensive-security tool. Use it only against systems you own, or that you are explicitly authorized to test (your own lab, your organization's assets, or a bug bounty / vulnerability disclosure program's targets within its published scope and rules of engagement). Any use without authorization is a violation of these terms.**
+**IT4US VA is an offensive-security tool. Use it only against systems you own, or that you are explicitly authorized to test (your own lab, your organization's assets, or a bug bounty / vulnerability disclosure program's targets within its published scope and rules of engagement). Any use without authorization is a violation of these terms.**
 
 ### Permitted use
 

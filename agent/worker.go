@@ -101,7 +101,7 @@ func WorkerSessionID(explorationID, intentID int64) string {
 	return fmt.Sprintf("exp%d-worker-i%d", explorationID, intentID)
 }
 
-const workerChatMarkerPrefix = "<!-- ARTEX_WORKER_CHAT:"
+const workerChatMarkerPrefix = "<!-- IT4US_WORKER_CHAT:"
 
 func workerChatMarker(requestID string) string {
 	return workerChatMarkerPrefix + requestID + " -->"

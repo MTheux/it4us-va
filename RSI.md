@@ -1,4 +1,4 @@
-# Recursive self-improvement in ARTEX
+# Recursive self-improvement in IT4US VA
 
 Status: measurement and shadow memory only. There is no harness search, no
 automatic adoption, and no self-modifying code in this repository.
@@ -70,7 +70,7 @@ A future Loop C PR is acceptable only with:
 - `GET /api/tasks/{id}/outcome` (PR #102) records what a task produced and what
   it cost: findings by disposition and severity, retest verdicts, tokens, tool
   calls, skill misses, wall time.
-- `ARTEX_RSI_LESSONS=off|shadow|inject` (PR #104) extracts evidence-gated
+- `IT4US_RSI_LESSONS=off|shadow|inject` (PR #104) extracts evidence-gated
   lessons from terminal tasks and, in `inject` mode, appends a code-owned
   data-not-instructions block after the planner and worker system prompts.
   Status stays `candidate`.
@@ -110,5 +110,5 @@ Specific ideas referenced above:
 - A Safety in Self-Evolving Agents survey, arXiv:2610.00093 (why properties
   must survive accumulation and cross-context reuse, not just entry screening).
 
-Only ideas are borrowed. ARTEX code is independent Go and Python; no source
+Only ideas are borrowed. IT4US VA code is independent Go and Python; no source
 from harness2 or the referenced projects is copied.

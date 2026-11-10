@@ -235,9 +235,9 @@ func TestOllamaListModels(t *testing.T) {
 // Ollama ignores the bearer token, so inheritance would only ship the cloud key
 // to the local or LAN endpoint.
 func TestOllamaFromEnvDoesNotInheritOpenAIKey(t *testing.T) {
-	t.Setenv("ARTEX_LLM_PROVIDER", "ollama")
+	t.Setenv("IT4US_LLM_PROVIDER", "ollama")
 	t.Setenv("OPENAI_API_KEY", "sk-cloud-secret")
-	t.Setenv("ARTEX_LLM_BASE_URL", "")
+	t.Setenv("IT4US_LLM_BASE_URL", "")
 	c, ok := agent.FromEnv()
 	if !ok {
 		t.Fatal("ollama env config must be usable without a key")

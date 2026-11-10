@@ -1,13 +1,13 @@
-# Override local: evita conflito de portas com o provider ARTEX do Draxen
-# (draxen-artex / scopeweaver) que ocupa 8787/8788. Esta instancia BaaRai/ARTEX
+# Override local: evita conflito de portas com o provider IT4US VA do IT4US VA
+# (it4us-it4us / scopeweaver) que ocupa 8787/8788. Esta instancia BaaRai/IT4US VA
 # roda em paralelo em 8790 (web+API) e 8791 (proxy de trafego).
 #
-# name: isola este stack num projeto compose proprio (artex-baarai) com
-# postgres e volume dedicados, evitando colisao com o provider ARTEX do
-# Draxen (projeto 'artex', em ~/.local/share/draxen/providers/artex).
-name: artex-baarai
+# name: isola este stack num projeto compose proprio (it4us-baarai) com
+# postgres e volume dedicados, evitando colisao com o provider IT4US VA do
+# IT4US VA (projeto 'it4us', em ~/.local/share/it4us/providers/it4us).
+name: it4us-baarai
 services:
-  artex:
+  it4us:
     ports: !override
       - "8790:8787"
       - "127.0.0.1:8791:8788"
