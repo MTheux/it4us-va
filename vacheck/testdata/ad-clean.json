@@ -1,0 +1,9 @@
+{
+  "domain": "clean.local",
+  "krbtgt": {"pwdLastSet": "2026-10-01T00:00:00Z"},
+  "sidHistory": [],
+  "privilegedGroups": [
+    {"group": "Domain Admins", "memberCount": 3},
+    {"group": "Enterprise Admins", "memberCount": 1}
+  ]
+}

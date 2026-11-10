@@ -1,0 +1,12 @@
+{
+  "domain": "foresea.local",
+  "krbtgt": {"pwdLastSet": "2024-01-15T00:00:00Z"},
+  "sidHistory": [
+    {"sAMAccountName": "svc-legacy", "sidHistory": ["S-1-5-21-1111111111-2222222222-3333333333-1105"]},
+    {"sAMAccountName": "migrated-user", "sidHistory": ["S-1-5-21-9999999999-8888888888-7777777777-1200"]}
+  ],
+  "privilegedGroups": [
+    {"group": "Domain Admins", "memberCount": 15},
+    {"group": "Enterprise Admins", "memberCount": 2}
+  ]
+}
