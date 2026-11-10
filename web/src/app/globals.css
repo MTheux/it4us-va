@@ -1,0 +1,416 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* Theme preset styles: these override CSS variables based on the selected data-theme-preset */
+@import "../styles/presets/brutalist.css";
+@import "../styles/presets/soft-pop.css";
+@import "../styles/presets/tangerine.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+}
+
+/* Default theme styles (used when no data-theme-preset is set or when 'default' is selected).
+These serve as the fallback; there is no separate default.css file. */
+/* Draxen identity — "Ultron": grafite + carmim + branco. Dark-only;
+   :root e .dark carregam a mesma paleta escura para evitar qualquer flash claro. */
+:root {
+  --radius: 0.5rem;
+  --background: #070708;
+  --foreground: #f2ecee;
+  --card: #111012;
+  --card-foreground: #f2ecee;
+  --popover: #171417;
+  --popover-foreground: #f2ecee;
+  --primary: #E7274A;
+  --primary-foreground: #f8f3f4;
+  --secondary: #171417;
+  --secondary-foreground: #f2ecee;
+  --muted: #171417;
+  --muted-foreground: #9b8f93;
+  --accent: #28151a;
+  --accent-foreground: #ffdfe4;
+  --destructive: #ff4262;
+  --border: #ffffff18;
+  --input: #ffffff24;
+  --ring: #E7274A;
+  --chart-1: #E7274A;
+  --chart-2: #ff4262;
+  --chart-3: #ff6b7e;
+  --chart-4: #b06b74;
+  --chart-5: #9b8f93;
+  --sidebar: #0b0a0c;
+  --sidebar-foreground: #f2ecee;
+  --sidebar-primary: #E7274A;
+  --sidebar-primary-foreground: #f8f3f4;
+  --sidebar-accent: #1a1518;
+  --sidebar-accent-foreground: #f2ecee;
+  --sidebar-border: #ffffff14;
+  --sidebar-ring: #E7274A;
+
+  /* fonts — Draxen usa o stack de sistema */
+  --font-sans: var(--font-barlow), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+  --font-display: var(--font-barlow-condensed), var(--font-barlow), sans-serif;
+}
+
+.dark {
+  --background: #070708;
+  --foreground: #f2ecee;
+  --card: #111012;
+  --card-foreground: #f2ecee;
+  --popover: #171417;
+  --popover-foreground: #f2ecee;
+  --primary: #E7274A;
+  --primary-foreground: #f8f3f4;
+  --secondary: #171417;
+  --secondary-foreground: #f2ecee;
+  --muted: #171417;
+  --muted-foreground: #9b8f93;
+  --accent: #28151a;
+  --accent-foreground: #ffdfe4;
+  --destructive: #ff4262;
+  --border: #ffffff18;
+  --input: #ffffff24;
+  --ring: #E7274A;
+  --chart-1: #E7274A;
+  --chart-2: #ff4262;
+  --chart-3: #ff6b7e;
+  --chart-4: #b06b74;
+  --chart-5: #9b8f93;
+  --sidebar: #0b0a0c;
+  --sidebar-foreground: #f2ecee;
+  --sidebar-primary: #E7274A;
+  --sidebar-primary-foreground: #f8f3f4;
+  --sidebar-accent: #1a1518;
+  --sidebar-accent-foreground: #f2ecee;
+  --sidebar-border: #ffffff14;
+  --sidebar-ring: #E7274A;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans), system-ui, sans-serif;
+    /* Ambiência Draxen: glow carmim radial + gradiente grafite diagonal. */
+    background-image:
+      radial-gradient(circle at 50% 42%, #6e0f1f2b 0, transparent 36%),
+      linear-gradient(135deg, #0b090a 0%, #050506 58%, #0b0708 100%);
+    background-attachment: fixed;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@layer utilities {
+  [data-theme-preset]:not([data-theme-preset="default"]) .shadow-2xs {
+    box-shadow: var(--shadow-2xs);
+  }
+
+  [data-theme-preset]:not([data-theme-preset="default"]) .shadow-xs {
+    box-shadow: var(--shadow-xs);
+  }
+
+  [data-theme-preset]:not([data-theme-preset="default"]) .shadow-sm {
+    box-shadow: var(--shadow-sm);
+  }
+
+  [data-theme-preset]:not([data-theme-preset="default"]) .shadow {
+    box-shadow: var(--shadow);
+  }
+
+  [data-theme-preset]:not([data-theme-preset="default"]) .shadow-md {
+    box-shadow: var(--shadow-md);
+  }
+
+  [data-theme-preset]:not([data-theme-preset="default"]) .shadow-lg {
+    box-shadow: var(--shadow-lg);
+  }
+
+  [data-theme-preset]:not([data-theme-preset="default"]) .shadow-xl {
+    box-shadow: var(--shadow-xl);
+  }
+
+  [data-theme-preset]:not([data-theme-preset="default"]) .shadow-2xl {
+    box-shadow: var(--shadow-2xl);
+  }
+
+  html[data-font="barlow"] body {
+    --font-sans: var(--font-barlow);
+  }
+  html[data-font="barlowCondensed"] body {
+    --font-sans: var(--font-barlow-condensed);
+  }
+  html[data-font="spaceGrotesk"] body {
+    --font-sans: var(--font-space-grotesk);
+  }
+  html[data-font="ibmPlexMono"] body {
+    --font-sans: var(--font-ibm-plex-mono);
+  }
+  html[data-font="inter"] body {
+    --font-sans: var(--font-inter);
+  }
+  html[data-font="notoSans"] body {
+    --font-sans: var(--font-noto-sans);
+  }
+  html[data-font="nunitoSans"] body {
+    --font-sans: var(--font-nunito-sans);
+  }
+  html[data-font="figtree"] body {
+    --font-sans: var(--font-figtree);
+  }
+  html[data-font="roboto"] body {
+    --font-sans: var(--font-roboto);
+  }
+  html[data-font="geist"] body {
+    --font-sans: var(--font-geist);
+  }
+  html[data-font="raleway"] body {
+    --font-sans: var(--font-raleway);
+  }
+  html[data-font="dmSans"] body {
+    --font-sans: var(--font-dm-sans);
+  }
+  html[data-font="publicSans"] body {
+    --font-sans: var(--font-public-sans);
+  }
+  html[data-font="outfit"] body {
+    --font-sans: var(--font-outfit);
+  }
+  html[data-font="geistMono"] body {
+    --font-sans: var(--font-geist-mono);
+  }
+  html[data-font="geistPixelSquare"] body {
+    --font-sans: var(--font-geist-pixel-square);
+  }
+  html[data-font="jetBrainsMono"] body {
+    --font-sans: var(--font-jetbrains-mono);
+  }
+  html[data-font="notoSerif"] body {
+    --font-sans: var(--font-noto-serif);
+  }
+  html[data-font="robotoSlab"] body {
+    --font-sans: var(--font-roboto-slab);
+  }
+  html[data-font="merriweather"] body {
+    --font-sans: var(--font-merriweather);
+  }
+  html[data-font="lora"] body {
+    --font-sans: var(--font-lora);
+  }
+  html[data-font="playfairDisplay"] body {
+    --font-sans: var(--font-playfair-display);
+  }
+}
+
+html {
+  overscroll-behavior: none;
+}
+
+.disable-transitions * {
+  transition: none !important;
+}
+
+[data-print-root] {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: Letter;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 8.5in !important;
+    height: 11in !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body > *:not([data-print-root]) {
+    display: none !important;
+  }
+
+  [data-print-root] {
+    display: block !important;
+    width: 8.5in !important;
+    height: 11in !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    background: white !important;
+  }
+
+  [data-print-root] [data-print-paper] {
+    width: 8.5in !important;
+    height: 11in !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  [data-print-root] [data-print-paper],
+  [data-print-root] [data-print-paper] * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
+
+
+/* ===== Draxen login — linguagem "PTaaS" (Draxen Core) ===== */
+.proof {
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(130% 120% at 50% 12%, #1a0509 0%, #0c0406 48%, #060506 100%);
+  isolation: isolate;
+}
+.proof-grid {
+  position: absolute;
+  inset: -2px;
+  background-image:
+    linear-gradient(to right, #ffffff0a 1px, transparent 1px),
+    linear-gradient(to bottom, #ffffff0a 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: radial-gradient(135% 100% at 50% 24%, #000 0%, #0000 74%);
+  -webkit-mask-image: radial-gradient(135% 100% at 50% 24%, #000 0%, #0000 74%);
+  pointer-events: none;
+}
+.proof-glow {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 120%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  background: radial-gradient(circle, #E7274A2e 0%, #E7274A10 36%, transparent 64%);
+  filter: blur(8px);
+  pointer-events: none;
+}
+.proof-kicker {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #e6b3bb;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.proof-title {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(2.6rem, 3.4vw, 3.6rem);
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  color: #f4f1f2;
+}
+.proof-title .accent { color: #E7274A; }
+.proof-copy {
+  max-width: 34ch;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #a6a2ab;
+}
+/* moldura do Draxen Core */
+.core-frame {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  margin: 8px 0;
+  border: 1px solid #ffffff12;
+  border-radius: 10px;
+  background: #ffffff05;
+  display: flex;
+  flex-direction: column;
+}
+.core-frame-label {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: #6f6a72;
+}
+.core-canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+.proof-bottom {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.7;
+  color: #8a858d;
+}
+.proof-bottom strong { color: #cfcacd; font-weight: 500; }
+
+/* lado direito */
+.access-logo { font-family: var(--font-display); font-weight: 900; letter-spacing: 0.04em; font-size: 1.9rem; text-transform: uppercase; }
+.access-sub { font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted-foreground); }
+.access-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.access-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #E7274A;
+  box-shadow: 0 0 0 0 #E7274A80;
+  animation: draxen-pulse 2.1s ease-out infinite;
+}
+@keyframes draxen-pulse {
+  0%   { box-shadow: 0 0 0 0 #E7274A80; }
+  70%  { box-shadow: 0 0 0 9px #E7274A00; }
+  100% { box-shadow: 0 0 0 0 #E7274A00; }
+}
+@media (prefers-reduced-motion: reduce) { .access-dot { animation: none; } }

@@ -1,0 +1,13 @@
+# Override local: evita conflito de portas com o provider ARTEX do Draxen
+# (draxen-artex / scopeweaver) que ocupa 8787/8788. Esta instancia BaaRai/ARTEX
+# roda em paralelo em 8790 (web+API) e 8791 (proxy de trafego).
+#
+# name: isola este stack num projeto compose proprio (artex-baarai) com
+# postgres e volume dedicados, evitando colisao com o provider ARTEX do
+# Draxen (projeto 'artex', em ~/.local/share/draxen/providers/artex).
+name: artex-baarai
+services:
+  artex:
+    ports: !override
+      - "8790:8787"
+      - "127.0.0.1:8791:8788"
