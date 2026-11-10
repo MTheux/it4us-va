@@ -48,6 +48,11 @@ func main() {
 }
 
 func run() int {
+	// Subcomando `it4us report [nome]`: gera o laudo VA e sai, sem subir o server.
+	if len(os.Args) > 1 && os.Args[1] == "report" {
+		return runReport(os.Args[2:])
+	}
+
 	var (
 		addr    = flag.String("addr", ":8787", "HTTP listen address")
 		dataDir = flag.String("data", filepath.Join(config.BaseDir(), "data"), "data directory for SQLite stores (default: data/ next to the executable)")
