@@ -8,11 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/MTheux/it4us-va/agent"
-	"github.com/MTheux/it4us-va/db"
-	"github.com/MTheux/it4us-va/traffic"
 	"github.com/Autumn-27/norma/skill"
 	actool "github.com/Autumn-27/norma/tool"
+	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // mcpUntrustedNote is appended to every MCP tool description: a one-line
@@ -231,17 +230,6 @@ func wireTools(pg *db.DB, domainReg map[string]actool.CoreTool) {
 		agents, _ := json.Marshal(s.Agents)
 		if err := pg.SeedTool(s.Key, s.Desc, schema, agents); err != nil {
 			log.Printf("[tools] seed %s failed: %v", s.Key, err)
-		}
-	}
-	// Seed the traffic host tools so they're bindable per-agent like built-ins.
-	// Default binding = worker (preserves prior behavior). Their runtime availability
-	// is still gated by the global capture switch (hostTools() returns them only when
-	// capture is on), so an off-capture binding simply never surfaces the tool.
-	trafficAgents, _ := json.Marshal([]string{"worker"})
-	for _, t := range traffic.SeedToolMetas() {
-		schema, _ := json.Marshal(t.InputSchema())
-		if err := pg.SeedTool(t.Name(), t.Description(), schema, trafficAgents); err != nil {
-			log.Printf("[tools] seed %s failed: %v", t.Name(), err)
 		}
 	}
 	// bashInteractiveShellNote is appended to Bash's description ONLY for agents whose

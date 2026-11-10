@@ -25,7 +25,7 @@ func writeFindingsEvidenceZip(out io.Writer, findings []*db.DBFinding, stage str
 }
 
 func writeFindingsZipEntries(zw *zip.Writer, findings []*db.DBFinding, stage string, now time.Time) error {
-	store := evidence.New(nil, nil, stage) // private export copy; not subject to GC
+	store := evidence.New(nil, stage) // private export copy; not subject to GC
 	used := map[string]int{}
 	for _, f := range findings {
 		base := report.FindingFilename(f)
