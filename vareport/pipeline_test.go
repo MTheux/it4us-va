@@ -36,7 +36,9 @@ func (f *fakeClient) ExportPDF(ctx context.Context, projectID, dest string) erro
 	f.pdfPath = dest
 	return os.WriteFile(dest, []byte("%PDF fake"), 0o644)
 }
-func (f *fakeClient) ProjectURL(projectID string) string { return "http://sr/projects/" + projectID + "/" }
+func (f *fakeClient) ProjectURL(projectID string) string {
+	return "http://sr/projects/" + projectID + "/"
+}
 
 func TestGenerateCreatesProjectAndFindings(t *testing.T) {
 	fc := &fakeClient{}

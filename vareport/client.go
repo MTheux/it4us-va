@@ -132,6 +132,15 @@ func (c *httpClient) CreateProject(ctx context.Context, name string) (string, er
 }
 
 func (c *httpClient) CreateFinding(ctx context.Context, projectID string, f FindingPayload) error {
+	// SysReptor rejects null for list fields: coerce nil slices to [].
+	affected := f.AffectedComponents
+	if affected == nil {
+		affected = []string{}
+	}
+	refs := f.References
+	if refs == nil {
+		refs = []string{}
+	}
 	payload := map[string]any{
 		"data": map[string]any{
 			"title":               f.Title,
@@ -140,8 +149,8 @@ func (c *httpClient) CreateFinding(ctx context.Context, projectID string, f Find
 			"impact":              f.Impact,
 			"description":         f.Description,
 			"recommendation":      f.Recommendation,
-			"affected_components": f.AffectedComponents,
-			"references":          f.References,
+			"affected_components": affected,
+			"references":          refs,
 			"retest_status":       f.RetestStatus,
 		},
 		"status":   "in-progress",

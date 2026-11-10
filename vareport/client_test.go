@@ -127,3 +127,27 @@ func TestExportPDFWritesFile(t *testing.T) {
 		t.Fatalf("pdf not written: %v (%q)", err, b)
 	}
 }
+
+func TestCreateFindingNeverSendsNullLists(t *testing.T) {
+	var gotBody []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotBody, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"f1"}`))
+	}))
+	defer srv.Close()
+	c := NewHTTPClient(Config{BaseURL: srv.URL, Token: "tok"})
+	// AffectedComponents e References nil (vazios).
+	if err := c.CreateFinding(context.Background(), "p1", FindingPayload{Title: "t", Severity: "low"}); err != nil {
+		t.Fatal(err)
+	}
+	var p struct {
+		Data map[string]json.RawMessage `json:"data"`
+	}
+	if err := json.Unmarshal(gotBody, &p); err != nil {
+		t.Fatal(err)
+	}
+	if string(p.Data["affected_components"]) != "[]" || string(p.Data["references"]) != "[]" {
+		t.Errorf("list fields não devem ser null: ac=%s refs=%s", p.Data["affected_components"], p.Data["references"])
+	}
+}
