@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/db"
+	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/db"
 	actool "github.com/Autumn-27/norma/tool"
 )
 

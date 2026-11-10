@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Autumn-27/artex/notify"
+	"github.com/MTheux/it4us-va/notify"
 )
 
 // Every case in this file connects to a real PostgreSQL (skipped when unavailable).

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/notify"
+	"github.com/MTheux/it4us-va/db"
+	"github.com/MTheux/it4us-va/notify"
 )
 
 // This file is the HTTP API for the notification delivery feature. All routes are

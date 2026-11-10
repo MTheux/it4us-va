@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // Human CRUD endpoints for the overview "Constraint Management" card + injection-scope

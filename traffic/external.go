@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // ExternalExchange is one captured request/response pair handed in from

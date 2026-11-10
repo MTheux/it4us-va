@@ -2,14 +2,14 @@
 #
 # Runtime image (no compilation inside the image): install common tools only and ship
 # a **pre-built Linux single binary**. The binary is cross-compiled by the CI binaries
-# job (pure Go, no QEMU) and placed at dist/<TARGETARCH>/artex in the build context.
+# job (pure Go, no QEMU) and placed at dist/<TARGETARCH>/it4us in the build context.
 # This way multi-arch builds only need to emulate the apt layer for arm64 instead of
 # emulating the Next/Go compilation, which is much faster.
 #
 # To build the image manually, prepare the binary yourself first:
 #   cd web && npm run build:static && cd ..
 #   cp -r web/out server/webui/dist
-#   CGO_ENABLED=0 GOARCH=amd64 go build -tags embedui -o dist/amd64/artex ./cmd/artex
+#   CGO_ENABLED=0 GOARCH=amd64 go build -tags embedui -o dist/amd64/it4us ./cmd/it4us
 #   docker build -t artex:local .
 FROM python:3.12-slim-bookworm
 ARG TARGETARCH
@@ -83,13 +83,13 @@ RUN npm install -g @playwright/mcp@latest @playwright/cli@latest playwright@late
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
-# pre-built binary for the matching architecture (dist/amd64/artex or dist/arm64/artex)
-COPY dist/${TARGETARCH}/artex /app/artex
+# pre-built binary for the matching architecture (dist/amd64/it4us or dist/arm64/artex)
+COPY dist/${TARGETARCH}/it4us /app/artex
 # Daemon startup script: relaunches the process after a crash and forwards SIGTERM
 # to artex — docker stop only signals PID 1; without forwarding, artex never receives it,
 # cannot shut down gracefully, and is hard-killed by SIGKILL after 10 seconds.
 COPY start.sh /app/start.sh
-RUN chmod +x /app/artex /app/start.sh
+RUN chmod +x /app/it4us /app/start.sh
 COPY skills/ /app/skills/
 # persistence point for data/ (SQLite + jwt.key)
 VOLUME ["/app/data"]

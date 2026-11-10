@@ -9,7 +9,7 @@
 #   ARTEX_TARGET_ARCH=amd64           One target arch in single-target mode.
 #   ARTEX_TARGETS=linux/amd64,...     Comma-separated targets for multi-target mode.
 #   ARTEX_BUILD_VERSION=v0.3.3        Version embedded in the binary and archive name.
-#   ARTEX_OUTPUT=/path/to/artex       Explicit binary path in single-target mode.
+#   ARTEX_OUTPUT=/path/to/it4us       Explicit binary path in single-target mode.
 #   ARTEX_OUTPUT_DIR=dist             Directory for default binary paths.
 #   ARTEX_PACKAGE=1                   Create a zip archive for each target.
 #   ARTEX_PACKAGE_DIR=dist            Directory for release archives.
@@ -223,7 +223,7 @@ build_target() {
     -trimpath \
     -ldflags "-s -w -buildid= -X main.version=${ARTEX_BUILD_VERSION}" \
     -o "$output" \
-    ./cmd/artex
+    ./cmd/it4us
 
   compress_binary "$output" "$goos"
   if command -v file >/dev/null 2>&1; then file "$output"; fi

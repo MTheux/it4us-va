@@ -3,7 +3,7 @@ package server
 import (
 	"testing"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // The cost ledger: profile prices (EUR per 1M tokens) turn token buckets into

@@ -1,4 +1,4 @@
-module github.com/Autumn-27/artex
+module github.com/MTheux/it4us-va
 
 go 1.26.3
 

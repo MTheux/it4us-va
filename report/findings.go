@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Autumn-27/artex/db"
+	"github.com/MTheux/it4us-va/db"
 )
 
 // Rendering for the findings page "Export": renders a batch of findings table rows

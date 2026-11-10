@@ -11,9 +11,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Autumn-27/artex/agent"
-	"github.com/Autumn-27/artex/db"
-	"github.com/Autumn-27/artex/intercept"
+	"github.com/MTheux/it4us-va/agent"
+	"github.com/MTheux/it4us-va/db"
+	"github.com/MTheux/it4us-va/intercept"
 	"github.com/Autumn-27/norma/harness"
 	"github.com/Autumn-27/norma/llm"
 	"github.com/jackc/pgx/v5/pgconn"

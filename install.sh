@@ -99,10 +99,10 @@ JSON
     ( cd web && npm ci && npm run build:static )
     rm -rf server/webui/dist && cp -r web/out server/webui/dist
     info "compiling embedded single binary..."
-    CGO_ENABLED=0 go build -tags embedui -trimpath -o artex ./cmd/artex
+    CGO_ENABLED=0 go build -tags embedui -trimpath -o it4us ./cmd/it4us
   else
     warn "npm not detected: building a backend WITHOUT the embedded frontend (run npm run dev separately for the frontend)"
-    CGO_ENABLED=0 go build -o artex ./cmd/artex
+    CGO_ENABLED=0 go build -o it4us ./cmd/it4us
   fi
   ok "build complete → ./artex"
 

@@ -61,10 +61,10 @@ update_local(){
     ( cd web && npm ci && npm run build:static )
     rm -rf server/webui/dist && cp -r web/out server/webui/dist
     info "Recompiling the embedded single binary…"
-    CGO_ENABLED=0 go build -tags embedui -trimpath -o artex ./cmd/artex
+    CGO_ENABLED=0 go build -tags embedui -trimpath -o it4us ./cmd/it4us
   else
     warn "npm not detected: building a backend **without the embedded frontend** (run the frontend separately with npm run dev)"
-    CGO_ENABLED=0 go build -o artex ./cmd/artex
+    CGO_ENABLED=0 go build -o it4us ./cmd/it4us
   fi
   ok "Build complete → ./artex"
   warn "Restart the running artex process to take effect (schema migrates automatically on restart)"
