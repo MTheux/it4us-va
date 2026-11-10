@@ -36,6 +36,28 @@ As trocas de rótulo são seguras, mas o reenquadramento **estrutural** do templ
 2. Remover narrativa de ataque / kill-chain do `report_template`.
 3. Revisar textos-padrão de metodologia para "não-intrusiva".
 
+## Smoke de integração end-to-end (Task 7) — 2026-11-10
+
+Pipeline `vareport.Generate` exercitada contra o SysReptor real (`127.0.0.1:8000`,
+containers `sysreptor-app/db/redis` healthy) usando o cliente HTTP de produção
+(`NewHTTPClient`) e o Design VA `c0c686ae-…`, com 3 findings de fixture
+(TLS 1.0/1.1 `medium`, ADCS ESC1 `high`, SMB share `low`). Resultado verificado:
+
+- Projeto criado a partir do Design VA; 3 findings no **modelo VA** com severidade
+  e `retest_status=new` corretos.
+- **Enquadramento VA**: nenhum finding carrega linguagem de exploração (guard
+  `assertVAFraming`).
+- **No-PII**: um email plantado na evidência (`admin@cliente.example`) chegou ao
+  SysReptor como `[REDACTED:PII]` (guard `sanitizePII`).
+- **Render limpo**: `GET /check/` = 12 warnings benignos (TODO/campos vazios de
+  metadado por preencher), **0** mensagens de paginação/anchor — o guard
+  `Blocking()` não aborta.
+- **PDF rascunho** exportado (`application/pdf`, PDF 1.7, ~130 KB).
+- **Fail-closed** de config confirmado (env incompleto → erro, sem efeito parcial).
+
+Projeto de smoke removido após a verificação (`DELETE` 204). Reproduzível via
+`it4us report` com `IT4US_SYSREPTOR_URL/TOKEN/DESIGN_ID` setados.
+
 Verificado: projeto de teste criado a partir deste design renderiza PDF via
 `POST /generate/` (200, `application/pdf`); `GET /check/` só acusa warnings
 benignos de metadados não preenchidos (não bloqueiam o rascunho).
