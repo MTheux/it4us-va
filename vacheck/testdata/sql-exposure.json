@@ -1,0 +1,23 @@
+{
+  "host": "10.119.240.10",
+  "instance": "MSSQLSERVER",
+  "authMode": "mixed",
+  "saEnabled": true,
+  "linkedServers": ["LEGACY-SQL", "REPORTING"],
+  "databases": [
+    {
+      "name": "RH",
+      "tables": [
+        {
+          "schema": "dbo",
+          "table": "Funcionarios",
+          "rowCount": 48213,
+          "columns": ["id", "cpf", "nome", "salario"],
+          "sampleRows": [
+            {"id": 1, "cpf": "111.444.777-35", "nome": "Fulano de Tal", "salario": 9000}
+          ]
+        }
+      ]
+    }
+  ]
+}
