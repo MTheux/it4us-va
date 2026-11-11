@@ -97,6 +97,9 @@ func (s *Server) applyTaskControlWithCause(t *Task, action string, pauseCause er
 	if t == nil {
 		return taskControlResult{}, fmt.Errorf("task not found")
 	}
+	if t.VAOnly {
+		return taskControlResult{}, fmt.Errorf("VA-only tasks run through governed VA campaigns, not the agent task controls")
+	}
 	out := taskControlResult{ID: t.ID}
 	switch action {
 	case "pause":

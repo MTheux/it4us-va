@@ -26,6 +26,9 @@ type goalSpec struct {
 //
 // Asynchronous (goroutine) so the caller returns immediately; both paths behave the same: the task exists in seconds and goals decompose in the background.
 func (s *Server) launchTask(t *Task, seedText string, seedFirstIntent bool) {
+	if t == nil || t.VAOnly {
+		return
+	}
 	if !s.engine.beginTaskOperation(t.ID) {
 		return
 	}
@@ -40,6 +43,9 @@ func (s *Server) launchTask(t *Task, seedText string, seedFirstIntent bool) {
 }
 
 func (s *Server) startTaskEngine(t *Task) {
+	if t == nil || t.VAOnly {
+		return
+	}
 	ctx := s.engine.execContextFor(s.ctx, t.ID)
 	if ctx.Err() != nil || s.engine.IsDeleting(t.ID) {
 		return
@@ -66,7 +72,7 @@ func (s *Server) startTaskEngine(t *Task) {
 }
 
 func (s *Server) occupiesConcurrencySlot(t *Task) bool {
-	if t == nil {
+	if t == nil || t.VAOnly {
 		return false
 	}
 	lifecycle := t.lifecycleSnapshot()

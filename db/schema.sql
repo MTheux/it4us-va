@@ -512,6 +512,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     category_id    BIGINT REFERENCES task_categories(id) ON DELETE SET NULL,
     description    TEXT NOT NULL,
     goal           TEXT NOT NULL,
+    va_only        BOOLEAN NOT NULL DEFAULT false,
     exploration_id BIGINT NOT NULL UNIQUE
                      REFERENCES explorations(id) ON DELETE RESTRICT,
     status         TEXT NOT NULL DEFAULT 'created'
@@ -546,6 +547,7 @@ CREATE TRIGGER trg_tasks_upd BEFORE UPDATE ON tasks
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 -- planner heartbeat trigger interval (seconds); backfills old databases. Default 300s (5min). See docs/planner-trigger-impl-plan.md
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS plan_heartbeat_seconds INTEGER NOT NULL DEFAULT 300;
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS va_only BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS plan_quiet_mode BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS llm_rotate BOOLEAN NOT NULL DEFAULT false;
 -- Concurrency-limit hold state; backfills old databases. true=queued due to the concurrency limit, auto-starts when a slot frees up.

@@ -42,12 +42,10 @@ import type { LLMProfile, Task } from "@/lib/types";
 import { AssetsTab } from "./_tabs/assets-tab";
 import { BroadcastTab } from "./_tabs/broadcast-tab";
 import { CoverageGraphTab } from "./_tabs/coverage-graph-tab";
-import { CredentialsTab } from "./_tabs/credentials-tab";
 import { FindingsTab } from "./_tabs/findings-tab";
 import { GraphTab } from "./_tabs/graph-tab";
 import { OverviewTab } from "./_tabs/overview-tab";
 import { ReportTab } from "./_tabs/report-tab";
-import { RetestsTab } from "./_tabs/retests-tab";
 import { SessionsTab } from "./_tabs/sessions-tab";
 
 const TABS = [
@@ -58,8 +56,6 @@ const TABS = [
   { value: "report", label: "Relatório" },
   { value: "graph", label: "Grafo" },
   { value: "broadcast", label: "Comunicados" },
-  { value: "retests", label: "Retestes" },
-  { value: "credentials", label: "Credenciais" },
   { value: "coverage", label: "Cobertura" },
 ];
 
@@ -365,8 +361,8 @@ function TaskDetailInner() {
             {task.id}
           </code>
           <Separator orientation="vertical" className="mx-1 hidden h-4 sm:block" />
-          <TaskLLMControl task={task} profiles={profiles} onUpdated={load} />
-          <StatusBadge domain={terminal ? "task" : "engine"} value={terminal ? task.status : engineMode} dot />
+          {!task.va_only && <TaskLLMControl task={task} profiles={profiles} onUpdated={load} />}
+          {task.va_only ? <span className="rounded-md border px-2 py-1 text-xs">Pronta para VA</span> : <StatusBadge domain={terminal ? "task" : "engine"} value={terminal ? task.status : engineMode} dot />}
           {canArchive ? (
             <AlertDialog>
               <AlertDialogTrigger asChild>{archiveTrigger}</AlertDialogTrigger>
@@ -392,15 +388,15 @@ function TaskDetailInner() {
               <TooltipContent>{archiveDisabledReason}</TooltipContent>
             </Tooltip>
           )}
-          <Button size="sm" variant={controlVariant} onClick={togglePause} disabled={terminal}>
+          {task.va_only ? <Button asChild size="sm"><Link href="/function/va-runs">Nova execução VA</Link></Button> : <Button size="sm" variant={controlVariant} onClick={togglePause} disabled={terminal}>
             {controlIcon}
             {controlLabel}
-          </Button>
+          </Button>}
         </div>
         <p className="truncate text-xs text-muted-foreground">{task.goal}</p>
         <div className="pt-2">
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Áreas da tarefa</p>
-          <TabsList variant="default" style={{ height: "auto" }} className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 sm:grid-cols-3 lg:grid-cols-5">
+          <TabsList variant="default" style={{ height: "auto" }} className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 sm:grid-cols-4">
             {TABS.map((t) => (
               <TabsTrigger key={t.value} value={t.value} className="h-10 min-w-0 justify-start rounded-lg border bg-card px-3 text-left text-xs sm:text-sm data-active:border-primary data-active:bg-primary/10 data-active:text-primary">
                 {t.label}
@@ -427,14 +423,8 @@ function TaskDetailInner() {
         <TabsContent value="findings" className="mt-0">
           <FindingsTab taskId={id} />
         </TabsContent>
-        <TabsContent value="retests" className="mt-0">
-          <RetestsTab key={id} taskId={id} />
-        </TabsContent>
         <TabsContent value="assets" className="mt-0">
           <AssetsTab taskId={id} />
-        </TabsContent>
-        <TabsContent value="credentials" className="mt-0">
-          <CredentialsTab taskId={id} />
         </TabsContent>
         <TabsContent value="coverage" className="mt-0">
           <CoverageGraphTab taskId={id} coverageEnabled={task?.coverage_enabled !== false} />

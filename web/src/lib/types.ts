@@ -91,6 +91,7 @@ export interface VARun {
 
 export interface Task {
   id: string;
+  va_only?: boolean;
   name?: string; // optional task name; empty/absent = untitled, display falls back to the description
   category_id?: number;
   category_name?: string;

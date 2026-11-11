@@ -109,7 +109,7 @@ func (s *Server) vaReadCampaign(w http.ResponseWriter, r *http.Request) (vascan.
 		writeErr(w, http.StatusServiceUnavailable, "could not verify global asset rules")
 		return campaign, nil, false
 	}
-	taskBlock, taskAllow, err := s.m.PG().Assets().TaskInterceptRulesSplit(campaign.TaskID)
+	taskBlock, taskAllow, err := s.m.PG().Assets().TaskVAAllowRules(campaign.TaskID)
 	if err != nil {
 		writeErr(w, http.StatusServiceUnavailable, "could not verify task asset rules")
 		return campaign, nil, false

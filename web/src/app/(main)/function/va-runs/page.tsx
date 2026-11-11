@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import type { Task, VACampaign, VACapabilities, VACVECheck, VACVEIntel, VAPlan, VARun } from "@/lib/types";
 
@@ -58,7 +57,9 @@ export default function VARunsPage() {
   const [capabilities, setCapabilities] = React.useState<VACapabilities | null>(null);
   const [selected, setSelected] = React.useState<VARun | null>(null);
   const [taskID, setTaskID] = React.useState("");
-  const [targets, setTargets] = React.useState("");
+  const [scopeTargets, setScopeTargets] = React.useState<string[]>([]);
+  const [scopeLoading, setScopeLoading] = React.useState(false);
+  const [scopeError, setScopeError] = React.useState("");
   const [portChoice, setPortChoice] = React.useState<PortChoice>("common");
   const [depth, setDepth] = React.useState<"standard" | "deep">("standard");
   const [customPorts, setCustomPorts] = React.useState("");
@@ -97,14 +98,34 @@ export default function VARunsPage() {
     const timer = window.setInterval(() => void api.vaRun(selected.id).then(setSelected).catch(() => undefined), 5000);
     return () => window.clearInterval(timer);
   }, [selected?.id, selected?.status]);
+  React.useEffect(() => {
+    if (!taskID) { setScopeTargets([]); setScopeError(""); return; }
+    let active = true;
+    setScopeLoading(true);
+    setScopeTargets([]);
+    setScopeError("");
+    void Promise.all([api.taskInterceptRules(taskID), api.taskScope(taskID)]).then(([rules, scopeResult]) => {
+      if (!active) return;
+      const allowed = rules.filter((rule) => rule.enabled && rule.action === "allow" && (rule.kind === "exact_ip" || rule.kind === "cidr"));
+      const hasExplicitIPRules = rules.some((rule) => rule.action === "allow" && (rule.kind === "exact_ip" || rule.kind === "cidr"));
+      const legacy = hasExplicitIPRules ? [] : scopeResult.scope
+        .filter((entry) => entry.task_id === Number(taskID) && entry.source === "manual" && (entry.kind === "ip" || entry.kind === "cidr"))
+        .map((entry) => entry.kind === "ip" ? (entry.net || "").split("/")[0] : entry.net || "");
+      setScopeTargets([...new Set([...allowed.map((rule) => rule.pattern.trim()), ...legacy].filter(Boolean))]);
+    }).catch((cause) => {
+      if (active) setScopeError(cause instanceof Error ? cause.message : "Não foi possível carregar o escopo da tarefa.");
+    }).finally(() => { if (active) setScopeLoading(false); });
+    return () => { active = false; };
+  }, [taskID]);
   function campaign(): VACampaign {
     const id = Number(taskID);
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Selecione uma tarefa do SOC.");
     if (!approvedBy.trim()) throw new Error("Informe quem autorizou esta execução.");
     const expiry = new Date(expires);
     if (!Number.isFinite(expiry.getTime()) || expiry.getTime() <= Date.now()) throw new Error("Escolha uma janela futura.");
-    const targetList = targets.split(/[\s,;]+/).filter(Boolean);
-    if (!targetList.length) throw new Error("Informe os IPs ou ranges CIDR autorizados.");
+    if (scopeLoading) throw new Error("Aguarde o escopo da tarefa carregar.");
+    const targetList = scopeTargets;
+    if (!targetList.length) throw new Error("Esta tarefa não tem IPs ou CIDRs autorizados para VA. Cadastre uma tarefa com escopo antes de executar.");
     const task = tasks.find((item) => item.id === taskID);
     const ports = portChoice === "all" ? [] : portChoice === "first1000"
       ? Array.from({ length: 1000 }, (_, index) => index + 1)
@@ -176,7 +197,7 @@ export default function VARunsPage() {
         <div>
           <p className="font-mono text-xs font-medium uppercase tracking-[0.18em] text-primary">SOC / IT4US VA</p>
           <h1 className="mt-2 flex items-center gap-3 text-3xl font-semibold tracking-tight"><ScanSearchIcon className="size-7 text-primary" /> Nova execução</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Defina os alvos e as portas. A análise identifica serviços e correlaciona CVEs automaticamente quando há versão precisa.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Selecione a tarefa do cliente. Os IPs autorizados são carregados automaticamente; escolha as portas e revise o plano.</p>
         </div>
         <Badge variant="outline" className={capabilities?.scanner_available ? "border-primary/40 text-primary" : ""}>
           {capabilities === null ? "Verificando scanner" : capabilities.scanner_available ? "Scanner pronto" : "Scanner indisponível"}
@@ -199,9 +220,11 @@ export default function VARunsPage() {
             {tasks.length === 0 && <Link href="/function/tasks" className="inline-flex items-center gap-1 text-xs text-primary hover:underline">Criar tarefa para este cliente <ArrowRightIcon className="size-3" /></Link>}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="va-targets">IPs e ranges autorizados</Label>
-            <Textarea id="va-targets" value={targets} onChange={(event) => setTargets(event.target.value)} rows={4} className="font-mono" spellCheck={false} placeholder={"192.0.2.10\n198.51.100.0/28"} />
-            <p className="text-xs text-muted-foreground">Um IP ou CIDR por linha. Até 4.096 IPs; sem hostnames.</p>
+            <Label>IPs e ranges da tarefa</Label>
+            {scopeLoading ? <p className="text-sm text-muted-foreground">Carregando escopo autorizado…</p> : scopeTargets.length > 0 ? (
+              <div className="max-h-40 space-y-1 overflow-auto rounded-lg border bg-muted/20 p-3 font-mono text-xs">{scopeTargets.map((target) => <div key={target}>{target}</div>)}</div>
+            ) : <p role="status" className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-amber-700 dark:text-amber-300">Esta tarefa não tem IPs autorizados para execução VA. A tarefa DEMO contém apenas dados fictícios e não libera scans. <Link href="/function/tasks" className="underline">Cadastre uma tarefa com IPs ou ranges</Link>.</p>}
+            {scopeError && <p role="alert" className="text-xs text-destructive">{scopeError}</p>}
           </div>
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium">Portas TCP</legend>
@@ -226,7 +249,7 @@ export default function VARunsPage() {
           </div>
           {capabilities?.scanner_available === false && <p role="status" className="text-sm text-muted-foreground">O scanner não está instalado neste ambiente. A revisão do escopo continua disponível.</p>}
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <div className="flex justify-end"><Button type="submit" disabled={busy}>{busy && <Loader2Icon className="size-4 animate-spin" />} Revisar execução <ArrowRightIcon className="size-4" /></Button></div>
+          <div className="flex justify-end"><Button type="submit" disabled={busy || scopeLoading || scopeTargets.length === 0}>{busy && <Loader2Icon className="size-4 animate-spin" />} Revisar execução <ArrowRightIcon className="size-4" /></Button></div>
         </form>
       </CardContent></Card> : <Card><CardContent className="space-y-5 p-5 md:p-7">
         <form onSubmit={lookupCVE} className="space-y-4">

@@ -260,6 +260,7 @@ export const api = {
   task: (id: string) => get<Task>(`/tasks/${encodeURIComponent(id)}`),
   createTask: (input: {
     name?: string;
+    vaOnly?: boolean;
     categoryId?: number;
     description: string;
     goal: string;
@@ -276,6 +277,7 @@ export const api = {
   }) =>
     post<Task>("/tasks", {
       name: input.name ?? "",
+      va_only: input.vaOnly ?? false,
       category_id: input.categoryId ?? null,
       description: input.description,
       goal: input.goal,

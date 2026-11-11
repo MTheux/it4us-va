@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 )
 
 // TaskInterceptRuleInput is one task-level rule supplied at task creation.
@@ -59,6 +60,39 @@ func (s *AssetStore) TaskInterceptRulesSplit(taskID int64) (block, allow []Asset
 		} else {
 			block = append(block, r)
 		}
+	}
+	return block, allow, nil
+}
+
+// TaskVAAllowRules accepts an explicit task allowlist. Legacy tasks that have
+// operator-entered manual IP/CIDR scope but no IP allow rules use those manual
+// rows as the equivalent authorization boundary. An existing disabled IP rule
+// prevents this fallback, so revocation cannot silently re-enable a range.
+func (s *AssetStore) TaskVAAllowRules(taskID int64) (block, allow []AssetInterceptRule, err error) {
+	block, allow, err = s.TaskInterceptRulesSplit(taskID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, rule := range allow {
+		if rule.Kind == "exact_ip" || rule.Kind == "cidr" {
+			return block, allow, nil
+		}
+	}
+	scopes, err := s.ListTaskScope(taskID)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, scope := range scopes {
+		if scope.Source != "manual" || (scope.Kind != "ip" && scope.Kind != "cidr") || scope.Net == "" {
+			continue
+		}
+		kind := "cidr"
+		pattern := scope.Net
+		if scope.Kind == "ip" {
+			kind = "exact_ip"
+			pattern, _, _ = strings.Cut(pattern, "/")
+		}
+		allow = append(allow, AssetInterceptRule{Enabled: true, Action: "allow", Kind: kind, Pattern: pattern, Note: "operator-entered task scope"})
 	}
 	return block, allow, nil
 }

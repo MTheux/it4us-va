@@ -267,6 +267,9 @@ func (s *Server) restoreTaskRuntimes() {
 	// reload tasks persisted on disk so the task list survives a restart, and
 	// restore persisted paused state (so a task paused before restart stays paused).
 	for _, t := range m.LoadExisting() {
+		if t.VAOnly {
+			continue
+		}
 		lifecycle := t.lifecycleSnapshot()
 		// clear stale 'running' intents from a prior crash/restart (no live worker
 		// owns them) so they re-claim instead of spinning forever in the UI.
@@ -287,6 +290,9 @@ func (s *Server) restoreTaskRuntimes() {
 	// occupants without live loops, which could permanently block the persistent
 	// FIFO. Paused loops remain idle; queued tasks are admitted below as slots allow.
 	for _, t := range m.List() {
+		if t.VAOnly {
+			continue
+		}
 		lifecycle := t.lifecycleSnapshot()
 		if !lifecycle.Queued && !isTerminalStatus(lifecycle.Status) {
 			s.engine.Run(s.ctx, t)
@@ -1487,6 +1493,7 @@ func truncateReply(s string) string {
 
 type createTaskReq struct {
 	Name                 string             `json:"name,omitempty"` // optional task name; omitted/empty = unnamed
+	VAOnly               bool               `json:"va_only,omitempty"`
 	CategoryID           *int64             `json:"category_id,omitempty"`
 	Description          string             `json:"description"`
 	Goal                 string             `json:"goal"`
@@ -1560,6 +1567,14 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.Description) == "" {
 		req.Description = "Unnamed task"
 	}
+	if req.VAOnly {
+		if strings.TrimSpace(req.Name) == "" || len(req.Scope) == 0 {
+			writeErr(w, 400, "VA task requires a name and at least one authorized IP or CIDR")
+			return
+		}
+		req.Description = "Avaliação de infraestrutura: " + strings.TrimSpace(req.Name)
+		req.Goal = "Inventariar serviços e revisar candidatos de vulnerabilidade somente nos IPs e ranges autorizados da tarefa."
+	}
 	if len(req.LLMProfileIDs) == 0 && req.LLMProfileID != nil {
 		req.LLMProfileIDs = []int64{*req.LLMProfileID}
 	}
@@ -1567,9 +1582,11 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, err.Error())
 		return
 	}
-	if err := goalGateCheck(req.Goal); err != nil {
-		writeErr(w, 400, err.Error())
-		return
+	if !req.VAOnly {
+		if err := goalGateCheck(req.Goal); err != nil {
+			writeErr(w, 400, err.Error())
+			return
+		}
 	}
 	if req.TimeoutSeconds < 0 {
 		req.TimeoutSeconds = 0
@@ -1610,7 +1627,7 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 	}
 	interceptRules = append(interceptRules, newTaskIPAllowRules(req.Scope)...)
 	t, err := s.m.CreateTaskWithOptions(req.Description, req.Goal, db.TaskCreateOptions{
-		Name: strings.TrimSpace(req.Name), CategoryID: req.CategoryID,
+		Name: strings.TrimSpace(req.Name), VAOnly: req.VAOnly, CategoryID: req.CategoryID,
 		SourceTaskIDs: sourceIDs, CompanyIDs: req.CompanyIDs, LLMProfileIDs: req.LLMProfileIDs,
 		TimeoutSeconds: req.TimeoutSeconds, PlanHeartbeatSeconds: req.PlanHeartbeatSeconds, PlanQuietMode: req.PlanQuietMode,
 		CoverageEnabled: req.CoverageEnabled,
@@ -1656,7 +1673,9 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 	}
 	// Shared post-create flow (seed + seed intent + background goal decomposition + engine.Run), reusing the same launchTask as spawn_task.
 	// launchTask is async internally and never blocks the UI — goal decomposition visibly proceeds in the background.
-	s.launchTask(t, req.Description+" "+req.Goal, req.SeedFirstIntent != nil && *req.SeedFirstIntent)
+	if !req.VAOnly {
+		s.launchTask(t, req.Description+" "+req.Goal, req.SeedFirstIntent != nil && *req.SeedFirstIntent)
+	}
 	writeJSON(w, 201, taskDTO(t, s.resolvedTaskStatus(t)))
 }
 

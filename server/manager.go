@@ -36,6 +36,7 @@ type Task struct {
 	PinnedAt     int64  `json:"pinned_at,omitempty"`
 	Description  string `json:"description"`
 	Goal         string `json:"goal"`
+	VAOnly       bool   `json:"va_only"`
 	CreatedAt    int64  `json:"created_at"`
 	CompletedAt  int64  `json:"completed_at,omitempty"` // unix seconds when a terminal state was reached; 0 = not finished
 	Paused       bool   `json:"paused"`
@@ -773,7 +774,7 @@ func taskFromPG(pt *pgdb.Task, store *pgdb.ExplorationStore, ic *audit.Intercept
 		Name:       pt.Name,
 		CategoryID: cloneInt64Ptr(pt.CategoryID), CategoryName: pt.CategoryName,
 		PinnedAt:    unixOrZero(pt.PinnedAt),
-		Description: pt.Description, Goal: pt.Goal, CreatedAt: pt.CreatedAt.Unix(), Paused: pt.Paused, Queued: pt.Queued,
+		Description: pt.Description, Goal: pt.Goal, VAOnly: pt.VAOnly, CreatedAt: pt.CreatedAt.Unix(), Paused: pt.Paused, Queued: pt.Queued,
 		QueuedAt: unixNanoOrZero(pt.QueuedAt), QueueMode: pt.QueueMode,
 		CompletedAt: unixOrZero(pt.CompletedAt), Status: pt.Status, ParentRef: pt.ParentRef,
 		LLMProfileID:  pt.LLMProfileID,

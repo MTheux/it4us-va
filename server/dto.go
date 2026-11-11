@@ -38,6 +38,7 @@ type TaskDTO struct {
 	PinnedAt           string             `json:"pinned_at,omitempty"`
 	Description        string             `json:"description"`
 	Goal               string             `json:"goal"`
+	VAOnly             bool               `json:"va_only"`
 	Status             string             `json:"status"` // created | running | paused | done | failed
 	CreatedAt          string             `json:"created_at"`
 	CreatedUnix        int64              `json:"created_unix"`       // created_at as unix seconds (for run-duration calc)
@@ -120,6 +121,7 @@ func taskDTO(t *Task, status string) TaskDTO {
 		PinnedAt:           completedRFC(lifecycle.PinnedAt),
 		Description:        t.Description,
 		Goal:               t.Goal,
+		VAOnly:             t.VAOnly,
 		Status:             status,
 		CreatedAt:          rfc3339(time.Unix(t.CreatedAt, 0)),
 		CreatedUnix:        t.CreatedAt,
