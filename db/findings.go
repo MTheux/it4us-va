@@ -104,10 +104,19 @@ func (d *DB) AddFinding(taskID, nodeID int64, vulnclass, name, severity, summary
 // Repeated campaigns still count the observation in their receipt, while the
 // SOC keeps one triage decision instead of receiving duplicate finding rows.
 func (d *DB) AddVACandidate(taskID, ipAssetID int64, vulnclass, name, severity, summary, evidence string, assetIDs []int64) (int64, bool, error) {
+	return d.addVACandidate(taskID, ipAssetID, "va-scanner:nmap", vulnclass, name, severity, summary, evidence, assetIDs)
+}
+
+// AddVACVECandidate persists a possible CVE applicability as pending SOC work.
+// The separate worker identity prevents collision with service-exposure leads.
+func (d *DB) AddVACVECandidate(taskID, ipAssetID int64, vulnclass, name, severity, summary, evidence string, assetIDs []int64) (int64, bool, error) {
+	return d.addVACandidate(taskID, ipAssetID, "va-cve:nvd", vulnclass, name, severity, summary, evidence, assetIDs)
+}
+
+func (d *DB) addVACandidate(taskID, ipAssetID int64, worker, vulnclass, name, severity, summary, evidence string, assetIDs []int64) (int64, bool, error) {
 	if taskID <= 0 || ipAssetID <= 0 {
 		return 0, false, fmt.Errorf("VA candidate requires task and IP asset")
 	}
-	const worker = "va-scanner:nmap"
 	ipJSON, _ := json.Marshal([]int64{ipAssetID})
 	aidsJSON, _ := json.Marshal(assetIDs)
 	tx, err := d.Begin()

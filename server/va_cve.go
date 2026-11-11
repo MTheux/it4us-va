@@ -38,22 +38,32 @@ type nvdMatch struct {
 	EndExcluding   string `json:"versionEndExcluding"`
 }
 type nvdNode struct {
+	Operator string     `json:"operator"`
+	Negate   bool       `json:"negate"`
 	CPES     []nvdMatch `json:"cpeMatch"`
 	Children []nvdNode  `json:"children"`
 }
+type nvdCVE struct {
+	ID           string `json:"id"`
+	VulnStatus   string `json:"vulnStatus"`
+	Published    string `json:"published"`
+	Descriptions []struct {
+		Lang  string `json:"lang"`
+		Value string `json:"value"`
+	} `json:"descriptions"`
+	Configurations []nvdConfiguration `json:"configurations"`
+}
+type nvdConfiguration struct {
+	Operator string    `json:"operator"`
+	Negate   bool      `json:"negate"`
+	Nodes    []nvdNode `json:"nodes"`
+}
+type nvdVulnerability struct {
+	CVE nvdCVE `json:"cve"`
+}
 type nvdResponse struct {
-	Vulnerabilities []struct {
-		CVE struct {
-			ID           string `json:"id"`
-			Descriptions []struct {
-				Lang  string `json:"lang"`
-				Value string `json:"value"`
-			} `json:"descriptions"`
-			Configurations []struct {
-				Nodes []nvdNode `json:"nodes"`
-			} `json:"configurations"`
-		} `json:"cve"`
-	} `json:"vulnerabilities"`
+	TotalResults    int                `json:"totalResults"`
+	Vulnerabilities []nvdVulnerability `json:"vulnerabilities"`
 }
 
 type vaCVEMatch struct {
@@ -73,6 +83,7 @@ type vaCVEResult struct {
 	Status      string       `json:"status"`
 	Matches     []vaCVEMatch `json:"matches"`
 	Note        string       `json:"note"`
+	Automatic   bool         `json:"automatic,omitempty"`
 }
 
 func fetchNVD(r *http.Request, id string) (nvdResponse, error) {
@@ -136,6 +147,15 @@ func collectNVDCPE(nodes []nvdNode) []nvdMatch {
 		out = append(out, collectNVDCPE(node.Children)...)
 	}
 	return out
+}
+
+func complexNVDCondition(nodes []nvdNode) bool {
+	for _, node := range nodes {
+		if node.Negate || strings.EqualFold(node.Operator, "AND") || complexNVDCondition(node.Children) {
+			return true
+		}
+	}
+	return false
 }
 
 func cpeParts(raw string) (part, vendor, product, version string, ok bool) {
@@ -224,7 +244,23 @@ func cpeApplies(serviceCPE string, rule nvdMatch) (string, bool) {
 
 func assessCVE(id string, data nvdResponse, services []vacheck.Asset) vaCVEResult {
 	result := vaCVEResult{CVE: id, CheckedAt: time.Now().UTC(), Source: "https://nvd.nist.gov/vuln/detail/" + id, Status: "not_detected", Matches: []vaCVEMatch{}, Note: "Correlação de CPE/versão observada; não confirma exploração, impacto nem ausência de patch/backport."}
-	cve := data.Vulnerabilities[0].CVE
+	var cve *nvdCVE
+	for i := range data.Vulnerabilities {
+		if data.Vulnerabilities[i].CVE.ID == id {
+			cve = &data.Vulnerabilities[i].CVE
+			break
+		}
+	}
+	if cve == nil {
+		result.Status = "inconclusive"
+		result.Note = "CVE não encontrada na resposta da NVD."
+		return result
+	}
+	if strings.EqualFold(cve.VulnStatus, "Rejected") {
+		result.Status = "inconclusive"
+		result.Note = "Registro rejeitado pela NVD; não gera candidato de vulnerabilidade."
+		return result
+	}
 	for _, d := range cve.Descriptions {
 		if d.Lang == "en" {
 			result.Description = d.Value
@@ -232,8 +268,10 @@ func assessCVE(id string, data nvdResponse, services []vacheck.Asset) vaCVEResul
 		}
 	}
 	var rules []nvdMatch
+	complex := false
 	for _, config := range cve.Configurations {
 		rules = append(rules, collectNVDCPE(config.Nodes)...)
+		complex = complex || config.Negate || strings.EqualFold(config.Operator, "AND") || complexNVDCondition(config.Nodes)
 	}
 	if len(rules) == 0 {
 		result.Status = "inconclusive"
@@ -259,6 +297,10 @@ func assessCVE(id string, data nvdResponse, services []vacheck.Asset) vaCVEResul
 		}
 		if len(service.CPE) == 0 {
 			best.Status = "inconclusive"
+		}
+		if complex && best.Status == "possible" {
+			best.Status = "inconclusive"
+			result.Note = "A CVE exige condições CPE combinadas ou negadas; correspondência isolada não confirma aplicabilidade."
 		}
 		if best.Status == "possible" {
 			result.Status = "possible"

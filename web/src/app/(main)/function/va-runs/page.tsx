@@ -84,6 +84,7 @@ export default function VARunsPage() {
         if (latest) setCVERunID(latest.id);
         const active = runResult.value.find((run) => run.status === "running");
         if (active) setSelected(active);
+        else if (latest) void api.vaRun(latest.id).then((run) => { if (alive) setSelected(run); }).catch(() => undefined);
       }
       if (capsResult.status === "fulfilled") setCapabilities(capsResult.value);
       else setError("Não foi possível verificar o scanner desta instalação.");
@@ -168,7 +169,7 @@ export default function VARunsPage() {
         <div>
           <p className="font-mono text-xs font-medium uppercase tracking-[0.18em] text-primary">SOC / IT4US VA</p>
           <h1 className="mt-2 flex items-center gap-3 text-3xl font-semibold tracking-tight"><ScanSearchIcon className="size-7 text-primary" /> Nova execução</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Defina os alvos e as portas. Revise antes de iniciar.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Defina os alvos e as portas. A análise identifica serviços e correlaciona CVEs automaticamente quando há versão precisa.</p>
         </div>
         <Badge variant="outline" className={capabilities?.scanner_available ? "border-primary/40 text-primary" : ""}>
           {capabilities === null ? "Verificando scanner" : capabilities.scanner_available ? "Scanner pronto" : "Scanner indisponível"}
@@ -176,7 +177,7 @@ export default function VARunsPage() {
       </header>
 
       <div className="grid gap-3 sm:grid-cols-2">
-        <button type="button" onClick={() => setIntent("discovery")} aria-pressed={intent === "discovery"} className={"rounded-xl border p-4 text-left " + (intent === "discovery" ? "border-primary bg-primary/5" : "border-border")}><span className="font-medium">Descobrir serviços</span><p className="mt-1 text-xs text-muted-foreground">Portas TCP e serviços da rede autorizada.</p></button>
+        <button type="button" onClick={() => setIntent("discovery")} aria-pressed={intent === "discovery"} className={"rounded-xl border p-4 text-left " + (intent === "discovery" ? "border-primary bg-primary/5" : "border-border")}><span className="font-medium">Analisar infraestrutura</span><p className="mt-1 text-xs text-muted-foreground">Serviços, exposições e correlação automática de CVEs.</p></button>
         <button type="button" onClick={() => setIntent("cve")} aria-pressed={intent === "cve"} className={"rounded-xl border p-4 text-left " + (intent === "cve" ? "border-primary bg-primary/5" : "border-border")}><span className="font-medium">Verificar CVE específica</span><p className="mt-1 text-xs text-muted-foreground">Correlacionar serviços observados com os critérios da NVD.</p></button>
       </div>
 
@@ -225,8 +226,9 @@ export default function VARunsPage() {
       </CardContent></Card>}
 
       {selected && <Card><CardContent className="space-y-4 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">{selected.campaign.name}</p><p className="mt-1 text-xs text-muted-foreground">{selected.completed_hosts + selected.failed_hosts}/{selected.total_hosts} IPs · {selected.candidate_count} candidatos</p></div><Badge variant="outline">{statusLabels[selected.status]}</Badge></div>
+        <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">{selected.campaign.name}</p><p className="mt-1 text-xs text-muted-foreground">{selected.completed_hosts + selected.failed_hosts}/{selected.total_hosts} IPs · {selected.candidate_count} candidatos</p></div><Badge variant="outline">{selected.phase === "cve_review" ? "Correlacionando CVEs" : statusLabels[selected.status]}</Badge></div>
         {selected.error && <p role="alert" className="text-sm text-destructive">{selected.error}</p>}
+        {selected.cve_auto && <div className="space-y-2 rounded-lg border p-4 text-sm"><div className="flex flex-wrap items-center gap-2"><strong>CVEs correlacionadas automaticamente</strong><Badge variant="outline">{selected.cve_auto.status === "completed" ? "Consulta concluída" : selected.cve_auto.status === "partial" ? "Cobertura parcial" : selected.cve_auto.status === "unavailable" ? "Fonte indisponível" : "Sem CPE preciso"}</Badge></div><p className="text-xs text-muted-foreground">{selected.cve_auto.cpes_checked} CPEs consultados · {selected.cve_auto.cves_checked} CVEs avaliadas · {selected.cve_auto.candidates} correspondências pendentes</p><p className="text-xs text-muted-foreground">{selected.cve_auto.coverage_note}</p>{(selected.cve_checks || []).filter((check) => check.automatic && check.status === "possible").slice(0, 12).map((check) => <a key={check.cve} href={check.source} target="_blank" rel="noreferrer" className="block text-xs text-primary underline">{check.cve} · possível aplicação · revisar em Achados</a>)}<p className="text-xs text-muted-foreground">Correspondência de CPE e versão não confirma vulnerabilidade ou impacto. O SOC deve validar a CVE e a situação de patch do ativo.</p></div>}
         {selected.result?.hosts?.length ? <details className="text-sm"><summary className="cursor-pointer">Ver resultados por IP</summary><div className="mt-3 max-h-64 overflow-auto rounded-lg border border-border">{selected.result.hosts.map((host) => <div key={host.target} className="flex items-center justify-between gap-3 border-b border-border px-3 py-2 last:border-0"><span className="font-mono text-xs">{host.target}</span><span className="text-xs text-muted-foreground">{host.error || String(host.candidates.length) + " candidato(s)"}</span></div>)}</div></details> : null}
         <div className="flex flex-wrap gap-2">{selected.status === "running" && <Button variant="outline" size="sm" onClick={() => void stop()}><SquareIcon className="size-3" /> Interromper</Button>}<Button variant="outline" size="sm" asChild><Link href={"/function/tasks/detail?id=" + selected.campaign.task_id}>Abrir tarefa <ArrowRightIcon className="size-4" /></Link></Button></div>
       </CardContent></Card>}
@@ -239,7 +241,7 @@ export default function VARunsPage() {
             <details className="rounded-lg border border-border p-3" open><summary className="cursor-pointer font-medium">IPs incluídos</summary><div className="mt-3 max-h-48 overflow-auto font-mono text-xs text-muted-foreground">{plan.targets.map((target) => <div key={target}>{target}</div>)}</div></details>
             <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border p-3"><input type="checkbox" className="mt-1 accent-primary" checked={scopeConfirmed} onChange={(event) => setScopeConfirmed(event.target.checked)} /><span>Confirmei autorização, janela e origem de rede para todos esses IPs.</span></label>
           </div>}
-          <DialogFooter><Button variant="outline" onClick={() => setPlan(null)}>Voltar</Button><Button disabled={!scopeConfirmed || busy || !capabilities?.scanner_available} onClick={() => void start()}>{busy && <Loader2Icon className="size-4 animate-spin" />} Iniciar discovery</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setPlan(null)}>Voltar</Button><Button disabled={!scopeConfirmed || busy || !capabilities?.scanner_available} onClick={() => void start()}>{busy && <Loader2Icon className="size-4 animate-spin" />} Iniciar análise</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

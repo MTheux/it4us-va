@@ -47,6 +47,7 @@ export interface VACVECheck {
   description?: string;
   status: "possible" | "not_detected" | "inconclusive";
   note: string;
+  automatic?: boolean;
   matches: Array<{ target: string; port: number; service: string; version?: string; cpe?: string; criteria?: string; status: "possible" | "not_detected" | "inconclusive" }>;
 }
 
@@ -54,6 +55,7 @@ export interface VARun {
   id: string;
   campaign: VACampaign;
   status: "running" | "completed" | "partial" | "failed" | "canceled" | "interrupted";
+  phase?: "cve_review";
   created_at: string;
   finished_at?: string;
   total_hosts: number;
@@ -63,6 +65,7 @@ export interface VARun {
   error?: string;
   result?: { campaign: string; started_at: string; finished_at: string; hosts: VAHostResult[] };
   cve_checks?: VACVECheck[];
+  cve_auto?: { status: "completed" | "partial" | "skipped" | "unavailable"; cpes_checked: number; cves_checked: number; candidates: number; coverage_note?: string };
 }
 
 export interface Task {

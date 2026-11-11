@@ -22,18 +22,20 @@ import (
 // A VA run is separate from the conversational task engine. The scanner only
 // receives the reviewed IP/CIDR expansion and fixed Nmap service checks.
 type vaRunRecord struct {
-	ID             string          `json:"id"`
-	Campaign       vascan.Campaign `json:"campaign"`
-	Status         string          `json:"status"`
-	CreatedAt      time.Time       `json:"created_at"`
-	FinishedAt     *time.Time      `json:"finished_at,omitempty"`
-	TotalHosts     int             `json:"total_hosts"`
-	CompletedHosts int             `json:"completed_hosts"`
-	FailedHosts    int             `json:"failed_hosts"`
-	CandidateCount int             `json:"candidate_count"`
-	Error          string          `json:"error,omitempty"`
-	Result         *vascan.Result  `json:"result,omitempty"`
-	CVEChecks      []vaCVEResult   `json:"cve_checks,omitempty"`
+	ID             string            `json:"id"`
+	Campaign       vascan.Campaign   `json:"campaign"`
+	Status         string            `json:"status"`
+	Phase          string            `json:"phase,omitempty"`
+	CreatedAt      time.Time         `json:"created_at"`
+	FinishedAt     *time.Time        `json:"finished_at,omitempty"`
+	TotalHosts     int               `json:"total_hosts"`
+	CompletedHosts int               `json:"completed_hosts"`
+	FailedHosts    int               `json:"failed_hosts"`
+	CandidateCount int               `json:"candidate_count"`
+	Error          string            `json:"error,omitempty"`
+	Result         *vascan.Result    `json:"result,omitempty"`
+	CVEChecks      []vaCVEResult     `json:"cve_checks,omitempty"`
+	CVEAuto        *vaAutoCVESummary `json:"cve_auto,omitempty"`
 }
 
 type vaActiveRun struct {
@@ -166,8 +168,6 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 	}
 	record.CompletedHosts, record.FailedHosts = completed, failed
 	record.Result = &result
-	finished := time.Now().UTC()
-	record.FinishedAt = &finished
 	if len(result.Hosts) > 0 {
 		count, err := vascan.Persist(s.m.PG(), record.Campaign.TaskID, result)
 		record.CandidateCount = count
@@ -188,6 +188,18 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 	if runErr != nil && record.Error == "" {
 		record.Error = runErr.Error()
 	}
+	if record.Status == "completed" || record.Status == "partial" {
+		finalStatus := record.Status
+		record.Status, record.Phase = "running", "cve_review"
+		_ = s.vaWriteRecord(record)
+		s.vaAutoReview(ctx, &record)
+		if record.CVEAuto != nil {
+			record.CandidateCount += record.CVEAuto.Candidates
+		}
+		record.Status, record.Phase = finalStatus, ""
+	}
+	finished := time.Now().UTC()
+	record.FinishedAt = &finished
 	if err := s.vaWriteRecord(record); err != nil {
 		// The in-memory run has ended; an initial receipt remains on disk and is
 		// reported as interrupted after restart, never as a successful scan.

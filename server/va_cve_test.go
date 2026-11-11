@@ -31,4 +31,14 @@ func TestCVEApplicabilityIsConservative(t *testing.T) {
 	if result.Status != "possible" || len(result.Matches) != 1 || result.Matches[0].Status != "possible" {
 		t.Fatalf("result=%+v", result)
 	}
+	feed.Vulnerabilities[0].CVE.Configurations[0].Nodes[0].Operator = "AND"
+	result = assessCVE("CVE-2026-12345", feed, []vacheck.Asset{{IP: "192.0.2.10", Port: 443, Service: "https", Version: "2.4", CPE: []string{"cpe:/a:example:service:2.4"}}})
+	if result.Status != "inconclusive" {
+		t.Fatalf("combined NVD conditions cannot become a possible match: %+v", result)
+	}
+	feed.Vulnerabilities[0].CVE.VulnStatus = "Rejected"
+	result = assessCVE("CVE-2026-12345", feed, []vacheck.Asset{{IP: "192.0.2.10", Port: 443, Service: "https", Version: "2.4", CPE: []string{"cpe:/a:example:service:2.4"}}})
+	if result.Status != "inconclusive" || len(result.Matches) != 0 {
+		t.Fatalf("rejected CVE cannot become a candidate: %+v", result)
+	}
 }

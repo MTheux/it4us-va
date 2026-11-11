@@ -9,10 +9,10 @@ Console do SOC para descobrir serviços em IPs autorizados, registrar evidência
 - Criar uma tarefa para o cliente e uma campanha limitada a IPs ou CIDRs, portas TCP, responsável pela autorização e fim da janela.
 - Revisar a lista expandida de IPs antes de iniciar o Nmap (`-sT -sV -Pn -n`), acompanhar o progresso e interromper a execução.
 - Ver serviços no inventário e candidatos pendentes em **Achados**. Porta aberta ou banner não é vulnerabilidade confirmada; o analista decide após revisar a evidência.
-- Consultar uma CVE específica na NVD e comparar seus critérios CPE com serviços observados em uma campanha concluída. O resultado indica possível aplicabilidade, ausência de correspondência observada ou inconclusão; não valida impacto no alvo.
+- Após o discovery, consultar automaticamente a NVD para CPEs com versão identificada e registrar CVEs possivelmente aplicáveis como candidatos pendentes, com CPE, critério e fonte. Limites e falhas de cobertura ficam no recibo. Também é possível consultar uma CVE específica manualmente.
 - Configurar Claude/OpenCode e MCP em **Conexões**, se a equipe quiser apoio do agente. Discovery de portas não depende dessas integrações.
 
-O scanner não executa exploit, NSE, autenticação, brute force ou movimento lateral. Validação automática de impacto por CVE e scans autenticados ainda não fazem parte desta versão.
+O scanner não executa exploit, NSE, autenticação, brute force ou movimento lateral. A correlação automática não confirma que o alvo é vulnerável: patches, backports e condições adicionais exigem validação específica. Checks de impacto por CVE e scans autenticados ainda não fazem parte desta versão.
 
 ## Tela real
 
@@ -70,11 +70,11 @@ Esse fluxo recompila o código deste repositório. O `IT4US_TAG` da imagem local
 
 1. Confirme a autorização escrita, o **IP literal** ou CIDR exato, a origem de rede permitida, as portas, a janela de execução e o contato do cliente. O IP de teste deve ser fornecido ao operador do SOC; não há alvo real embutido neste guia.
 2. Crie uma tarefa para esse cliente em **Tarefas**.
-3. Abra **Execuções VA** → **Descobrir serviços**. Selecione a tarefa, informe somente o IP autorizado e comece por **Portas comuns** ou pelas portas acordadas em **Personalizar**. Preencha **Autorizado por** e o fim da janela.
+3. Abra **Execuções VA** → **Analisar infraestrutura**. Selecione a tarefa, informe somente o IP autorizado e comece por **Portas comuns** ou pelas portas acordadas em **Personalizar**. Preencha **Autorizado por** e o fim da janela.
 4. Clique **Revisar execução**, confira cada IP expandido e a quantidade de portas, confirme o escopo na tela e então inicie. **Interromper** cancela a campanha em andamento.
-5. Abra a tarefa e **Achados** para revisar os serviços e candidatos pendentes. Se houver uma CVE de interesse, use **Verificar CVE específica** com a campanha concluída e avalie manualmente o resultado.
+5. Quando o discovery terminar, o VA correlaciona automaticamente os CPEs precisos com a NVD. Abra a execução para ver a cobertura da consulta e **Achados** para revisar serviços e CVEs possivelmente aplicáveis. Se houver outra CVE de interesse, use **Verificar CVE específica** com a campanha concluída.
 
-IPs/CIDRs são expandidos antes do início; nomes de host não são aceitos. A lista personalizada aceita até 1.000 portas e o perfil **Todas as portas** tem orçamento de IP × porta. Consulte os [limites do scanner](VA-SCANNER-v1.1-2026-11-11.md) antes de ampliar uma campanha. O IP usado para o teste não deve aparecer em prints públicos nem em issues.
+IPs/CIDRs são expandidos antes do início; nomes de host não são aceitos. A lista personalizada aceita até 1.000 portas e o perfil **Todas as portas** tem orçamento de IP × porta. Consulte os [limites do scanner e da correlação automática](VA-SCANNER-v1.2-2026-11-11.md) antes de ampliar uma campanha. O IP usado para o teste não deve aparecer em prints públicos nem em issues.
 
 ## IA, MCP e dados
 
@@ -90,13 +90,15 @@ A chave de IA e os cabeçalhos de autenticação MCP não são devolvidos pela i
 flowchart LR
   SOC["SOC · interface web"] --> API["API Go · autenticação"]
   API --> VA["Scanner VA · escopo e janela"]
-  VA --> DB[("PostgreSQL · inventário, recibos e candidatos")]
+  VA --> NVD["NVD · correlação CPE/CVE limitada"]
+  NVD --> DB[("PostgreSQL · inventário, recibos e candidatos")]
+  VA --> DB
   API --> AG["Agentes opcionais · goals, planner, workers, mainagent"]
   AG --> DB
   AG -.-> MCP["Skills e MCP autorizados"]
 ```
 
-O núcleo de agentes herdado do projeto original permanece: `goals` organiza objetivos, `planner` cria tarefas de investigação, `workers` executam as ações permitidas e `mainagent` apoia o analista. O fluxo VA é separado: concluir um scan registra candidatos pendentes, sem iniciar automaticamente uma validação pelo agente. A aprovação e a revisão do SOC continuam necessárias.
+O núcleo de agentes herdado do projeto original permanece: `goals` organiza objetivos, `planner` cria tarefas de investigação, `workers` executam as ações permitidas e `mainagent` apoia o analista. O fluxo VA executa discovery e correlação de CVEs automaticamente, sem iniciar uma exploração pelo agente ou confirmar impacto. A aprovação e a revisão do SOC continuam necessárias.
 
 ## Licença e uso
 
