@@ -1,5 +1,5 @@
 // Package vascan runs repeatable infrastructure VA checks for one approved campaign.
-// The scanner receives only literal IPs from the campaign file; the AI agent can
+// The scanner receives only literal IPs expanded from the campaign; the AI agent can
 // review candidates later, but cannot change scanner arguments or add targets.
 package vascan
 
@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"os/exec"
 	"sort"
@@ -23,7 +24,7 @@ import (
 	"github.com/MTheux/it4us-va/vacheck"
 )
 
-const maxTargets = 256
+const maxTargets = 4096
 const maxScannerOutput = 8 << 20
 
 // Campaign is created once by the SOC for a scan window. It intentionally has
@@ -66,20 +67,8 @@ func (c Campaign) Validate(now time.Time) error {
 	if c.ExpiresAt.IsZero() || !now.Before(c.ExpiresAt) {
 		return errors.New("campaign approval has expired")
 	}
-	if len(c.Targets) == 0 || len(c.Targets) > maxTargets {
-		return fmt.Errorf("campaign needs 1 to %d literal IP targets", maxTargets)
-	}
-	seen := make(map[string]bool, len(c.Targets))
-	for _, target := range c.Targets {
-		ip := net.ParseIP(target)
-		if ip == nil || strings.TrimSpace(target) != target || strings.Contains(target, "%") {
-			return fmt.Errorf("target %q must be a literal IPv4/IPv6 address", target)
-		}
-		key := ip.String()
-		if seen[key] {
-			return fmt.Errorf("duplicate target %q", target)
-		}
-		seen[key] = true
+	if _, err := c.ExpandedTargets(); err != nil {
+		return err
 	}
 	if len(c.Ports) == 0 || len(c.Ports) > 1000 {
 		return errors.New("campaign needs 1 to 1000 TCP ports")
@@ -92,6 +81,47 @@ func (c Campaign) Validate(now time.Time) error {
 		ports[p] = true
 	}
 	return nil
+}
+
+// ExpandedTargets resolves literal IPs and CIDR ranges into the exact host list
+// shown in the plan and passed to the scanner. DNS names are never resolved.
+func (c Campaign) ExpandedTargets() ([]string, error) {
+	if len(c.Targets) == 0 || len(c.Targets) > maxTargets {
+		return nil, fmt.Errorf("campaign needs 1 to %d IPs or CIDR ranges", maxTargets)
+	}
+	out := make([]string, 0, len(c.Targets))
+	seen := make(map[string]bool)
+	for _, raw := range c.Targets {
+		if strings.TrimSpace(raw) != raw || strings.Contains(raw, "%") {
+			return nil, fmt.Errorf("invalid target %q", raw)
+		}
+		if ip, err := netip.ParseAddr(raw); err == nil {
+			if ip.Is4In6() {
+				return nil, fmt.Errorf("ambiguous IPv4-mapped target %q", raw)
+			}
+			if seen[ip.String()] {
+				return nil, fmt.Errorf("duplicate target %q", raw)
+			}
+			seen[ip.String()] = true
+			out = append(out, ip.String())
+			continue
+		}
+		prefix, err := netip.ParsePrefix(raw)
+		if err != nil || prefix.Addr().Is4In6() || prefix != prefix.Masked() {
+			return nil, fmt.Errorf("target %q must be a literal IP or canonical CIDR range", raw)
+		}
+		for ip := prefix.Addr(); prefix.Contains(ip); ip = ip.Next() {
+			if len(out) >= maxTargets {
+				return nil, fmt.Errorf("campaign exceeds %d expanded IP targets", maxTargets)
+			}
+			if seen[ip.String()] {
+				return nil, fmt.Errorf("duplicate target %q in %q", ip, raw)
+			}
+			seen[ip.String()] = true
+			out = append(out, ip.String())
+		}
+	}
+	return out, nil
 }
 
 // Scanner is replaceable with a fixture in tests. Implementations return Nmap XML.
@@ -179,6 +209,12 @@ type Result struct {
 // expires or the operator cancels. A completed host with no candidates is not
 // silently treated as a vulnerability-free host; the result records coverage.
 func Run(ctx context.Context, c Campaign, scanner Scanner, now func() time.Time) (Result, error) {
+	return RunWithProgress(ctx, c, scanner, now, nil)
+}
+
+// RunWithProgress reports each completed host check without changing scanner
+// scope. Callbacks should return quickly; they run in the scan goroutine.
+func RunWithProgress(ctx context.Context, c Campaign, scanner Scanner, now func() time.Time, onHost func(HostResult)) (Result, error) {
 	if now == nil {
 		now = time.Now
 	}
@@ -188,8 +224,9 @@ func Run(ctx context.Context, c Campaign, scanner Scanner, now func() time.Time)
 	if scanner == nil {
 		return Result{}, errors.New("scanner is required")
 	}
-	r := Result{Campaign: c.Name, StartedAt: now(), Hosts: make([]HostResult, 0, len(c.Targets))}
-	for _, target := range c.Targets {
+	targets, _ := c.ExpandedTargets() // Validate above established the expansion.
+	r := Result{Campaign: c.Name, StartedAt: now(), Hosts: make([]HostResult, 0, len(targets))}
+	for _, target := range targets {
 		if err := ctx.Err(); err != nil {
 			r.FinishedAt = now()
 			return r, err
@@ -225,6 +262,9 @@ func Run(ctx context.Context, c Campaign, scanner Scanner, now func() time.Time)
 			h.Status = "completed"
 		}
 		r.Hosts = append(r.Hosts, h)
+		if onHost != nil {
+			onHost(h)
+		}
 	}
 	r.FinishedAt = now()
 	return r, nil

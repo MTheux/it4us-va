@@ -80,6 +80,10 @@ import type {
   SSTask,
   Stats,
   Task,
+  VACampaign,
+  VACapabilities,
+  VAPlan,
+  VARun,
   TaskArchive,
   TaskArchivePage,
   TaskAssetMutation,
@@ -245,6 +249,12 @@ export const api = {
   // ---- tasks ----
   tasks: () =>
     get<{ tasks: Task[]; active: string }>("/tasks").then((r) => ({ tasks: arr(r.tasks), active: r.active ?? "" })),
+  vaPlan: (campaign: VACampaign) => post<VAPlan>("/va/plan", campaign),
+  vaCapabilities: () => get<VACapabilities>("/va/capabilities"),
+  vaRuns: () => get<{ runs: VARun[] }>("/va/runs").then((r) => arr(r.runs)),
+  vaRun: (id: string) => get<VARun>(`/va/runs/${encodeURIComponent(id)}`),
+  vaStart: (campaign: VACampaign) => post<VARun>("/va/runs", campaign),
+  vaCancel: (id: string) => post<{ ok: boolean }>(`/va/runs/${encodeURIComponent(id)}/cancel`, {}),
   task: (id: string) => get<Task>(`/tasks/${encodeURIComponent(id)}`),
   createTask: (input: {
     name?: string;

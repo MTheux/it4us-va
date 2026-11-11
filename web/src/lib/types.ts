@@ -4,6 +4,52 @@
 export type TaskStatus = "created" | "queued" | "running" | "paused" | "done" | "failed" | "timeout";
 export type EngineMode = "exploring" | "paused" | "stalled" | "idle";
 
+export interface VACampaign {
+  name: string;
+  task_id: number;
+  approved_by: string;
+  expires_at: string;
+  targets: string[];
+  ports: number[];
+}
+
+export interface VAPlan {
+  campaign: string;
+  task_id: number;
+  expires_at: string;
+  targets: string[];
+  ports: number[];
+}
+
+export interface VACapabilities {
+  scanner_available: boolean;
+  scanner: string;
+  llm_required: boolean;
+  mcp_required: boolean;
+}
+
+export interface VAHostResult {
+  target: string;
+  status: "completed" | "failed";
+  scanner_output_sha256?: string;
+  candidates: Array<{ title: string; severity: string; summary: string }>;
+  error?: string;
+}
+
+export interface VARun {
+  id: string;
+  campaign: VACampaign;
+  status: "running" | "completed" | "partial" | "failed" | "canceled" | "interrupted";
+  created_at: string;
+  finished_at?: string;
+  total_hosts: number;
+  completed_hosts: number;
+  failed_hosts: number;
+  candidate_count: number;
+  error?: string;
+  result?: { campaign: string; started_at: string; finished_at: string; hosts: VAHostResult[] };
+}
+
 export interface Task {
   id: string;
   name?: string; // optional task name; empty/absent = untitled, display falls back to the description

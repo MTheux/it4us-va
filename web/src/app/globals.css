@@ -54,41 +54,40 @@
 
 /* Default theme styles (used when no data-theme-preset is set or when 'default' is selected).
 These serve as the fallback; there is no separate default.css file. */
-/* IT4US VA identity — "Ultron": grafite + carmim + branco. Dark-only;
-   :root e .dark carregam a mesma paleta escura para evitar qualquer flash claro. */
+/* IT4US Cyber Security: black surfaces, white type and a restrained green accent. */
 :root {
   --radius: 0.5rem;
-  --background: #070708;
-  --foreground: #f2ecee;
-  --card: #111012;
-  --card-foreground: #f2ecee;
-  --popover: #171417;
-  --popover-foreground: #f2ecee;
-  --primary: #E7274A;
-  --primary-foreground: #f8f3f4;
-  --secondary: #171417;
-  --secondary-foreground: #f2ecee;
-  --muted: #171417;
-  --muted-foreground: #9b8f93;
-  --accent: #28151a;
-  --accent-foreground: #ffdfe4;
-  --destructive: #ff4262;
+  --background: #070a08;
+  --foreground: #eef4ee;
+  --card: #101611;
+  --card-foreground: #eef4ee;
+  --popover: #141c16;
+  --popover-foreground: #eef4ee;
+  --primary: #82e746;
+  --primary-foreground: #071008;
+  --secondary: #172119;
+  --secondary-foreground: #eef4ee;
+  --muted: #172119;
+  --muted-foreground: #a2afa3;
+  --accent: #1b2b1d;
+  --accent-foreground: #d9f7ce;
+  --destructive: #ed5a63;
   --border: #ffffff18;
   --input: #ffffff24;
-  --ring: #E7274A;
-  --chart-1: #E7274A;
-  --chart-2: #ff4262;
-  --chart-3: #ff6b7e;
-  --chart-4: #b06b74;
-  --chart-5: #9b8f93;
-  --sidebar: #0b0a0c;
-  --sidebar-foreground: #f2ecee;
-  --sidebar-primary: #E7274A;
-  --sidebar-primary-foreground: #f8f3f4;
-  --sidebar-accent: #1a1518;
-  --sidebar-accent-foreground: #f2ecee;
+  --ring: #82e746;
+  --chart-1: #82e746;
+  --chart-2: #4fbf79;
+  --chart-3: #b8e66a;
+  --chart-4: #6b9f72;
+  --chart-5: #8caa90;
+  --sidebar: #0b100c;
+  --sidebar-foreground: #eef4ee;
+  --sidebar-primary: #82e746;
+  --sidebar-primary-foreground: #071008;
+  --sidebar-accent: #172119;
+  --sidebar-accent-foreground: #eef4ee;
   --sidebar-border: #ffffff14;
-  --sidebar-ring: #E7274A;
+  --sidebar-ring: #82e746;
 
   /* fonts — IT4US VA usa o stack de sistema */
   --font-sans: var(--font-barlow), -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -97,37 +96,37 @@ These serve as the fallback; there is no separate default.css file. */
 }
 
 .dark {
-  --background: #070708;
-  --foreground: #f2ecee;
-  --card: #111012;
-  --card-foreground: #f2ecee;
-  --popover: #171417;
-  --popover-foreground: #f2ecee;
-  --primary: #E7274A;
-  --primary-foreground: #f8f3f4;
-  --secondary: #171417;
-  --secondary-foreground: #f2ecee;
-  --muted: #171417;
-  --muted-foreground: #9b8f93;
-  --accent: #28151a;
-  --accent-foreground: #ffdfe4;
-  --destructive: #ff4262;
+  --background: #070a08;
+  --foreground: #eef4ee;
+  --card: #101611;
+  --card-foreground: #eef4ee;
+  --popover: #141c16;
+  --popover-foreground: #eef4ee;
+  --primary: #82e746;
+  --primary-foreground: #071008;
+  --secondary: #172119;
+  --secondary-foreground: #eef4ee;
+  --muted: #172119;
+  --muted-foreground: #a2afa3;
+  --accent: #1b2b1d;
+  --accent-foreground: #d9f7ce;
+  --destructive: #ed5a63;
   --border: #ffffff18;
   --input: #ffffff24;
-  --ring: #E7274A;
-  --chart-1: #E7274A;
-  --chart-2: #ff4262;
-  --chart-3: #ff6b7e;
-  --chart-4: #b06b74;
-  --chart-5: #9b8f93;
-  --sidebar: #0b0a0c;
-  --sidebar-foreground: #f2ecee;
-  --sidebar-primary: #E7274A;
-  --sidebar-primary-foreground: #f8f3f4;
-  --sidebar-accent: #1a1518;
-  --sidebar-accent-foreground: #f2ecee;
+  --ring: #82e746;
+  --chart-1: #82e746;
+  --chart-2: #4fbf79;
+  --chart-3: #b8e66a;
+  --chart-4: #6b9f72;
+  --chart-5: #8caa90;
+  --sidebar: #0b100c;
+  --sidebar-foreground: #eef4ee;
+  --sidebar-primary: #82e746;
+  --sidebar-primary-foreground: #071008;
+  --sidebar-accent: #172119;
+  --sidebar-accent-foreground: #eef4ee;
   --sidebar-border: #ffffff14;
-  --sidebar-ring: #E7274A;
+  --sidebar-ring: #82e746;
 }
 
 @layer base {
@@ -138,10 +137,10 @@ These serve as the fallback; there is no separate default.css file. */
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans), system-ui, sans-serif;
-    /* Ambiência IT4US VA: glow carmim radial + gradiente grafite diagonal. */
+    /* Quiet product canvas; color stays on actions and status. */
     background-image:
-      radial-gradient(circle at 50% 42%, #6e0f1f2b 0, transparent 36%),
-      linear-gradient(135deg, #0b090a 0%, #050506 58%, #0b0708 100%);
+      radial-gradient(circle at 50% 42%, #245b2420 0, transparent 36%),
+      linear-gradient(135deg, #0b100c 0%, #050806 58%, #0a100b 100%);
     background-attachment: fixed;
   }
   html {
@@ -304,11 +303,11 @@ html {
 }
 
 
-/* ===== IT4US VA login — linguagem "PTaaS" (IT4US VA Core) ===== */
+/* ===== IT4US VA access ===== */
 .proof {
   position: relative;
   overflow: hidden;
-  background: radial-gradient(130% 120% at 50% 12%, #1a0509 0%, #0c0406 48%, #060506 100%);
+  background: radial-gradient(130% 120% at 50% 12%, #132516 0%, #0b130d 48%, #060906 100%);
   isolation: isolate;
 }
 .proof-grid {
@@ -322,23 +321,13 @@ html {
   -webkit-mask-image: radial-gradient(135% 100% at 50% 24%, #000 0%, #0000 74%);
   pointer-events: none;
 }
-.proof-glow {
-  position: absolute;
-  left: 50%;
-  top: 40%;
-  width: 120%;
-  aspect-ratio: 1;
-  translate: -50% -50%;
-  background: radial-gradient(circle, #E7274A2e 0%, #E7274A10 36%, transparent 64%);
-  filter: blur(8px);
-  pointer-events: none;
-}
+.proof-brand { mix-blend-mode: lighten; }
 .proof-kicker {
   font-family: var(--font-mono);
   font-size: 10px;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: #e6b3bb;
+  color: #a5d982;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -350,44 +339,25 @@ html {
   line-height: 0.92;
   letter-spacing: 0.01em;
   text-transform: uppercase;
-  color: #f4f1f2;
+  color: #f2f8f0;
 }
-.proof-title .accent { color: #E7274A; }
 .proof-copy {
-  max-width: 34ch;
+  max-width: 46ch;
   font-size: 0.95rem;
   line-height: 1.55;
-  color: #a6a2ab;
+  color: #adbdad;
 }
-/* moldura do IT4US VA Core */
-.core-frame {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  margin: 8px 0;
-  border: 1px solid #ffffff12;
-  border-radius: 10px;
-  background: #ffffff05;
-  display: flex;
-  flex-direction: column;
-}
-.core-frame-label {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 12px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.22em;
-  color: #6f6a72;
-}
-.core-canvas { flex: 1; width: 100%; min-height: 0; display: block; }
+.proof-flow { border-top: 1px solid #b9e6ad2a; }
+.proof-stage { display: grid; grid-template-columns: 2.5rem 1fr; gap: 1rem; padding: 1rem 0; border-bottom: 1px solid #b9e6ad2a; }
+.proof-stage-number { font: 600 0.7rem var(--font-mono); color: #82e746; padding-top: 0.2rem; }
+.proof-stage strong { color: #edf7e9; font-size: 0.9rem; font-weight: 600; }
+.proof-stage p { margin-top: 0.2rem; color: #a9b9a9; font-size: 0.82rem; line-height: 1.45; }
 .proof-bottom {
   font-family: var(--font-mono);
   font-size: 11px;
   line-height: 1.7;
-  color: #8a858d;
+  color: #93a994;
 }
-.proof-bottom strong { color: #cfcacd; font-weight: 500; }
 
 /* lado direito */
 .access-logo { font-family: var(--font-display); font-weight: 900; letter-spacing: 0.04em; font-size: 1.9rem; text-transform: uppercase; }
@@ -404,13 +374,13 @@ html {
 }
 .access-dot {
   width: 7px; height: 7px; border-radius: 50%;
-  background: #E7274A;
-  box-shadow: 0 0 0 0 #E7274A80;
+  background: #82e746;
+  box-shadow: 0 0 0 0 #82e74680;
   animation: it4us-pulse 2.1s ease-out infinite;
 }
 @keyframes it4us-pulse {
-  0%   { box-shadow: 0 0 0 0 #E7274A80; }
-  70%  { box-shadow: 0 0 0 9px #E7274A00; }
-  100% { box-shadow: 0 0 0 0 #E7274A00; }
+  0%   { box-shadow: 0 0 0 0 #82e74680; }
+  70%  { box-shadow: 0 0 0 9px #82e74600; }
+  100% { box-shadow: 0 0 0 0 #82e74600; }
 }
 @media (prefers-reduced-motion: reduce) { .access-dot { animation: none; } }

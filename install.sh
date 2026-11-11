@@ -35,11 +35,9 @@ install_docker(){
   ensure_docker
   if [ ! -f .env ]; then
     cp .env.example .env 2>/dev/null || true
-    local pw key
+    local pw
     pw="$(ask 'Postgres password (press Enter to generate randomly)' "$(rand)")"
-    key="$(ask 'ANTHROPIC_API_KEY (may be empty, configure later in the UI)' '')"
     sed -i.bak "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=${pw}|" .env
-    sed -i.bak "s|^ANTHROPIC_API_KEY=.*|ANTHROPIC_API_KEY=${key}|" .env
     rm -f .env.bak
     ok ".env generated (POSTGRES_PASSWORD set)"
   else
@@ -49,6 +47,7 @@ install_docker(){
   docker compose pull || true
   docker compose up -d
   ok "started → http://localhost:8787"
+  info "on first access set the admin password, then open Sistema → Preparar operação to configure the LLM, MCP and agents"
   info "view logs: docker compose logs -f it4us"
 }
 

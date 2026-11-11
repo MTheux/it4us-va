@@ -50,9 +50,10 @@ func runVA(args []string) int {
 		return 1
 	}
 	if *dryRun {
-		fmt.Printf("Campanha %q: %d IP(s), %d porta(s), tarefa %d, expira %s\n", c.Name, len(c.Targets), len(c.Ports), *taskID, c.ExpiresAt.Format(time.RFC3339))
+		targets, _ := c.ExpandedTargets()
+		fmt.Printf("Campanha %q: %d IP(s), %d porta(s), tarefa %d, expira %s\n", c.Name, len(targets), len(c.Ports), *taskID, c.ExpiresAt.Format(time.RFC3339))
 		fmt.Printf("  Portas TCP: %v\n", c.Ports)
-		for _, target := range c.Targets {
+		for _, target := range targets {
 			fmt.Println("  " + target)
 		}
 		return 0

@@ -4,9 +4,9 @@
 
 Plataforma de avaliação de vulnerabilidade (VA) não-intrusiva guiada por IA (backend Go + frontend Next.js)
 
-O executor inicial de campanhas de infraestrutura (Nmap com alvos definidos
-em arquivo e candidatos vinculados a uma tarefa) está documentado em
-[VA-SCANNER-v1.0-2026-11-11.md](VA-SCANNER-v1.0-2026-11-11.md).
+O fluxo inicial de campanhas de infraestrutura (IPs/CIDRs, discovery Nmap,
+recibos e candidatos vinculados a uma tarefa) está documentado em
+[VA-SCANNER-v1.1-2026-11-11.md](VA-SCANNER-v1.1-2026-11-11.md).
 
 
  Fork do [artex (Autumn-27/artex)](https://github.com/Autumn-27/artex) · reconvertido pela IT4US para avaliação de vulnerabilidade não-intrusiva · mantido publicamente sob AGPL-3.0
@@ -61,13 +61,13 @@ Sync asset data directly from [ScopeSentry](https://github.com/Autumn-27/ScopeSe
 
 ## Installation
 
-> Requires a **PostgreSQL** database; exploration requires an **LLM** (`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`, which can also be configured in the UI).
+> Requires a **PostgreSQL** database and Nmap for VA discovery. Agent-assisted exploration requires an **LLM** (`ANTHROPIC_API_KEY` or `OPENAI_API_KEY`, which can also be configured in the UI).
 
-### Option 1: one-click install script (recommended)
+### Option 1: guided install script (recommended)
 
 ```bash
-git clone https://github.com/BaaRai/IT4US VA.git
-cd IT4US VA
+git clone https://github.com/MTheux/it4us-va.git
+cd it4us-va
 ./install.sh
 ```
 
@@ -76,19 +76,29 @@ The script will: detect / auto-install Docker → then let you choose **① all-
 - **① All-Docker**: enter a Postgres password (press Enter for a random one) → auto-writes `.env` → `docker compose up -d`.
 - **② Local run**: choose a database (connect to an existing one / start one with Docker) → generates `config.json` → `go` builds the embedded single binary → starts.
 
-Once installed, open **http://localhost:8787** (on first entry, `/setup` sets the admin password).
+Once installed, open **http://localhost:8787** (on first entry, `/setup` sets the admin password). After setting the password, **Preparar operação** guides the SOC through model, MCP, agent and asset configuration. Keep the password and LLM keys out of chat, tickets and logs.
+
+The first infrastructure VA campaign runner is available under **Execuções VA** and from the CLI. It runs TCP connect and service detection; authenticated checks, vulnerability feeds and automated agent validation are not yet implemented. See [VA-SCANNER-v1.1-2026-11-11.md](VA-SCANNER-v1.1-2026-11-11.md).
 
 ### Option 2: Docker Compose (manual)
 
 ```bash
-git clone https://github.com/BaaRai/IT4US VA.git
-cd IT4US VA
+git clone https://github.com/MTheux/it4us-va.git
+cd it4us-va
 cp .env.example .env          # set POSTGRES_PASSWORD, optionally ANTHROPIC_API_KEY
-docker compose up -d          # pulls the autumn27/it4us image + postgres
+docker compose up -d --build  # builds this checkout and starts it with postgres
 # → http://localhost:8787
 ```
 
 The image already includes common tools (ripgrep/curl/vim/npm/nmap…); `./skills` and `./data` are persisted via bind mounts.
+
+### SOC first-run flow
+
+1. Define the admin password at `/setup` in the browser.
+2. Open **Sistema → Preparar operação** and verify that the scanner is available. The scanner does not require LLM or MCP.
+3. Create a task, then open **Execuções VA**, enter the authorized IPs/CIDRs, ports, approval owner and time window, validate the expanded target plan, and start discovery. The platform keeps the Chat for operator support; it is not required to launch a campaign.
+4. To use agent-assisted investigation, select Ollama on the same host and click **Buscar modelos locais**, or enter a supported provider, the exact model and its API key. Use **Testar e ativar**. Add MCP servers only if needed, test the connection, and choose agent visibility.
+5. Review candidates under **Achados**. A scan candidate is not a confirmed vulnerability; agent validation is not automatic in this version.
 
 For remote MCP, you can choose `http` (Streamable HTTP) or `sse` (legacy SSE) in system settings.
 Legacy SSE servers usually establish the event stream with `GET /sse`, then receive JSON-RPC requests via the
@@ -97,7 +107,7 @@ Legacy SSE servers usually establish the event stream with `GET /sse`, then rece
 
 ### Option 3: download prebuilt binaries (Releases)
 
-Download the zip for your platform from [Releases](https://github.com/BaaRai/IT4US VA/releases); after extracting you get `it4us` + `start.sh` (`start.bat` on Windows) + `skills/` + `config.example.json`:
+Download the zip for your platform from [Releases](https://github.com/MTheux/it4us-va/releases); after extracting you get `it4us` + `start.sh` (`start.bat` on Windows) + `skills/` + `config.example.json`:
 
 ```bash
 cp config.example.json config.json   # fill in the database connection
@@ -189,7 +199,7 @@ docker image prune -f          # clean up old images (optional)
 
 ### Option 3: prebuilt binaries (Releases)
 
-Download the new version's zip from [Releases](https://github.com/BaaRai/IT4US VA/releases), stop the old process, then overwrite `it4us` and `skills/` (keep your `config.json` and `data/`), and restart:
+Download the new version's zip from [Releases](https://github.com/MTheux/it4us-va/releases), stop the old process, then overwrite `it4us` and `skills/` (keep your `config.json` and `data/`), and restart:
 
 ```bash
 cp -r <extracted dir>/skills ./ && cp <extracted dir>/it4us ./

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { It4usCore } from "@/components/it4us-core";
+import { BrandProof } from "@/components/brand-proof";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,7 +50,7 @@ export default function SetupPage() {
     try {
       const { token } = await api.initPassword(password);
       auth.setToken(token);
-      router.replace("/function/tasks");
+      router.replace("/system/quickstart");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Initialization failed");
     } finally {
@@ -62,38 +62,7 @@ export default function SetupPage() {
 
   return (
     <div className="flex h-dvh">
-      {/* Left panel — IT4US VA Core proof */}
-      <div className="proof hidden flex-col justify-between gap-6 p-12 text-left lg:flex lg:w-1/2">
-        <div className="proof-grid" aria-hidden="true" />
-        <div className="proof-glow" aria-hidden="true" />
-        <div className="relative space-y-4">
-          <div className="proof-kicker">SEGURANÇA OFENSIVA · WEB &amp; API</div>
-          <h1 className="proof-title">
-            Fortaleça
-            <br />
-            sua <span className="accent">operação.</span>
-          </h1>
-          <p className="proof-copy">
-            Seu workspace para transformar testes autorizados em evidências claras e decisões de correção.
-          </p>
-        </div>
-        <div className="core-frame relative">
-          <div className="core-frame-label">
-            <span>IT4US VA CORE</span>
-            <span>ASCII / VISUAL</span>
-          </div>
-          <It4usCore className="core-canvas" />
-          <div className="core-frame-label">
-            <span>ESCOPO → EVIDÊNCIA → CORREÇÃO</span>
-            <span>LIVE</span>
-          </div>
-        </div>
-        <div className="proof-bottom">
-          A precisão de uma operação Red Team.
-          <br />
-          <strong>A clareza que sua equipe precisa para agir.</strong>
-        </div>
-      </div>
+      <BrandProof />
 
       {/* Right panel */}
       <div className="flex w-full items-center justify-center bg-background p-8 lg:w-1/2">

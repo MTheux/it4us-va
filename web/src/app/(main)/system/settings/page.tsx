@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 
-import { CpuIcon, FlaskConicalIcon, KeyboardIcon, RadioTowerIcon, SearchIcon, ShieldAlertIcon } from "lucide-react";
+import { ArrowRightIcon, CpuIcon, FlaskConicalIcon, KeyboardIcon, RadioTowerIcon, SearchIcon, ShieldAlertIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -254,22 +255,39 @@ export default function SystemSettingsPage() {
 
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-6">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight">System settings</h1>
-        <p className="text-muted-foreground text-sm">Global runtime switches</p>
+      <header className="space-y-2 border-b border-border pb-5">
+        <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">IT4US VA / Sistema</p>
+        <h1 className="text-3xl font-semibold tracking-tight">Configurações do sistema</h1>
+        <p className="max-w-3xl text-sm leading-6 text-muted-foreground">O discovery VA funciona sem LLM. Os controles abaixo ajustam os agentes e suas ferramentas; o scanner usa o plano de execução validado em cada campanha.</p>
+      </header>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        {[
+          ["Preparar operação", "Verifique scanner, LLM e MCP", "/system/quickstart"],
+          ["Execuções VA", "Planeje IPs, ranges e portas", "/function/va-runs"],
+          ["Agentes", "Ajuste modelos e ferramentas", "/system/agents"],
+        ].map(([title, description, href]) => (
+          <Link key={href} href={href} className="group rounded-xl border border-border bg-card p-4 transition-colors hover:border-primary/50">
+            <span className="flex items-center justify-between font-semibold">{title}<ArrowRightIcon className="size-4 text-primary transition-transform group-hover:translate-x-1" /></span>
+            <span className="mt-1 block text-xs text-muted-foreground">{description}</span>
+          </Link>
+        ))}
       </div>
+
+      <details className="rounded-xl border border-border bg-card/40 p-4 open:bg-transparent">
+        <summary className="cursor-pointer font-semibold">Controles avançados do motor de agentes <span className="ml-2 text-sm font-normal text-muted-foreground">Proxy, captura, busca e concorrência</span></summary>
 
       {/* Multi-column instead of grid: the web search card is several times taller than the others and
           its height varies with the selected backend (brave/tavily key inputs are conditional). A grid
           would stretch the row to the tallest card and leave blank space beside the others, while columns
           balance-fill by content height. Card spacing uses mb rather than gap — in a multi-column layout
           column-gap only covers the gaps between columns; row spacing must come from the children. */}
-      <div className="columns-1 gap-4 md:gap-6 lg:columns-2">
+      <div className="mt-5 columns-1 gap-4 md:gap-6 lg:columns-2">
         <Card className="mb-4 break-inside-avoid md:mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <RadioTowerIcon className="size-4" />
-              Traffic capture
+              Captura de tráfego dos agentes
             </CardTitle>
             <CardDescription>
               When enabled, every agent's HTTP traffic is stored in full through the recording proxy, and agents are injected with the traffic_search / traffic_get
@@ -296,7 +314,7 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <RadioTowerIcon className="size-4" />
-              Automatic agent traffic binding
+              Associação automática de tráfego
             </CardTitle>
             <CardDescription id="agent-traffic-binding-description">
               Off by default. When enabled, the report agent triggered on vulnerability creation reviews existing HTTP requests/responses and links the matching traffic before writing the report.
@@ -324,11 +342,13 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <RadioTowerIcon className="size-4" />
-              Global proxy
+              Proxy de saída dos agentes
             </CardTitle>
             <CardDescription>
               All agents' <b>target traffic</b> egresses through this proxy (hide the source IP / use a jump host). Supports <b>http / https / socks5</b>, optionally with{" "}
               <code>user:pass</code> authentication. Empty = direct connection.
+              <br />
+              <b>O scanner VA não usa este proxy:</b> ele parte da rede do worker instalado no cliente.
               <br />
               With <b>traffic capture</b> on, it acts as the recording proxy's <b>upstream</b> (traffic is still stored in full, then egresses through this proxy); with capture off, it is injected directly into
               the agent's bash / WebFetch egress. Independent of the web search proxy and the LLM proxy.
@@ -365,7 +385,7 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldAlertIcon className="size-4" />
-              Operation constraint injection
+              Restrições do agente
             </CardTitle>
             <CardDescription>
               When enabled, each task's <b>operation constraints</b> (the allow/deny entries maintained under "Operation constraints" in the task overview) are spliced into the corresponding agent's
@@ -405,7 +425,7 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <FlaskConicalIcon className="size-4" />
-              Experimental features
+              Recursos experimentais
             </CardTitle>
             <CardDescription>
               Mechanisms still being validated, off by default. They may change agent behavior or affect stability; enable only after understanding the impact.
@@ -433,7 +453,7 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <SearchIcon className="size-4" />
-              Web search
+              Busca na web para agentes
             </CardTitle>
             <CardDescription>
               This is the web search <b>master switch + source config</b>. Only when it is enabled can <b>each agent's config</b> separately choose whether to enable
@@ -619,7 +639,7 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <RadioTowerIcon className="size-4" />
-              Custom scripts · Python interpreter
+              Scripts personalizados · Python
             </CardTitle>
             <CardDescription>
               Custom <b>script</b> tools run Python with it. Auto-detected at startup (python3 first); you can enter an absolute path to a venv /
@@ -649,7 +669,7 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <CpuIcon className="size-4" />
-              Work concurrency · worker agent count
+              Concorrência dos agentes
             </CardTitle>
             <CardDescription>
               The number of worker agents running concurrently per task (default 3). Higher values mean more parallel probing and higher consumption. Changes
@@ -678,7 +698,7 @@ export default function SystemSettingsPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <KeyboardIcon className="size-4" />
-              Chat input send key binding
+              Tecla de envio no Chat
             </CardTitle>
             <CardDescription>
               Shared by the main-agent chat inputs on the chat page and task details; takes effect immediately on selection, no saving needed.
@@ -705,6 +725,7 @@ export default function SystemSettingsPage() {
           </CardContent>
         </Card>
       </div>
+      </details>
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 import { AlertTriangle, ShieldCheck } from "lucide-react";
 
-import { It4usCore } from "@/components/it4us-core";
+import { BrandProof } from "@/components/brand-proof";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -48,7 +48,7 @@ export default function LoginPage() {
       // localStorage may still hold credentials while the cookie is gone. Sync first, then start a fresh request,
       // so a server-side guard or route cache cannot bounce the redirect back to the login page still in its checking state.
       auth.setToken(token);
-      window.location.replace("/function/tasks");
+      window.location.replace("/function/va-runs");
       return;
     }
     api
@@ -71,7 +71,7 @@ export default function LoginPage() {
     try {
       const { token } = await api.login("IT4US VA", password);
       auth.setToken(token);
-      window.location.replace("/function/tasks");
+      window.location.replace("/function/va-runs");
     } catch {
       setError("Usuário ou senha incorretos");
     } finally {
@@ -89,38 +89,7 @@ export default function LoginPage() {
 
   return (
     <div className="flex h-dvh">
-      {/* Left panel — IT4US VA Core proof */}
-      <div className="proof hidden flex-col justify-between gap-6 p-12 text-left lg:flex lg:w-1/2">
-        <div className="proof-grid" aria-hidden="true" />
-        <div className="proof-glow" aria-hidden="true" />
-        <div className="relative space-y-4">
-          <div className="proof-kicker">SEGURANÇA OFENSIVA · WEB &amp; API</div>
-          <h1 className="proof-title">
-            Fortaleça
-            <br />
-            sua <span className="accent">operação.</span>
-          </h1>
-          <p className="proof-copy">
-            Seu workspace para transformar testes autorizados em evidências claras e decisões de correção.
-          </p>
-        </div>
-        <div className="core-frame relative">
-          <div className="core-frame-label">
-            <span>IT4US VA CORE</span>
-            <span>ASCII / VISUAL</span>
-          </div>
-          <It4usCore className="core-canvas" />
-          <div className="core-frame-label">
-            <span>ESCOPO → EVIDÊNCIA → CORREÇÃO</span>
-            <span>LIVE</span>
-          </div>
-        </div>
-        <div className="proof-bottom">
-          A precisão de uma operação Red Team.
-          <br />
-          <strong>A clareza que sua equipe precisa para agir.</strong>
-        </div>
-      </div>
+      <BrandProof />
 
       {/* Right panel */}
       <div className="flex w-full items-center justify-center bg-background p-8 lg:w-1/2">
@@ -128,9 +97,9 @@ export default function LoginPage() {
           <div className="space-y-6 text-center">
             <div className="flex flex-col items-center gap-1">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.png" alt="IT4US VA" width={44} height={44} className="mb-2 rounded-xl" />
+              <img src="/brand/it4us-icon.svg" alt="IT4US" width={44} height={44} className="mb-2 rounded-xl" />
               <div className="access-logo text-foreground">IT4US VA</div>
-              <div className="access-sub">Plataforma PTaaS</div>
+              <div className="access-sub">Avaliação de vulnerabilidades</div>
             </div>
             <div className="flex flex-col items-center gap-2">
               <span className="access-eyebrow">

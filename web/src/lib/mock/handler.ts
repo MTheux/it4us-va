@@ -1059,6 +1059,13 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   if (path === "/auth/login" || path === "/auth/init") return { token: "mock-demo" };
   if (path === "/auth/change-password") return { ok: true };
 
+  // VA demo never starts a network scan. It only previews the operator form.
+  if (path === "/va/runs" && m === "GET") return { runs: [] };
+  if (path === "/va/capabilities" && m === "GET") return { scanner_available: true, scanner: "Nmap TCP connect / service detection", llm_required: false, mcp_required: false };
+  if (path === "/va/plan" && m === "POST") {
+    return { campaign: b.name, task_id: b.task_id, targets: b.targets, ports: b.ports, expires_at: b.expires_at };
+  }
+
   // ── task cold archives ──
   if (path === "/task-archives" && m === "GET") {
     const page = Math.max(1, Number(q.get("page")) || 1);

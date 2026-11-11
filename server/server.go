@@ -44,6 +44,8 @@ type Server struct {
 
 	skillDir string // root directory for skill subdirectories
 	jwtKey   []byte // HS256 signing key loaded from / generated into dataDir/jwt.key
+	vaMu     sync.Mutex
+	vaActive map[string]*vaActiveRun
 
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
 	// scheduler tick and an HTTP settings change / task creation can't both count
@@ -144,7 +146,7 @@ func New(ctx context.Context, m *Manager, skillDir string, dataDir string, keyDi
 	if err != nil {
 		log.Fatalf("[auth] JWT key: %v", err)
 	}
-	s := &Server{m: m, engine: NewEngine(m), ctx: ctx, skillDir: skillDir, jwtKey: key, chatBusy: map[string]bool{},
+	s := &Server{m: m, engine: NewEngine(m), ctx: ctx, skillDir: skillDir, jwtKey: key, vaActive: map[string]*vaActiveRun{}, chatBusy: map[string]bool{},
 		chatCancel: map[string]context.CancelCauseFunc{}, triggerQ: map[string][]triggeredRun{},
 		triggerActive: map[string]int{}, triggerCfg: map[string]triggerBehavior{},
 		profChatAgents: map[int64]*agent.ChatAgent{},
@@ -666,6 +668,12 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /api/tasks", s.listTasks)
 	mux.HandleFunc("POST /api/tasks", s.createTask)
+	mux.HandleFunc("POST /api/va/plan", s.vaPlan)
+	mux.HandleFunc("GET /api/va/capabilities", s.vaCapabilities)
+	mux.HandleFunc("GET /api/va/runs", s.vaListRuns)
+	mux.HandleFunc("POST /api/va/runs", s.vaStartRun)
+	mux.HandleFunc("GET /api/va/runs/{id}", s.vaGetRun)
+	mux.HandleFunc("POST /api/va/runs/{id}/cancel", s.vaCancelRun)
 	mux.HandleFunc("GET /api/skill-gaps", s.skillGaps)
 	mux.HandleFunc("GET /api/task-categories", s.pgListTaskCategories)
 	mux.HandleFunc("POST /api/task-categories", s.pgCreateTaskCategory)

@@ -33,7 +33,9 @@ func TestCampaignRejectsInvalidScopeBeforeScannerRuns(t *testing.T) {
 	}{
 		{"expired", func(c *Campaign) { c.ExpiresAt = now }},
 		{"hostname", func(c *Campaign) { c.Targets = []string{"example.com"} }},
-		{"cidr", func(c *Campaign) { c.Targets = []string{"127.0.0.0/24"} }},
+		{"uncanonical cidr", func(c *Campaign) { c.Targets = []string{"127.0.0.1/24"} }},
+		{"oversized cidr", func(c *Campaign) { c.Targets = []string{"10.0.0.0/16"} }},
+		{"overlapping range", func(c *Campaign) { c.Targets = []string{"127.0.0.0/30", "127.0.0.1"} }},
 		{"duplicate", func(c *Campaign) { c.Targets = []string{"127.0.0.1", "127.0.0.1"} }},
 		{"port", func(c *Campaign) { c.Ports = []int{0} }},
 		{"no approval", func(c *Campaign) { c.ApprovedBy = "" }},
@@ -49,6 +51,33 @@ func TestCampaignRejectsInvalidScopeBeforeScannerRuns(t *testing.T) {
 				t.Fatal("scanner called with invalid campaign")
 			}
 		})
+	}
+}
+
+func TestCampaignExpandsCIDRIntoExactScannerTargets(t *testing.T) {
+	now := time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+	c := Campaign{Name: "lab", TaskID: 1, ApprovedBy: "soc", ExpiresAt: now.Add(time.Hour), Targets: []string{"127.0.0.0/30"}, Ports: []int{443}}
+	targets, err := c.ExpandedTargets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"127.0.0.0", "127.0.0.1", "127.0.0.2", "127.0.0.3"}
+	if strings.Join(targets, ",") != strings.Join(want, ",") {
+		t.Fatalf("expanded %v, want %v", targets, want)
+	}
+	fake := &fixtureScanner{err: map[string]error{}}
+	for _, target := range targets {
+		fake.err[target] = errors.New("fixture no network")
+	}
+	progress := make([]string, 0, len(want))
+	result, err := RunWithProgress(context.Background(), c, fake, func() time.Time { return now }, func(host HostResult) {
+		progress = append(progress, host.Target)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(fake.calls, ",") != strings.Join(want, ",") || strings.Join(progress, ",") != strings.Join(want, ",") || len(result.Hosts) != len(want) {
+		t.Fatalf("scanner calls %v, progress %v, hosts %d", fake.calls, progress, len(result.Hosts))
 	}
 }
 
