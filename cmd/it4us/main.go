@@ -48,7 +48,10 @@ func main() {
 }
 
 func run() int {
-	// Subcomando `it4us report [nome]`: gera o laudo VA e sai, sem subir o server.
+	if len(os.Args) > 1 && os.Args[1] == "va" {
+		return runVA(os.Args[2:])
+	}
+	// Subcomando `it4us report --task-id ID [nome]`: gera o laudo VA e sai, sem subir o server.
 	if len(os.Args) > 1 && os.Args[1] == "report" {
 		return runReport(os.Args[2:])
 	}

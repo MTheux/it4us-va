@@ -4,6 +4,10 @@
 
 Plataforma de avaliação de vulnerabilidade (VA) não-intrusiva guiada por IA (backend Go + frontend Next.js)
 
+O executor inicial de campanhas de infraestrutura (Nmap com alvos definidos
+em arquivo e candidatos vinculados a uma tarefa) está documentado em
+[VA-SCANNER-v1.0-2026-11-11.md](VA-SCANNER-v1.0-2026-11-11.md).
+
 
  Fork do [artex (Autumn-27/artex)](https://github.com/Autumn-27/artex) · reconvertido pela IT4US para avaliação de vulnerabilidade não-intrusiva · mantido publicamente sob AGPL-3.0
 

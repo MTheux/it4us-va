@@ -17,3 +17,9 @@ func TestShutdownContextPreservesNamedCause(t *testing.T) {
 		t.Fatalf("code=%q ok=%v, want shutdown", code, ok)
 	}
 }
+
+func TestReportRequiresTaskFilterBeforeDatabaseAccess(t *testing.T) {
+	if got := runReport(nil); got != 2 {
+		t.Fatalf("runReport without task returned %d, want 2", got)
+	}
+}

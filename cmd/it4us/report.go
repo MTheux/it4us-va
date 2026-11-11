@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,12 +16,18 @@ import (
 	"github.com/MTheux/it4us-va/vareport"
 )
 
-// runReport implements `it4us report [nome]`: gera um laudo de VA rascunho no
+// runReport implements `it4us report --task-id ID [nome]`: gera um laudo de VA rascunho no
 // SysReptor a partir dos findings do store e PARA para revisão humana — não
 // publica. Fail-closed: qualquer problema de config/API devolve código != 0 sem
 // efeito colateral parcial relevante (o projeto rascunho fica no SysReptor para
 // inspeção quando o render acusa defeito).
 func runReport(args []string) int {
+	fs := flag.NewFlagSet("report", flag.ContinueOnError)
+	taskID := fs.Int64("task-id", 0, "tarefa cujos achados compõem o laudo")
+	if err := fs.Parse(args); err != nil || *taskID <= 0 {
+		fmt.Fprintln(os.Stderr, "usage: it4us report --task-id ID [nome]")
+		return 2
+	}
 	cfg, err := vareport.ConfigFromEnv()
 	if err != nil {
 		log.Printf("[report] %v", err)
@@ -36,14 +44,19 @@ func runReport(args []string) int {
 		return 1
 	}
 	defer pg.Close()
+	task, err := pg.GetTask(*taskID)
+	if err != nil || task == nil {
+		log.Printf("[report] tarefa %d indisponível: %v", *taskID, err)
+		return 1
+	}
 
-	findings, err := pg.ListFindingsForExport(db.FindingFilter{}, nil)
+	findings, err := pg.ListFindingsForExport(db.FindingFilter{TaskID: strconv.FormatInt(*taskID, 10), Status: db.FindingConfirmed}, nil)
 	if err != nil {
 		log.Printf("[report] listar findings: %v", err)
 		return 1
 	}
 
-	name := strings.TrimSpace(strings.Join(args, " "))
+	name := strings.TrimSpace(strings.Join(fs.Args(), " "))
 	if name == "" {
 		name = "Avaliação de Vulnerabilidades " + time.Now().Format("2006-01-02")
 	}

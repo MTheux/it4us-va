@@ -1,0 +1,65 @@
+package vascan
+
+import (
+	"fmt"
+	"net"
+	"strings"
+
+	"github.com/MTheux/it4us-va/db"
+)
+
+// Persist links observed hosts and pending candidates to an existing task.
+// Findings remain pending for SOC review; a scanner result is never promoted
+// directly to a confirmed vulnerability.
+func Persist(pg *db.DB, taskID int64, result Result) (int, error) {
+	if pg == nil || taskID <= 0 {
+		return 0, fmt.Errorf("database and task_id are required")
+	}
+	task, err := pg.GetTask(taskID)
+	if err != nil {
+		return 0, err
+	}
+	if task == nil {
+		return 0, fmt.Errorf("task %d does not exist", taskID)
+	}
+	count := 0
+	for _, host := range result.Hosts {
+		if host.Status != "completed" {
+			continue
+		}
+		ip := net.ParseIP(host.Target)
+		if ip == nil {
+			return count, fmt.Errorf("invalid result target %q", host.Target)
+		}
+		ipID, err := pg.Assets().UpsertIP(db.UpsertIPReq{IP: host.Target, TaskID: taskID})
+		if err != nil {
+			return count, err
+		}
+		for _, candidate := range host.Candidates {
+			if candidate.Check != "nmap.service" || candidate.Asset.IP == "" || !ip.Equal(net.ParseIP(candidate.Asset.IP)) {
+				return count, fmt.Errorf("candidate target does not match scanned host %s", host.Target)
+			}
+			severity := strings.ToLower(candidate.Severity)
+			if !db.ValidSeverity(severity) {
+				return count, fmt.Errorf("invalid candidate severity %q", candidate.Severity)
+			}
+			assetIDs := []int64{ipID}
+			if candidate.Asset.Port > 0 && candidate.Asset.Service != "" {
+				serviceID, err := pg.Assets().UpsertOtherService(db.UpsertOtherServiceReq{
+					IP: host.Target, Port: candidate.Asset.Port, ServiceName: candidate.Asset.Service, TaskID: taskID,
+				})
+				if err != nil {
+					return count, err
+				}
+				assetIDs = append(assetIDs, serviceID)
+			}
+			_, err := pg.AddFinding(taskID, 0, candidate.VulnClass, candidate.Title, severity,
+				candidate.Summary, candidate.Evidence, "va-scanner:nmap", assetIDs)
+			if err != nil {
+				return count, err
+			}
+			count++
+		}
+	}
+	return count, nil
+}

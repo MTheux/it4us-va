@@ -262,13 +262,15 @@ export default function DashboardPage() {
     return m;
   }, [tasks]);
 
+  const confirmedFindings = React.useMemo(() => findings.filter((f) => f.status === "confirmed"), [findings]);
+  const pendingFindings = React.useMemo(() => findings.filter((f) => f.status === "pending").length, [findings]);
   const findingsBySev = React.useMemo(() => {
     const m = { critical: 0, high: 0, medium: 0, low: 0 };
-    for (const f of findings) {
+    for (const f of confirmedFindings) {
       if (f.severity in m) m[f.severity as keyof typeof m]++;
     }
     return m;
-  }, [findings]);
+  }, [confirmedFindings]);
 
   const sortedTasks = React.useMemo(
     () =>
@@ -528,13 +530,14 @@ export default function DashboardPage() {
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
               <BugIcon className="size-3" /> Confirmed findings
             </div>
-            <div className="text-2xl font-semibold tabular-nums">{findings.length}</div>
+            <div className="text-2xl font-semibold tabular-nums">{confirmedFindings.length}</div>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2.5 text-[10px]">
             <span className="text-rose-500">Critical {findingsBySev.critical}</span>
             <span className="text-red-400">High {findingsBySev.high}</span>
             <span className="text-amber-400">Medium {findingsBySev.medium}</span>
             <span className="text-slate-400">Low {findingsBySev.low}</span>
+            {pendingFindings > 0 && <span className="text-muted-foreground">Pending review {pendingFindings}</span>}
           </CardContent>
         </Card>
 
