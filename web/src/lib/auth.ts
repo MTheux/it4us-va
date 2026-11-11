@@ -38,7 +38,7 @@ export const auth = {
       // base64url → base64
       const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
       const username: string = payload.sub ?? "IT4US VA";
-      return { id: "1", name: username, username, email: "", avatar: "", role: payload.role === "soc" ? "soc" : "admin" };
+      return { id: "1", name: username, username, email: "", avatar: "", role: "admin" };
     } catch {
       return null;
     }

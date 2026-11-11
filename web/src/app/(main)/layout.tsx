@@ -35,10 +35,6 @@ export default function Layout({ children }: Readonly<{ children: ReactNode }>) 
   const [authed, setAuthed] = React.useState(false);
   React.useEffect(() => {
     if (auth.getToken()) {
-      if (auth.getCurrentUser()?.role === "soc" && /^(\/system\/(quickstart|llm|agents|mcp|tools|notify|logs|settings)|\/function\/(commands|llm-records|workspace|sync)|\/dashboard|\/chat)(\/|$)/.test(window.location.pathname)) {
-        window.location.replace("/function/va-runs");
-        return;
-      }
       setAuthed(true);
     } else {
       // When the client-side guard sees a logged-out state, the cookie must be cleared too: otherwise proxy.ts, going

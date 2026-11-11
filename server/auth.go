@@ -99,7 +99,7 @@ func signRoleJWT(key []byte, role string) (string, error) {
 	if role == "soc" {
 		subject = "IT4US SOC"
 	}
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: role, RegisteredClaims: jwt.RegisteredClaims{
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: "admin", RegisteredClaims: jwt.RegisteredClaims{
 		Subject:   subject,
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtTTL)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -123,35 +123,15 @@ func tokenRole(tokenStr string, key []byte) (string, bool) {
 	if err != nil || !t.Valid {
 		return "", false
 	}
-	if claims.Role == "soc" && claims.Subject == "IT4US SOC" {
-		return "soc", true
+	// Tokens issued while SOC had a restricted role remain valid, but now carry
+	// the same administrator privileges as every other authenticated account.
+	if (claims.Role == "soc" || claims.Role == "admin") && claims.Subject == "IT4US SOC" {
+		return "admin", true
 	}
 	if (claims.Role == "admin" || claims.Role == "") && claims.Subject == "IT4US VA" {
 		return "admin", true
 	}
 	return "", false
-}
-
-func socAllowedAPI(r *http.Request) bool {
-	p := r.URL.Path
-	for _, prefix := range []string{"/api/agents", "/api/tools", "/api/mcp", "/api/llm", "/api/settings", "/api/workspace", "/api/commands", "/api/logs", "/api/notify", "/api/visibility", "/api/audit", "/api/gc", "/api/skill-gaps"} {
-		if p == prefix || strings.HasPrefix(p, prefix+"/") {
-			return false
-		}
-	}
-	if p == "/api/skills" {
-		return r.Method == http.MethodGet
-	}
-	if strings.HasPrefix(p, "/api/skills/") {
-		return false
-	}
-	if p == "/api/sync/scopesentry/datasource" {
-		return false
-	}
-	if strings.Contains(p, "/credentials") {
-		return false
-	}
-	return true
 }
 
 // extractToken reads the JWT from Authorization: Bearer header,
@@ -180,13 +160,9 @@ func (s *Server) requireAuth(h http.Handler) http.Handler {
 			writeErr(w, 401, "Unauthorized")
 			return
 		}
-		role, valid := tokenRole(tok, s.jwtKey)
+		_, valid := tokenRole(tok, s.jwtKey)
 		if !valid {
 			writeErr(w, 401, "token is invalid or expired")
-			return
-		}
-		if role == "soc" && !socAllowedAPI(r) {
-			writeErr(w, 403, "SOC access to administrator API is forbidden")
 			return
 		}
 		h.ServeHTTP(w, r)

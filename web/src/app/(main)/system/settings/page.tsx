@@ -265,7 +265,7 @@ export default function SystemSettingsPage() {
       </header>
 
       <Card>
-        <CardHeader><CardTitle>Acesso do SOC</CardTitle><CardDescription>Defina uma senha exclusiva para a equipe. Esta conta opera o VA e não acessa as configurações administrativas.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>Acesso da equipe SOC</CardTitle><CardDescription>Defina uma senha exclusiva para a equipe. Esta conta também tem acesso administrativo; o menu permanece focado na operação.</CardDescription></CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
           <div className="space-y-2"><Label htmlFor="admin-password-soc">Senha atual do administrador</Label><Input id="admin-password-soc" type="password" autoComplete="current-password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} /></div>
           <div className="space-y-2"><Label htmlFor="new-password-soc">Nova senha do SOC</Label><Input id="new-password-soc" type="password" autoComplete="new-password" value={socPassword} onChange={(e) => setSocPassword(e.target.value)} /></div>

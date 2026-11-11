@@ -43,7 +43,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
-import { auth } from "@/lib/auth";
 import type { Agent, SkillItem, MCPServer, SkillCall, MissingSkill } from "@/lib/types";
 
 function fmtTime(ts?: string) {
@@ -295,22 +294,6 @@ function SkillsOverview({
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function SkillsPage() {
-  const [role, setRole] = React.useState<string | null>(null);
-  React.useEffect(() => setRole(auth.getCurrentUser()?.role ?? "soc"), []);
-  if (role === null) return null;
-  return role === "soc" ? <SOCSkillsPage /> : <SkillAdminPage />;
-}
-
-function SOCSkillsPage() {
-  const [items, setItems] = React.useState<SkillItem[]>([]);
-  React.useEffect(() => { void api.skills().then(setItems).catch(() => setItems([])); }, []);
-  return <div className="mx-auto max-w-4xl space-y-5 p-6 md:p-10">
-    <div><h1 className="text-2xl font-semibold">Skills de infraestrutura</h1><p className="text-sm text-muted-foreground">Orientações disponíveis aos agentes para a revisão do SOC.</p></div>
-    <div className="grid gap-3 md:grid-cols-2">{items.filter((item) => item.name.startsWith("infra-")).map((item) => <div key={item.name} className="rounded-xl border border-border bg-card p-5"><h2 className="font-semibold">{item.name}</h2><p className="mt-2 text-sm text-muted-foreground">{item.description}</p></div>)}</div>
-  </div>;
-}
-
-function SkillAdminPage() {
   const [skills, setSkills] = React.useState<SkillItem[]>([]);
   const [agents, setAgents] = React.useState<Agent[]>([]);
   const [selected, setSelected] = React.useState<Selected | null>(null);
