@@ -35,6 +35,20 @@ func Persist(pg *db.DB, taskID int64, result Result) (int, error) {
 		if err != nil {
 			return count, err
 		}
+		for _, service := range host.Services {
+			if service.IP == "" || !ip.Equal(net.ParseIP(service.IP)) || service.Port < 1 || service.Port > 65535 {
+				return count, fmt.Errorf("invalid service in scanned host %s", host.Target)
+			}
+			name := strings.TrimSpace(service.Service)
+			if name == "" {
+				name = "unknown"
+			}
+			if _, err := pg.Assets().UpsertOtherService(db.UpsertOtherServiceReq{
+				IP: host.Target, Port: service.Port, ServiceName: name, TaskID: taskID,
+			}); err != nil {
+				return count, err
+			}
+		}
 		for _, candidate := range host.Candidates {
 			if candidate.Check != "nmap.service" || candidate.Asset.IP == "" || !ip.Equal(net.ParseIP(candidate.Asset.IP)) {
 				return count, fmt.Errorf("candidate target does not match scanned host %s", host.Target)
