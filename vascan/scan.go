@@ -26,16 +26,18 @@ import (
 
 const maxTargets = 4096
 const maxScannerOutput = 8 << 20
+const maxPortHostChecks = 4_096_000
 
 // Campaign is created once by the SOC for a scan window. It intentionally has
 // few fields so the operator does not have to approve every individual check.
 type Campaign struct {
-	Name       string    `json:"name"`
-	TaskID     int64     `json:"task_id"`
-	ApprovedBy string    `json:"approved_by"`
-	ExpiresAt  time.Time `json:"expires_at"`
-	Targets    []string  `json:"targets"`
-	Ports      []int     `json:"ports"`
+	Name        string    `json:"name"`
+	TaskID      int64     `json:"task_id"`
+	ApprovedBy  string    `json:"approved_by"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	Targets     []string  `json:"targets"`
+	PortProfile string    `json:"port_profile,omitempty"`
+	Ports       []int     `json:"ports"`
 }
 
 func LoadCampaign(path string, now time.Time) (Campaign, error) {
@@ -67,8 +69,21 @@ func (c Campaign) Validate(now time.Time) error {
 	if c.ExpiresAt.IsZero() || !now.Before(c.ExpiresAt) {
 		return errors.New("campaign approval has expired")
 	}
-	if _, err := c.ExpandedTargets(); err != nil {
+	targets, err := c.ExpandedTargets()
+	if err != nil {
 		return err
+	}
+	if c.PortProfile == "all" {
+		if len(c.Ports) != 0 {
+			return errors.New("all-port profile cannot include a custom port list")
+		}
+		if len(targets)*65535 > maxPortHostChecks {
+			return fmt.Errorf("all-port campaign exceeds the %d port-host check budget", maxPortHostChecks)
+		}
+		return nil
+	}
+	if c.PortProfile != "" && c.PortProfile != "custom" {
+		return fmt.Errorf("unsupported port profile %q", c.PortProfile)
 	}
 	if len(c.Ports) == 0 || len(c.Ports) > 1000 {
 		return errors.New("campaign needs 1 to 1000 TCP ports")
@@ -81,6 +96,24 @@ func (c Campaign) Validate(now time.Time) error {
 		ports[p] = true
 	}
 	return nil
+}
+
+func (c Campaign) PortCount() int {
+	if c.PortProfile == "all" {
+		return 65535
+	}
+	return len(c.Ports)
+}
+
+func (c Campaign) scannerPorts() []int {
+	if c.PortProfile != "all" {
+		return c.Ports
+	}
+	ports := make([]int, 65535)
+	for i := range ports {
+		ports[i] = i + 1
+	}
+	return ports
 }
 
 // ExpandedTargets resolves literal IPs and CIDR ranges into the exact host list
@@ -138,17 +171,9 @@ func (s NmapScanner) Scan(ctx context.Context, target string, ports []int) ([]by
 	if net.ParseIP(target) == nil {
 		return nil, errors.New("scanner target is not a literal IP")
 	}
-	if len(ports) == 0 {
-		return nil, errors.New("scanner needs ports")
-	}
-	ps := append([]int(nil), ports...)
-	sort.Ints(ps)
-	parts := make([]string, len(ps))
-	for i, p := range ps {
-		if p < 1 || p > 65535 {
-			return nil, fmt.Errorf("invalid port %d", p)
-		}
-		parts[i] = strconv.Itoa(p)
+	portSpec, err := formatPortSpec(ports)
+	if err != nil {
+		return nil, err
 	}
 	bin := s.Binary
 	if bin == "" {
@@ -157,11 +182,14 @@ func (s NmapScanner) Scan(ctx context.Context, target string, ports []int) ([]by
 	timeout := s.HostTimeout
 	if timeout <= 0 {
 		timeout = 5 * time.Minute
+		if len(ports) > 1000 {
+			timeout = 20 * time.Minute
+		}
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	// Fixed arguments, no shell, no NSE scripts, no exploit or credential checks.
-	cmd := exec.CommandContext(ctx, bin, "-sT", "-sV", "-Pn", "-n", "--max-retries", "1", "--host-timeout", "300s", "-p", strings.Join(parts, ","), "-oX", "-", "--", target)
+	cmd := exec.CommandContext(ctx, bin, "-sT", "-sV", "-Pn", "-n", "--max-retries", "1", "--host-timeout", strconv.Itoa(int(timeout.Seconds()))+"s", "-p", portSpec, "-oX", "-", "--", target)
 	var stdout, stderr boundedBuffer
 	stdout.limit, stderr.limit = maxScannerOutput, 2048
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -175,6 +203,36 @@ func (s NmapScanner) Scan(ctx context.Context, target string, ports []int) ([]by
 		return nil, errors.New("nmap output exceeded 8 MiB")
 	}
 	return stdout.Bytes(), nil
+}
+
+func formatPortSpec(ports []int) (string, error) {
+	if len(ports) == 0 {
+		return "", errors.New("scanner needs ports")
+	}
+	ps := append([]int(nil), ports...)
+	sort.Ints(ps)
+	parts := make([]string, 0, len(ps))
+	for i, p := range ps {
+		if p < 1 || p > 65535 {
+			return "", fmt.Errorf("invalid port %d", p)
+		}
+		if i > 0 && p == ps[i-1] {
+			return "", fmt.Errorf("duplicate port %d", p)
+		}
+	}
+	for start := 0; start < len(ps); {
+		end := start
+		for end+1 < len(ps) && ps[end+1] == ps[end]+1 {
+			end++
+		}
+		part := strconv.Itoa(ps[start])
+		if end > start {
+			part += "-" + strconv.Itoa(ps[end])
+		}
+		parts = append(parts, part)
+		start = end + 1
+	}
+	return strings.Join(parts, ","), nil
 }
 
 type boundedBuffer struct {
@@ -225,6 +283,7 @@ func RunWithProgress(ctx context.Context, c Campaign, scanner Scanner, now func(
 		return Result{}, errors.New("scanner is required")
 	}
 	targets, _ := c.ExpandedTargets() // Validate above established the expansion.
+	ports := c.scannerPorts()
 	r := Result{Campaign: c.Name, StartedAt: now(), Hosts: make([]HostResult, 0, len(targets))}
 	for _, target := range targets {
 		if err := ctx.Err(); err != nil {
@@ -237,7 +296,7 @@ func RunWithProgress(ctx context.Context, c Campaign, scanner Scanner, now func(
 		}
 		h := HostResult{Target: target, Status: "failed", Candidates: []vacheck.Candidate{}}
 		hostCtx, cancel := context.WithDeadline(ctx, c.ExpiresAt)
-		raw, err := scanner.Scan(hostCtx, target, c.Ports)
+		raw, err := scanner.Scan(hostCtx, target, ports)
 		cancel()
 		if err == nil {
 			sum := sha256.Sum256(raw)

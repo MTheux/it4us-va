@@ -1,28 +1,13 @@
 import {
-  Activity,
-  Ban,
-  BellRing,
-  Bot,
-  Brain,
   Bug,
-  ClipboardList,
-  FolderOpen,
   FolderSync,
   LayoutDashboard,
   type LucideIcon,
   MessageSquare,
   Network,
-  Plug,
-  Radio,
   ScanSearch,
-  ScrollText,
-  Settings2,
-  ListChecks,
-  ShieldAlert,
   Sparkles,
   Target,
-  Terminal,
-  Wrench,
 } from "lucide-react";
 
 export type NavBadge = "new" | "soon";
@@ -79,26 +64,9 @@ export const sidebarItems: NavGroup[] = [
   },
   {
     id: 2,
-    label: "Sistema",
+    label: "Conhecimento",
     items: [
-      { id: "quickstart", title: "Preparar operação", url: "/system/quickstart", icon: ListChecks },
-      { id: "llm", title: "LLM", url: "/system/llm", icon: Brain },
-      { id: "agents", title: "Agentes", url: "/system/agents", icon: Bot },
-      { id: "mcp", title: "MCP", url: "/system/mcp", icon: Plug },
-    ],
-  },
-  {
-    id: 3,
-    label: "Avançado",
-    items: [
-      { id: "commands", title: "Execução de Ferramentas", url: "/function/commands", icon: Terminal },
-      { id: "llm-records", title: "Gravação de LLM", url: "/function/llm-records", icon: Radio },
-      { id: "workspace", title: "Área de Trabalho", url: "/function/workspace", icon: FolderOpen },
       { id: "skills", title: "Skills", url: "/system/skills", icon: Sparkles },
-      { id: "tools", title: "Ferramentas", url: "/system/tools", icon: Wrench },
-      { id: "notify", title: "Notificações", url: "/system/notify", icon: BellRing },
-      { id: "logs", title: "Logs", url: "/system/logs", icon: ScrollText },
-      { id: "settings", title: "Configurações do Sistema", url: "/system/settings", icon: Settings2 },
     ],
   },
 ];

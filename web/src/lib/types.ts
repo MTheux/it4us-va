@@ -10,6 +10,7 @@ export interface VACampaign {
   approved_by: string;
   expires_at: string;
   targets: string[];
+  port_profile?: "all" | "custom";
   ports: number[];
 }
 
@@ -19,6 +20,8 @@ export interface VAPlan {
   expires_at: string;
   targets: string[];
   ports: number[];
+  port_count: number;
+  port_profile: string;
 }
 
 export interface VACapabilities {

@@ -12,14 +12,14 @@ O LLM e o MCP são opcionais para o discovery. O agente pode apoiar a investiga�
 
 ## Execução e limites
 
-- IPs e CIDRs são expandidos no plano; hostnames não são resolvidos. Há um limite inicial de 4.096 IPs expandidos e 1.000 portas TCP por campanha.
+- IPs e CIDRs são expandidos na revisão antes do início; hostnames não são resolvidos. A lista personalizada aceita até 1.000 portas. O perfil **Todas as portas** cobre TCP 1–65535, com orçamento máximo de 4.096.000 combinações IP × porta (até 62 IPs nesse perfil).
 - O scanner usa argumentos fixos de Nmap (`-sT -sV -Pn -n`); não executa NSE, exploração, login, brute force ou movimento lateral.
 - Uma campanha por worker de cada vez. A janela de expiração interrompe a execução; falhas de um host não apagam os resultados de outros.
-- Recibos JSON ficam em `data/va-runs/` com permissão `0600`. O histórico mostra campanhas concluídas, parciais, canceladas e interrompidas. Os candidatos são gravados no PostgreSQL vinculados à tarefa.
+- Recibos JSON ficam em `data/va-runs/` com permissão `0600`. Os candidatos são gravados no PostgreSQL vinculados à tarefa. A tela operacional mostra apenas a execução ativa.
 - A API e a interface exigem autenticação. O operador deve confirmar escopo, janela, origem de rede e capacidade antes de iniciar a campanha no ambiente do cliente.
 
 ## Ainda não implementado
 
-Scans autenticados, feed de vulnerabilidades, checks específicos de TLS/SMB/AD/PKI, agendamento, comparação de campanhas, identificação estável de achados entre execuções e validação autônoma pelo agente. Esta versão ainda não tem cobertura equivalente ao Greenbone.
+Scans autenticados, feed de vulnerabilidades, verificação de CVE específica, checks específicos de TLS/SMB/AD/PKI, agendamento, comparação de campanhas, identificação estável de achados entre execuções e validação autônoma pelo agente. A opção de CVE aparece indisponível na interface até existir um executor verificável. Esta versão ainda não tem cobertura equivalente ao Greenbone.
 
 O comando CLI de v1.0 continua disponível para operações a partir do terminal; veja [VA-SCANNER-v1.0-2026-11-11.md](VA-SCANNER-v1.0-2026-11-11.md).

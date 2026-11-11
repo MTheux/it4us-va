@@ -45,9 +45,9 @@ func (s *Server) vaCapabilities(w http.ResponseWriter, _ *http.Request) {
 	_, err := exec.LookPath("nmap")
 	writeJSON(w, http.StatusOK, map[string]any{
 		"scanner_available": err == nil,
-		"scanner": "Nmap TCP connect / service detection",
-		"llm_required": false,
-		"mcp_required": false,
+		"scanner":           "Nmap TCP connect / service detection",
+		"llm_required":      false,
+		"mcp_required":      false,
 	})
 }
 
@@ -57,11 +57,13 @@ func (s *Server) vaPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
-		"campaign":   campaign.Name,
-		"task_id":    campaign.TaskID,
-		"targets":    targets,
-		"ports":      campaign.Ports,
-		"expires_at": campaign.ExpiresAt,
+		"campaign":     campaign.Name,
+		"task_id":      campaign.TaskID,
+		"targets":      targets,
+		"ports":        campaign.Ports,
+		"port_count":   campaign.PortCount(),
+		"port_profile": campaign.PortProfile,
+		"expires_at":   campaign.ExpiresAt,
 	})
 }
 

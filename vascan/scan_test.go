@@ -124,3 +124,26 @@ func TestLoadCampaignRejectsTrailingData(t *testing.T) {
 		t.Fatal("accepted trailing JSON")
 	}
 }
+
+func TestAllPortProfileCompactsScannerArgumentAndEnforcesBudget(t *testing.T) {
+	now := time.Date(2026, 11, 11, 12, 0, 0, 0, time.UTC)
+	c := Campaign{Name: "lab", TaskID: 1, ApprovedBy: "soc", ExpiresAt: now.Add(time.Hour), Targets: []string{"127.0.0.1"}, PortProfile: "all"}
+	if err := c.Validate(now); err != nil {
+		t.Fatal(err)
+	}
+	if c.PortCount() != 65535 {
+		t.Fatalf("port count = %d", c.PortCount())
+	}
+	spec, err := formatPortSpec(c.scannerPorts())
+	if err != nil || spec != "1-65535" {
+		t.Fatalf("scanner port spec = %q, error = %v", spec, err)
+	}
+	c.Targets = []string{"127.0.0.0/26"} // 64 hosts exceed the full-port budget.
+	if err := c.Validate(now); err == nil {
+		t.Fatal("unbounded full-port campaign accepted")
+	}
+	c.Targets, c.Ports = []string{"127.0.0.1"}, []int{443}
+	if err := c.Validate(now); err == nil {
+		t.Fatal("all-port campaign accepted a second port list")
+	}
+}

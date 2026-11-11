@@ -510,12 +510,31 @@ func (s *Server) seedOrchestrationTools() {
 	s.reseedPlannerPrompt()           // planner prompt: rewrites the "zero intents" justification rules + adds quantitative acceptance checks (one-time)
 	s.reseedWorkerPrompt()            // worker prompt: adds the evidence bar for negative conclusions (one-time)
 	s.seedReporterAgent()             // seeds the "report writer" agent + tool bindings + finding trigger (one-time)
+	s.seedInfraSkills()               // binds bundled infrastructure guidance to operational agents
 	s.upgradeReporterTriggerMessage() // backfill migration for old DBs: makes the reporter send evidence_version back (one-time)
 	s.seedFindingTrafficTools()       // adds optional evidence params and read-only evidence tools, preserving user config
 	s.seedFindingWorkflowTools()
 	// Note: pentest's default tool bindings need no migration — BuiltinToolSeeds already seeds
 	// list_assets/insert_assets/report_finding/list_findings/list_companies together with
 	// pentest at fresh initialization (no old DBs exist in this project, so no migration).
+}
+
+// seedInfraSkills runs after agent creation. Conflict handling preserves any
+// visibility choice an administrator has made since first boot.
+func (s *Server) seedInfraSkills() {
+	_, err := s.m.pg.Exec(`
+		INSERT INTO agent_skill_visibility (agent_id, skill_name, enabled)
+		SELECT a.id, names.skill_name, true
+		FROM agents a
+		CROSS JOIN (VALUES
+			('infra-inventory'), ('infra-service-triage'),
+			('infra-cve-triage'), ('infra-review')
+		) AS names(skill_name)
+		WHERE a.key IN ('mainagent', 'worker', 'pentest', 'reporter')
+		ON CONFLICT (agent_id, skill_name) DO NOTHING`)
+	if err != nil {
+		log.Printf("[skills] infrastructure bindings: %v", err)
+	}
 }
 
 // refreshBuiltinToolSchemas propagates code schema/description changes on the

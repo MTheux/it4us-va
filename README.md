@@ -76,9 +76,9 @@ The script checks Docker, then lets you choose **① Docker runtime** or **② l
 - **① Docker runtime**: requires Go 1.26+ and Node.js/npm to prepare the embedded Linux binary locally. Enter a Postgres password (press Enter for a random one) → auto-writes `.env` → builds the binary and starts Docker Compose.
 - **② Local run**: choose a database (connect to an existing one / start one with Docker) → generates `config.json` → `go` builds the embedded single binary → starts.
 
-Once installed, open **http://localhost:8787** (on first entry, `/setup` sets the admin password). After setting the password, **Preparar operação** guides the SOC through model, MCP, agent and asset configuration. Keep the password and LLM keys out of chat, tickets and logs.
+Once installed, open **http://localhost:8787** (on first entry, `/setup` sets the admin password). The SOC navigation shows the operational workflow and the infrastructure Skills. Nmap discovery works locally without LLM or MCP. Agents can use the bundled Skills after a real LLM profile is configured. Keep passwords and API keys out of chat, tickets and logs.
 
-The first infrastructure VA campaign runner is available under **Execuções VA** and from the CLI. It runs TCP connect and service detection; authenticated checks, vulnerability feeds and automated agent validation are not yet implemented. See [VA-SCANNER-v1.1-2026-11-11.md](VA-SCANNER-v1.1-2026-11-11.md).
+The first infrastructure VA campaign runner is available under **Execuções VA** and from the CLI. It runs TCP connect and service detection with common, first-1000, all-port or custom TCP port selections; all-port campaigns are limited by a port-host budget. Authenticated checks, CVE-specific verification, vulnerability feeds and automated agent validation are not yet implemented. See [VA-SCANNER-v1.1-2026-11-11.md](VA-SCANNER-v1.1-2026-11-11.md).
 
 ### Option 2: Docker Compose (manual)
 
@@ -96,9 +96,9 @@ The Compose VA image includes Nmap and basic operator tools; optional agent tool
 ### SOC first-run flow
 
 1. Define the admin password at `/setup` in the browser.
-2. Open **Sistema → Preparar operação** and verify that the scanner is available. The scanner does not require LLM or MCP.
+2. Open **Execuções VA** and verify that the scanner is available. The scanner does not require LLM or MCP.
 3. Create a task, then open **Execuções VA**, enter the authorized IPs/CIDRs, ports, approval owner and time window, validate the expanded target plan, and start discovery. The platform keeps the Chat for operator support; it is not required to launch a campaign.
-4. To use agent-assisted investigation, select Ollama on the same host and click **Buscar modelos locais**, or enter a supported provider, the exact model and its API key. Use **Testar e ativar**. Add MCP servers only if needed, test the connection, and choose agent visibility.
+4. Agent-assisted investigation requires a configured LLM profile. Optional ScopeSentry or browser MCP connections require real endpoint and credentials and must pass a connection test. These administrator settings remain available by direct route (`/system/llm`, `/system/mcp`, `/system/tools`) but are not part of the SOC menu.
 5. Review candidates under **Achados**. A scan candidate is not a confirmed vulnerability; agent validation is not automatic in this version.
 
 For remote MCP, you can choose `http` (Streamable HTTP) or `sse` (legacy SSE) in system settings.
