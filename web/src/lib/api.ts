@@ -1124,6 +1124,8 @@ export const api = {
   deleteMcpServer: (id: number) => del<{ deleted: number }>(`/mcp/${id}`),
   mcpTools: (id: number) => get<{ tools: MCPTool[] }>(`/mcp/${id}/tools`).then((r) => arr(r.tools)),
   refreshMcpServer: (id: number) => post<{ tools: MCPTool[] }>(`/mcp/${id}/refresh`, {}).then((r) => arr(r.tools)),
+  previewMcpTool: (id: number, tool: string, args: Record<string, unknown>) =>
+    post<{ tool: string; output: string; is_error: boolean }>(`/mcp/${id}/preview`, { tool, args }),
 
   // ---- asset sync (ScopeSentry data source) ----
   ssStatus: () =>

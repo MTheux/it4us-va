@@ -49,6 +49,8 @@ recibos e candidatos vinculados a uma tarefa) está documentado em
 
 ---
 
+SOC operators can configure Claude/OpenCode and MCP connectors from **Conexões** (`/system/connections`). The connection test, agent visibility, and read-only sample report flow are documented in [Conexões do SOC](docs/conexoes-soc-v1.0-2026-11-11.md).
+
 ## Asset sync (ScopeSentry)
 
 Sync asset data directly from [ScopeSentry](https://github.com/Autumn-27/ScopeSentry), avoiding duplicate collection:

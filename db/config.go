@@ -847,6 +847,7 @@ type MCPServer struct {
 	Command        string          `json:"command,omitempty"`
 	Args           json.RawMessage `json:"args"`
 	Env            json.RawMessage `json:"env"`
+	EnvConfigured  bool            `json:"env_configured,omitempty"` // response hint; never contains header values
 	URL            string          `json:"url,omitempty"`
 	Enabled        bool            `json:"enabled"`
 	Insecure       bool            `json:"insecure"`        // http: skip TLS cert verification (self-signed servers, issue #108)
@@ -962,7 +963,7 @@ func (d *DB) SaveMCP(m *MCPServer) (int64, error) {
 	if args == "" {
 		args = "[]"
 	}
-	if env == "" {
+	if env == "" && m.ID == 0 {
 		env = "{}"
 	}
 	timeout := m.TimeoutSeconds
@@ -975,8 +976,12 @@ func (d *DB) SaveMCP(m *MCPServer) (int64, error) {
 			m.Name, m.Transport, m.Command, args, env, m.URL, m.Enabled, m.Insecure, timeout).Scan(&id)
 		return id, err
 	}
-	_, err := d.Exec(`UPDATE mcp_servers SET name=$1,transport=$2,command=NULLIF($3,''),args=$4,env=$5,url=NULLIF($6,''),enabled=$7,insecure=$8,timeout_seconds=$9 WHERE id=$10`,
-		m.Name, m.Transport, m.Command, args, env, m.URL, m.Enabled, m.Insecure, timeout, m.ID)
+	var envValue any
+	if env != "" {
+		envValue = env
+	}
+	_, err := d.Exec(`UPDATE mcp_servers SET name=$1,transport=$2,command=NULLIF($3,''),args=$4,env=COALESCE($5::jsonb,env),url=NULLIF($6,''),enabled=$7,insecure=$8,timeout_seconds=$9 WHERE id=$10`,
+		m.Name, m.Transport, m.Command, args, envValue, m.URL, m.Enabled, m.Insecure, timeout, m.ID)
 	return m.ID, err
 }
 

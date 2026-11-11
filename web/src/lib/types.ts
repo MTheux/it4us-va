@@ -1243,6 +1243,7 @@ export interface MCPServer {
   command?: string;
   args: string[];
   env: Record<string, string>;
+  env_configured?: boolean; // header values stay on the server
   url?: string;
   enabled: boolean;
   insecure?: boolean; // http: skip TLS cert verification (self-signed servers)

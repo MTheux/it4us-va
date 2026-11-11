@@ -159,7 +159,7 @@ export default function MCPPage() {
               url: form.url.trim(),
               command: "",
               args: [] as string[],
-              env: parseEnv(form.env), // in remote mode env holds request headers
+              env: editing && !form.env.trim() ? undefined : parseEnv(form.env), // blank on edit keeps stored headers
               insecure: form.insecure,
               ...(Number.isFinite(Number(form.timeoutSeconds)) && Number(form.timeoutSeconds) > 0
                 ? { timeout_seconds: Number(form.timeoutSeconds) }
@@ -169,7 +169,7 @@ export default function MCPPage() {
               transport: "stdio" as const,
               command: form.command.trim(),
               args: form.args.trim() ? form.args.trim().split(/\s+/) : [],
-              env: parseEnv(form.env),
+              env: editing && !form.env.trim() ? undefined : parseEnv(form.env),
               insecure: false,
             };
       await api.saveMcpServer({
@@ -216,7 +216,11 @@ export default function MCPPage() {
 
   async function toggleEnabled(s: MCPServer) {
     try {
-      await api.saveMcpServer({ ...s, enabled: !s.enabled });
+      await api.saveMcpServer({
+        id: s.id, name: s.name, transport: s.transport, command: s.command,
+        args: s.args, url: s.url, enabled: !s.enabled,
+        insecure: s.insecure, timeout_seconds: s.timeout_seconds,
+      });
       load();
     } catch (e) {
       toast.error("Operation failed: " + (e as Error).message);

@@ -872,6 +872,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("DELETE /api/mcp/{id}", s.pgDeleteMCP)
 	mux.HandleFunc("GET /api/mcp/{id}/tools", s.pgMCPTools)
 	mux.HandleFunc("POST /api/mcp/{id}/refresh", s.pgRefreshMCP)
+	mux.HandleFunc("POST /api/mcp/{id}/preview", s.pgPreviewMCP)
 	// asset sync — ScopeSentry data source
 	mux.HandleFunc("GET /api/sync/scopesentry/status", s.syncSSStatus)
 	mux.HandleFunc("POST /api/sync/scopesentry/datasource", s.syncSSDatasource)

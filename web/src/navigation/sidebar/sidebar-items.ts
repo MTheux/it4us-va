@@ -5,6 +5,7 @@ import {
   type LucideIcon,
   MessageSquare,
   Network,
+  PlugZap,
   ScanSearch,
   Sparkles,
   Target,
@@ -67,6 +68,7 @@ export const sidebarItems: NavGroup[] = [
     label: "Conhecimento",
     items: [
       { id: "skills", title: "Skills", url: "/system/skills", icon: Sparkles },
+      { id: "connections", title: "Conexões", url: "/system/connections", icon: PlugZap },
     ],
   },
 ];

@@ -25,6 +25,7 @@ import (
 
 	"github.com/Autumn-27/norma/llm"
 	"github.com/Autumn-27/norma/skill"
+	actool "github.com/Autumn-27/norma/tool"
 	"github.com/MTheux/it4us-va/agent"
 	"github.com/MTheux/it4us-va/db"
 )
@@ -857,6 +858,17 @@ func (s *Server) pgListMCP(w http.ResponseWriter, r *http.Request) {
 	if ms == nil {
 		ms = []*db.MCPServer{}
 	}
+	// Credentials in MCP headers/environment are write-only. The SOC can see
+	// whether one is configured, but listing connectors must never echo values.
+	for _, m := range ms {
+		for _, value := range jsonStrMap(m.Env) {
+			if strings.TrimSpace(value) != "" {
+				m.EnvConfigured = true
+				break
+			}
+		}
+		m.Env = json.RawMessage(`{}`)
+	}
 	writeJSON(w, 200, map[string]any{"servers": ms})
 }
 
@@ -868,6 +880,10 @@ func (s *Server) pgSaveMCP(w http.ResponseWriter, r *http.Request) {
 	var m db.MCPServer
 	if err := decode(r, &m); err != nil {
 		writeErr(w, 400, err.Error())
+		return
+	}
+	if !regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`).MatchString(m.Name) {
+		writeErr(w, 400, "MCP name must use letters, numbers, underscore or hyphen")
 		return
 	}
 	isNew := m.ID == 0
@@ -935,6 +951,83 @@ func (s *Server) pgRefreshMCP(w http.ResponseWriter, r *http.Request) {
 	}
 	tools, _ := pg.MCPToolsDetailed(id)
 	writeJSON(w, 200, map[string]any{"tools": tools})
+}
+
+// pgPreviewMCP lets the SOC inspect a bounded read response before binding a
+// connector to an agent. Write tools continue through the agent approval flow.
+func (s *Server) pgPreviewMCP(w http.ResponseWriter, r *http.Request) {
+	pg := s.pg(w)
+	if pg == nil {
+		return
+	}
+	id, _ := pathInt(r, "id")
+	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+	var req struct {
+		Tool string          `json:"tool"`
+		Args json.RawMessage `json:"args"`
+	}
+	if err := decode(r, &req); err != nil || len(req.Args) == 0 || !json.Valid(req.Args) {
+		writeErr(w, 400, "Valid tool arguments are required")
+		return
+	}
+	name := strings.ToLower(req.Tool)
+	readName := false
+	for _, prefix := range []string{"list_", "get_", "search_", "read_", "fetch_", "download_"} {
+		if strings.HasPrefix(name, prefix) {
+			readName = true
+			break
+		}
+	}
+	if !readName || len(req.Tool) > 128 {
+		writeErr(w, 403, "Only read tools can be previewed")
+		return
+	}
+	all, err := pg.ListMCP()
+	if err != nil {
+		writeErr(w, 500, "MCP configuration unavailable")
+		return
+	}
+	var target *db.MCPServer
+	for _, m := range all {
+		if m.ID == id && m.Enabled {
+			target = m
+			break
+		}
+	}
+	if target == nil {
+		writeErr(w, 404, "Enabled MCP connector not found")
+		return
+	}
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+	cl, err := connectMCP(ctx, target)
+	if err != nil {
+		writeErr(w, 502, "MCP connection failed")
+		return
+	}
+	defer cl.Close()
+	tools, err := cl.Tools(ctx)
+	if err != nil {
+		writeErr(w, 502, "MCP discovery failed")
+		return
+	}
+	for _, item := range tools {
+		if item.Name() != "mcp__"+target.Name+"__"+req.Tool {
+			continue
+		}
+		result, callErr := item.Call(ctx, req.Args, &actool.ToolContext{MaxOutputChars: 256 << 10})
+		if callErr != nil {
+			writeErr(w, 502, "MCP tool failed")
+			return
+		}
+		output := result.Flatten()
+		if len(output) > 256<<10 {
+			output = output[:256<<10]
+		}
+		writeJSON(w, 200, map[string]any{"tool": req.Tool, "output": output, "is_error": result.IsError})
+		return
+	}
+	writeErr(w, 404, "MCP tool not found")
 }
 
 // pgMCPTools returns one MCP's cached tools (name + description) for the detail UI.
