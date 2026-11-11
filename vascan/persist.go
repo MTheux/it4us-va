@@ -10,7 +10,8 @@ import (
 
 // Persist links observed hosts and pending candidates to an existing task.
 // Findings remain pending for SOC review; a scanner result is never promoted
-// directly to a confirmed vulnerability.
+// directly to a confirmed vulnerability. The returned count is observations
+// in this campaign, including candidates previously seen in the same task.
 func Persist(pg *db.DB, taskID int64, result Result) (int, error) {
 	if pg == nil || taskID <= 0 {
 		return 0, fmt.Errorf("database and task_id are required")
@@ -67,8 +68,8 @@ func Persist(pg *db.DB, taskID int64, result Result) (int, error) {
 				}
 				assetIDs = append(assetIDs, serviceID)
 			}
-			_, err := pg.AddFinding(taskID, 0, candidate.VulnClass, candidate.Title, severity,
-				candidate.Summary, candidate.Evidence, "va-scanner:nmap", assetIDs)
+			_, _, err := pg.AddVACandidate(taskID, ipID, candidate.VulnClass, candidate.Title, severity,
+				candidate.Summary, candidate.Evidence, assetIDs)
 			if err != nil {
 				return count, err
 			}

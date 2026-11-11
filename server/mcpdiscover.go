@@ -47,23 +47,31 @@ func connectMCP(ctx context.Context, m *db.MCPServer) (mcpClient, error) {
 // discoverAndCacheMCP connects to one MCP, lists its tools, and persists the tool
 // names to mcp_tools_cache so the UI shows them without a live connection.
 func (s *Server) discoverAndCacheMCP(ctx context.Context, m *db.MCPServer) error {
+	fail := func(reason string) {
+		_ = s.m.pg.SaveMCPTools(m.ID, nil)
+		_ = s.m.pg.UpdateMCPHealth(m.ID, false, reason)
+	}
 	cl, err := connectMCP(ctx, m)
 	if err != nil {
-		_ = s.m.pg.UpdateMCPHealth(m.ID, false, err.Error())
+		fail("connection failed")
 		return err
 	}
 	defer cl.Close()
 	ts, err := cl.Tools(ctx)
 	if err != nil {
-		_ = s.m.pg.UpdateMCPHealth(m.ID, false, err.Error())
+		fail("tool discovery failed")
 		return err
 	}
-	_ = s.m.pg.UpdateMCPHealth(m.ID, true, "")
 	tools := make([]db.MCPTool, 0, len(ts))
 	for _, t := range ts {
 		tools = append(tools, db.MCPTool{Name: t.Name(), Description: t.Description()})
 	}
 	if err := s.m.pg.SaveMCPTools(m.ID, tools); err != nil {
+		fail("tool cache failed")
+		return err
+	}
+	if err := s.m.pg.UpdateMCPHealth(m.ID, true, ""); err != nil {
+		fail("health update failed")
 		return err
 	}
 	log.Printf("[mcp] %s discovered %d tools and cached them", m.Name, len(tools))
@@ -86,7 +94,7 @@ func (s *Server) discoverEmptyMCPsOnStartup() {
 		}
 		ctx, cancel := context.WithTimeout(s.ctx, 90*time.Second)
 		if err := s.discoverAndCacheMCP(ctx, m); err != nil {
-			log.Printf("[mcp] startup auto-discovery of %s failed: %v", m.Name, err)
+			log.Printf("[mcp] startup auto-discovery of %s failed", m.Name)
 		}
 		cancel()
 	}

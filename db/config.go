@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -858,6 +859,9 @@ type MCPServer struct {
 	Tools          []string        `json:"tools,omitempty"` // cached tool names (mcp_tools_cache)
 }
 
+var ErrMCPNotFound = errors.New("MCP server not found")
+var ErrMCPInvalid = errors.New("invalid MCP configuration")
+
 func (d *DB) ListMCP() ([]*MCPServer, error) {
 	rows, err := d.Query(`SELECT id,name,transport,COALESCE(command,''),args,env,COALESCE(url,''),enabled,insecure,COALESCE(timeout_seconds,120),last_connect_at,last_connect_ok,last_connect_err FROM mcp_servers ORDER BY id`)
 	if err != nil {
@@ -879,9 +883,13 @@ func (d *DB) ListMCP() ([]*MCPServer, error) {
 		return nil, err
 	}
 	rows.Close() // free the connection before the per-server tool-cache queries below
-	// Attach each server's cached tool names (best-effort; empty until discovered).
+	// Attach each server's cached tool names; a query failure must not look like
+	// a healthy connector with zero tools.
 	for _, m := range out {
-		m.Tools, _ = d.MCPToolNames(m.ID)
+		m.Tools, err = d.MCPToolNames(m.ID)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
 }
@@ -966,6 +974,33 @@ func (d *DB) SaveMCP(m *MCPServer) (int64, error) {
 	if env == "" && m.ID == 0 {
 		env = "{}"
 	}
+	if m.Name == "" || (m.Transport != "stdio" && m.Transport != "http" && m.Transport != "sse") {
+		return 0, fmt.Errorf("%w: name and transport are required", ErrMCPInvalid)
+	}
+	var parsedArgs []string
+	if err := json.Unmarshal([]byte(args), &parsedArgs); err != nil || parsedArgs == nil {
+		return 0, fmt.Errorf("%w: args must be an array of strings", ErrMCPInvalid)
+	}
+	if env != "" {
+		var parsedEnv map[string]string
+		if err := json.Unmarshal([]byte(env), &parsedEnv); err != nil || parsedEnv == nil {
+			return 0, fmt.Errorf("%w: env must be an object of strings", ErrMCPInvalid)
+		}
+	}
+	if m.Enabled && m.Transport == "stdio" && strings.TrimSpace(m.Command) == "" {
+		return 0, fmt.Errorf("%w: stdio command is required", ErrMCPInvalid)
+	}
+	if m.Transport != "stdio" {
+		if m.Enabled && m.URL == "" {
+			return 0, fmt.Errorf("%w: remote URL is required", ErrMCPInvalid)
+		}
+		if m.URL != "" {
+			u, err := url.Parse(m.URL)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" || u.User != nil {
+				return 0, fmt.Errorf("%w: remote URL must use http or https without embedded credentials", ErrMCPInvalid)
+			}
+		}
+	}
 	timeout := m.TimeoutSeconds
 	if timeout <= 0 {
 		timeout = 120
@@ -980,9 +1015,29 @@ func (d *DB) SaveMCP(m *MCPServer) (int64, error) {
 	if env != "" {
 		envValue = env
 	}
-	_, err := d.Exec(`UPDATE mcp_servers SET name=$1,transport=$2,command=NULLIF($3,''),args=$4,env=COALESCE($5::jsonb,env),url=NULLIF($6,''),enabled=$7,insecure=$8,timeout_seconds=$9 WHERE id=$10`,
-		m.Name, m.Transport, m.Command, args, envValue, m.URL, m.Enabled, m.Insecure, timeout, m.ID)
-	return m.ID, err
+	tx, err := d.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	var id int64
+	err = tx.QueryRow(`UPDATE mcp_servers SET name=$1,transport=$2,command=NULLIF($3,''),args=$4,
+		env=CASE WHEN transport IS DISTINCT FROM $2 OR command IS DISTINCT FROM NULLIF($3,'')
+			OR args IS DISTINCT FROM $4::jsonb OR url IS DISTINCT FROM NULLIF($6,'')
+			THEN COALESCE($5::jsonb,'{}'::jsonb) ELSE COALESCE($5::jsonb,env) END,
+		url=NULLIF($6,''),enabled=$7,insecure=$8,timeout_seconds=$9,
+		last_connect_at=NULL,last_connect_ok=NULL,last_connect_err=NULL WHERE id=$10 RETURNING id`,
+		m.Name, m.Transport, m.Command, args, envValue, m.URL, m.Enabled, m.Insecure, timeout, m.ID).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrMCPNotFound
+	}
+	if err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM mcp_tools_cache WHERE server_id=$1`, id); err != nil {
+		return 0, err
+	}
+	return id, tx.Commit()
 }
 
 func (d *DB) DeleteMCP(id int64) error {

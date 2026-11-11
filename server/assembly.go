@@ -90,17 +90,20 @@ func wireAgentAugment(pg *db.DB, skillDir string, hostTools func() ([]actool.Cor
 				}
 				cl, err := connectMCP(ctx, m)
 				if err != nil {
-					log.Printf("[mcp] %s connect failed: %v", m.Name, err)
-					_ = pg.UpdateMCPHealth(m.ID, false, "connect: "+err.Error())
+					log.Printf("[mcp] %s connect failed", m.Name)
+					_ = pg.SaveMCPTools(m.ID, nil)
+					_ = pg.UpdateMCPHealth(m.ID, false, "connection failed")
+					continue
+				}
+				ts, err := cl.Tools(ctx)
+				if err != nil {
+					_ = cl.Close()
+					log.Printf("[mcp] %s tools/list failed", m.Name)
+					_ = pg.SaveMCPTools(m.ID, nil)
+					_ = pg.UpdateMCPHealth(m.ID, false, "tool discovery failed")
 					continue
 				}
 				closers = append(closers, cl)
-				ts, err := cl.Tools(ctx)
-				if err != nil {
-					log.Printf("[mcp] %s tools/list failed: %v", m.Name, err)
-					_ = pg.UpdateMCPHealth(m.ID, false, "tools/list: "+err.Error())
-					continue
-				}
 				_ = pg.UpdateMCPHealth(m.ID, true, "")
 				for _, t := range ts {
 					// MCP tools return target-influenced content (browser pages, remote

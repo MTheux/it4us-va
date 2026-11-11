@@ -868,6 +868,14 @@ func (s *Server) pgListMCP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		m.Env = json.RawMessage(`{}`)
+		if m.LastConnectErr != nil {
+			switch *m.LastConnectErr {
+			case "connection failed", "tool discovery failed", "tool cache failed", "health update failed":
+			default:
+				generic := "connection failed"
+				m.LastConnectErr = &generic
+			}
+		}
 	}
 	writeJSON(w, 200, map[string]any{"servers": ms})
 }
@@ -886,24 +894,48 @@ func (s *Server) pgSaveMCP(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "MCP name must use letters, numbers, underscore or hyphen")
 		return
 	}
-	isNew := m.ID == 0
 	id, err := pg.SaveMCP(&m)
 	if err != nil {
+		if errors.Is(err, db.ErrMCPInvalid) {
+			writeErr(w, 400, err.Error())
+			return
+		}
+		if errors.Is(err, db.ErrMCPNotFound) {
+			writeErr(w, 404, "MCP does not exist")
+			return
+		}
 		writeErr(w, 500, err.Error())
 		return
 	}
-	// On initial add, auto-discover + cache the tool list so the UI shows it right
-	// away (bounded so a slow/broken server can't hang the request). Skipped on
-	// plain updates (e.g. enable toggles) to avoid re-spawning the server each time.
-	if isNew && m.Enabled {
-		m.ID = id
+	// SaveMCP clears stale health/tools. Reload the persisted row because a blank
+	// env on edit means "keep the credential" and must be used by discovery.
+	all, err := pg.ListMCP()
+	if err != nil {
+		writeErr(w, 500, "MCP configuration unavailable")
+		return
+	}
+	var saved *db.MCPServer
+	for _, item := range all {
+		if item.ID == id {
+			saved = item
+			break
+		}
+	}
+	if saved == nil {
+		writeErr(w, 500, "Saved MCP could not be loaded")
+		return
+	}
+	connected := false
+	if saved.Enabled {
 		ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
-		if derr := s.discoverAndCacheMCP(ctx, &m); derr != nil {
-			log.Printf("[mcp] tool discovery after adding %s failed: %v", m.Name, derr)
+		if derr := s.discoverAndCacheMCP(ctx, saved); derr != nil {
+			log.Printf("[mcp] tool discovery after saving %s failed", saved.Name)
+		} else {
+			connected = true
 		}
 		cancel()
 	}
-	writeJSON(w, 200, map[string]any{"id": id})
+	writeJSON(w, 200, map[string]any{"id": id, "connected": connected})
 }
 
 func (s *Server) pgDeleteMCP(w http.ResponseWriter, r *http.Request) {
@@ -943,10 +975,14 @@ func (s *Server) pgRefreshMCP(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "MCP does not exist")
 		return
 	}
+	if !target.Enabled {
+		writeErr(w, 409, "Enable MCP before testing it")
+		return
+	}
 	ctx, cancel := context.WithTimeout(r.Context(), 45*time.Second)
 	defer cancel()
 	if err := s.discoverAndCacheMCP(ctx, target); err != nil {
-		writeErr(w, 502, "tool discovery failed: "+err.Error())
+		writeErr(w, 502, "MCP connection or tool discovery failed")
 		return
 	}
 	tools, _ := pg.MCPToolsDetailed(id)
@@ -970,16 +1006,8 @@ func (s *Server) pgPreviewMCP(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Valid tool arguments are required")
 		return
 	}
-	name := strings.ToLower(req.Tool)
-	readName := false
-	for _, prefix := range []string{"list_", "get_", "search_", "read_", "fetch_", "download_"} {
-		if strings.HasPrefix(name, prefix) {
-			readName = true
-			break
-		}
-	}
-	if !readName || len(req.Tool) > 128 {
-		writeErr(w, 403, "Only read tools can be previewed")
+	if req.Tool != "list_reports" && req.Tool != "get_report" {
+		writeErr(w, 403, "This tool is not available in report preview")
 		return
 	}
 	all, err := pg.ListMCP()
@@ -996,6 +1024,12 @@ func (s *Server) pgPreviewMCP(w http.ResponseWriter, r *http.Request) {
 	}
 	if target == nil {
 		writeErr(w, 404, "Enabled MCP connector not found")
+		return
+	}
+	// This direct preview is a laboratory convenience, not a generic MCP tool
+	// invocation endpoint. External connectors run through agent permissions.
+	if target.Name != "soc_demo_reports" || target.Transport != "stdio" {
+		writeErr(w, 403, "Report preview is available only for the local demo connector")
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)

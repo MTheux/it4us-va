@@ -14,7 +14,9 @@ A interface não devolve a chave após o cadastro. O perfil é armazenado no Pos
 
 1. Informe nome, URL HTTPS e, se o servidor aceitar, um Bearer token. Clique **Salvar** e depois **Testar MCP**.
 2. A contagem e os nomes das ferramentas vêm de `tools/list` real. Um conector só aparece como **Conectado** depois de uma descoberta bem-sucedida.
-3. Marque os agentes que podem usar o conector. Ferramentas de escrita continuam no fluxo de permissão do agente. O painel de prévia executa apenas ferramentas de leitura com prefixos `list_`, `get_`, `search_`, `read_`, `fetch_` ou `download_`, com limite de entrada, tempo e saída.
+3. Marque os agentes que podem usar o conector. Ferramentas externas, inclusive leitura e escrita, passam pelo fluxo de permissão do agente. A prévia direta do painel aceita somente `list_reports` e `get_report` do MCP local de demonstração, com limite de entrada, tempo e saída.
+
+Uma edição limpa a saúde e a lista de ferramentas antigas antes de redescobrir o servidor. A credencial continua salva quando o endpoint não muda; mudar URL, transporte, comando ou argumentos sem informar uma nova credencial limpa o segredo antigo para evitar envio ao novo destino.
 
 O template Atlassian usa `https://mcp.atlassian.com/v2/mcp`. O Rovo MCP usa OAuth 2.1 como método principal; esta versão do painel não implementa o login OAuth. O Bearer token só funciona se a organização Atlassian habilitou esse modo. Sem isso, o teste deve falhar e nenhum acesso a Jira ou Confluence é presumido.
 

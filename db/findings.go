@@ -100,6 +100,44 @@ func (d *DB) AddFinding(taskID, nodeID int64, vulnclass, name, severity, summary
 	return id, err
 }
 
+// AddVACandidate keeps one scanner candidate per task, host asset and title.
+// Repeated campaigns still count the observation in their receipt, while the
+// SOC keeps one triage decision instead of receiving duplicate finding rows.
+func (d *DB) AddVACandidate(taskID, ipAssetID int64, vulnclass, name, severity, summary, evidence string, assetIDs []int64) (int64, bool, error) {
+	if taskID <= 0 || ipAssetID <= 0 {
+		return 0, false, fmt.Errorf("VA candidate requires task and IP asset")
+	}
+	const worker = "va-scanner:nmap"
+	ipJSON, _ := json.Marshal([]int64{ipAssetID})
+	aidsJSON, _ := json.Marshal(assetIDs)
+	tx, err := d.Begin()
+	if err != nil {
+		return 0, false, err
+	}
+	defer tx.Rollback()
+	// Serialize candidate registration within this task; different tasks can
+	// persist independently after their asset upserts have completed.
+	if _, err := tx.Exec(`SELECT pg_advisory_xact_lock($1)`, int64(0x4954345500000000)^taskID); err != nil {
+		return 0, false, err
+	}
+	var id int64
+	err = tx.QueryRow(`SELECT id FROM findings WHERE task_id=$1 AND worker=$2 AND vulnclass=$3 AND name=$4
+		AND asset_ids @> $5::jsonb ORDER BY id LIMIT 1`, taskID, worker, vulnclass, name, string(ipJSON)).Scan(&id)
+	if err == nil {
+		return id, false, tx.Commit()
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, false, err
+	}
+	err = tx.QueryRow(`INSERT INTO findings (task_id, node_id, vulnclass, name, severity, summary, evidence, worker, asset_ids)
+		VALUES ($1, NULL, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+		taskID, vulnclass, name, severity, summary, evidence, worker, string(aidsJSON)).Scan(&id)
+	if err != nil {
+		return 0, false, err
+	}
+	return id, true, tx.Commit()
+}
+
 // findingSelectCols is the column list (with task_description join) every finding
 // list query selects, so scanFinding stays in sync across callers.
 const findingSelectCols = `f.id, f.task_id, f.node_id, f.vulnclass, COALESCE(f.name, ''), f.severity, f.summary,

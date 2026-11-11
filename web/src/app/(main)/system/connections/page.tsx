@@ -106,14 +106,15 @@ export default function ConnectionsPage() {
     setMcpBusy(true);
     try {
       const current = servers.find((s) => s.name === connectorName.trim());
-      await api.saveMcpServer({
+      const result = await api.saveMcpServer({
         ...(current ? { id: current.id } : {}), name: connectorName.trim(), transport: "http",
         url: connectorUrl.trim(), args: [], enabled: true, insecure: false,
         ...(connectorToken.trim() ? { env: { Authorization: `Bearer ${connectorToken.trim()}` } } : {}),
       });
       setConnectorToken("");
       await load();
-      toast.success("Conector salvo. Teste a conexão na lista abaixo.");
+      if (result.connected) toast.success("MCP conectado e ferramentas descobertas.");
+      else toast.warning("Conector salvo, mas a conexão não respondeu. Verifique a autenticação e teste novamente.");
     } catch (error) { toast.error((error as Error).message); }
     finally { setMcpBusy(false); }
   }
@@ -123,10 +124,9 @@ export default function ConnectionsPage() {
     try {
       const found = await api.refreshMcpServer(server.id);
       setTools((old) => ({ ...old, [server.id]: found }));
-      await load();
       toast.success(`${server.name}: ${found.length} ferramentas disponíveis.`);
     } catch (error) { toast.error(`Falha em ${server.name}: ${(error as Error).message}`); }
-    finally { setBusyServer(null); }
+    finally { await load().catch(() => {}); setBusyServer(null); }
   }
 
   async function bindAgent(server: MCPServer, agent: Agent) {
@@ -214,11 +214,11 @@ export default function ConnectionsPage() {
           <div className="space-y-2"><Label htmlFor="mcp-token">Token, se habilitado</Label><Input id="mcp-token" type="password" autoComplete="off" value={connectorToken} onChange={(e) => setConnectorToken(e.target.value)} placeholder="Opcional" /></div>
           <Button variant="secondary" onClick={() => void saveConnector()} disabled={mcpBusy}>{mcpBusy ? <Loader2 className="animate-spin" /> : <PlugZap />} Salvar</Button>
         </div>
-        <p className="text-xs text-muted-foreground">Rovo usa OAuth 2.1 por padrão. Token estático depende de habilitação pela administração Atlassian; sem isso, o teste mostrará falha e a conexão não será marcada como ativa.</p>
+        <p className="text-xs text-muted-foreground">Rovo usa OAuth 2.1 por padrão. Token estático depende de habilitação pela administração Atlassian. Ao trocar a URL ou o tipo de servidor, informe o token novamente; o VA não envia a credencial antiga ao novo destino.</p>
         <div className="space-y-3">
           {servers.map((server) => <div key={server.id} className="rounded-xl border p-4">
-            <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="flex items-center gap-2 font-medium">{server.name === "soc_demo_reports" ? "Relatórios de demonstração" : server.name.replaceAll("_", " ")}{server.name === "soc_demo_reports" && <Badge variant="outline">Exemplo</Badge>}</div><p className="mt-1 break-all text-xs text-muted-foreground">{server.url || `${server.command} ${(server.args || []).join(" ")}`}</p></div><Badge variant={server.last_connect_ok ? "default" : "outline"}>{server.last_connect_ok ? "Conectado" : server.last_connect_ok === false ? "Falha" : "Não testado"}</Badge></div>
-            <div className="mt-3 flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" onClick={() => void testConnector(server)} disabled={busyServer === server.id}>{busyServer === server.id ? <Loader2 className="animate-spin" /> : <RefreshCw />} Testar MCP</Button><span className="text-xs text-muted-foreground">{(tools[server.id] || []).length} ferramentas · {server.env_configured ? "credencial salva" : "sem credencial"}</span></div>
+            <div className="flex flex-wrap items-start justify-between gap-2"><div><div className="flex items-center gap-2 font-medium">{server.name === "soc_demo_reports" ? "Relatórios de demonstração" : server.name.replaceAll("_", " ")}{server.name === "soc_demo_reports" && <Badge variant="outline">Exemplo</Badge>}</div><p className="mt-1 break-all text-xs text-muted-foreground">{server.url || `${server.command} ${(server.args || []).join(" ")}`}</p></div><Badge variant={server.enabled && server.last_connect_ok ? "default" : "outline"}>{!server.enabled ? "Desativado" : server.last_connect_ok ? "Conectado" : server.last_connect_ok === false ? "Falha" : "Não testado"}</Badge></div>
+            <div className="mt-3 flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" onClick={() => void testConnector(server)} disabled={busyServer === server.id || !server.enabled}>{busyServer === server.id ? <Loader2 className="animate-spin" /> : <RefreshCw />} Testar MCP</Button><span className="text-xs text-muted-foreground">{(tools[server.id] || []).length} ferramentas · {server.env_configured ? "credencial salva" : "sem credencial"}</span></div>
             {!!tools[server.id]?.length && <p className="mt-2 text-xs text-muted-foreground">{tools[server.id].slice(0, 5).map((t) => t.name.replace(/^mcp__.*?__/, "")).join(" · ")}{tools[server.id].length > 5 ? " · …" : ""}</p>}
             {!!agents.length && <div className="mt-3 flex flex-wrap items-center gap-2 border-t pt-3"><span className="mr-1 text-xs text-muted-foreground">Liberar para:</span>{agents.map((agent) => <button key={agent.id} type="button" onClick={() => void bindAgent(server, agent)} className={`rounded-full border px-2.5 py-1 text-xs ${visibility[server.id]?.includes(agent.id) ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground"}`}>{visibility[server.id]?.includes(agent.id) && <CheckCircle2 className="mr-1 inline size-3" />}{agent.name}</button>)}</div>}
           </div>)}

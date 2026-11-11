@@ -330,10 +330,12 @@ flowchart TB
     GUARD["guard  ScopeGuard: escopo/rate + trilha de auditoria"]
     ENR["enrich  DNS / HTTP async enrichment"]
     EXT["MCP · skills · memory · report"]
+    VA["VA scanner  scope → receipt → inventory + pending candidates"]
   end
 
   UI -->|HTTP| API
   API --> MGR --> ENG
+  API --> VA --> DB
   ENG --> PL
   ENG --> WK
   API --> MA
@@ -355,6 +357,7 @@ flowchart TB
 | **server** | `net/http` routing + JWT auth + SSE; `Manager` owns the lifecycle of tasks, engines, and DB stores |
 | **engine** | One `plannerLoop` + N worker goroutines per task; intent claiming, timeout/pause/drain |
 | **agent** | goals / planner / worker / mainagent; `ToolSet` exposes the dual graphs as LLM tools |
+| **VA scanner** | Runs only an approved, bounded campaign; stores every observed service and a pending SOC candidate without starting the agent automatically. Repeated observations in one task reuse the existing candidate. |
 | **db** | Postgres persistence of the dual graphs (pgx); the schema is embedded via `go:embed` and idempotently applied on every start |
 | **Supporting** | ScopeGuard (escopo/rate + auditoria), async enrichment, MCP/skills/memory/report |
 
