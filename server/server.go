@@ -936,31 +936,8 @@ func (s *Server) Handler() http.Handler {
 	api := cors(s.requireAuth(mux))
 	root := http.NewServeMux()
 	root.Handle("/api/", api)
-	ui := s.webuiHandler()
-	root.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if adminPage(r.URL.Path) {
-			cookie, err := r.Cookie("it4us_token")
-			if err != nil {
-				http.Redirect(w, r, "/login", http.StatusSeeOther)
-				return
-			}
-			if role, ok := tokenRole(cookie.Value, s.jwtKey); !ok || role != "admin" {
-				writeErr(w, http.StatusForbidden, "Administrator page")
-				return
-			}
-		}
-		ui.ServeHTTP(w, r)
-	}))
+	root.Handle("/", s.webuiHandler())
 	return root
-}
-
-func adminPage(path string) bool {
-	for _, prefix := range []string{"/system/quickstart", "/system/llm", "/system/agents", "/system/mcp", "/system/tools", "/system/notify", "/system/logs", "/system/settings", "/function/commands", "/function/llm-records", "/function/workspace", "/dashboard", "/chat", "/function/sync"} {
-		if path == prefix || strings.HasPrefix(path, prefix+"/") || strings.HasPrefix(path, prefix+".") {
-			return true
-		}
-	}
-	return false
 }
 
 // --- handlers ---

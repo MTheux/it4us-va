@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -34,8 +35,16 @@ func TestBothLoginsHaveAdminAccess(t *testing.T) {
 	if role, ok := tokenRole(legacy, key); !ok || role != "admin" {
 		t.Fatalf("legacy soc: %q %v", role, ok)
 	}
-	if !adminPage("/system/mcp") || !adminPage("/function/workspace") || adminPage("/system/skills") {
-		t.Fatal("admin page classification")
+}
+
+func TestPageIgnoresCookieFromAnotherInstance(t *testing.T) {
+	s := &Server{jwtKey: []byte("0123456789abcdef0123456789abcdef")}
+	r := httptest.NewRequest(http.MethodGet, "/system/mcp/", nil)
+	r.AddCookie(&http.Cookie{Name: "it4us_token", Value: "token-from-other-port"})
+	w := httptest.NewRecorder()
+	s.Handler().ServeHTTP(w, r)
+	if w.Code == http.StatusForbidden || strings.Contains(w.Body.String(), "Administrator page") {
+		t.Fatalf("cross-port cookie blocked static page: status=%d body=%q", w.Code, w.Body.String())
 	}
 }
 
