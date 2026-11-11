@@ -242,6 +242,7 @@ export const api = {
   // ---- auth ----
   authStatus: () => get<{ initialized: boolean }>("/auth/status"),
   login: (username: string, password: string) => post<{ token: string }>("/auth/login", { username, password }),
+  setSOCPassword: (adminPassword: string, socPassword: string) => post<{ ok: boolean }>("/auth/soc-password", { admin_password: adminPassword, soc_password: socPassword }),
   initPassword: (password: string) => post<{ token: string }>("/auth/init", { password }),
   changePassword: (oldPassword: string, newPassword: string) =>
     post<{ ok: boolean }>("/auth/change-password", { old_password: oldPassword, new_password: newPassword }),
@@ -255,6 +256,7 @@ export const api = {
   vaRun: (id: string) => get<VARun>(`/va/runs/${encodeURIComponent(id)}`),
   vaStart: (campaign: VACampaign) => post<VARun>("/va/runs", campaign),
   vaCancel: (id: string) => post<{ ok: boolean }>(`/va/runs/${encodeURIComponent(id)}/cancel`, {}),
+  vaCheckCVE: (runID: string, cve: string) => post<import("@/lib/types").VACVECheck>("/va/cve/check", { run_id: runID, cve }),
   task: (id: string) => get<Task>(`/tasks/${encodeURIComponent(id)}`),
   createTask: (input: {
     name?: string;

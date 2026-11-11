@@ -35,8 +35,19 @@ export interface VAHostResult {
   target: string;
   status: "completed" | "failed";
   scanner_output_sha256?: string;
+  services?: Array<{ IP: string; Port: number; Service: string; Product?: string; Version?: string; CPE?: string[] }>;
   candidates: Array<{ title: string; severity: string; summary: string }>;
   error?: string;
+}
+
+export interface VACVECheck {
+  cve: string;
+  checked_at: string;
+  source: string;
+  description?: string;
+  status: "possible" | "not_detected" | "inconclusive";
+  note: string;
+  matches: Array<{ target: string; port: number; service: string; version?: string; cpe?: string; criteria?: string; status: "possible" | "not_detected" | "inconclusive" }>;
 }
 
 export interface VARun {
@@ -51,6 +62,7 @@ export interface VARun {
   candidate_count: number;
   error?: string;
   result?: { campaign: string; started_at: string; finished_at: string; hosts: VAHostResult[] };
+  cve_checks?: VACVECheck[];
 }
 
 export interface Task {

@@ -658,6 +658,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/auth/status", s.authStatus)
 	mux.HandleFunc("POST /api/auth/init", s.authInit)
 	mux.HandleFunc("POST /api/auth/login", s.authLogin)
+	mux.HandleFunc("POST /api/auth/soc-password", s.authSetSOCPassword)
 	mux.HandleFunc("POST /api/auth/change-password", s.authChangePassword)
 
 	mux.HandleFunc("GET /api/health", s.health)
@@ -669,6 +670,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/tasks", s.listTasks)
 	mux.HandleFunc("POST /api/tasks", s.createTask)
 	mux.HandleFunc("POST /api/va/plan", s.vaPlan)
+	mux.HandleFunc("POST /api/va/cve/check", s.vaCheckCVE)
 	mux.HandleFunc("GET /api/va/capabilities", s.vaCapabilities)
 	mux.HandleFunc("GET /api/va/runs", s.vaListRuns)
 	mux.HandleFunc("POST /api/va/runs", s.vaStartRun)
@@ -934,8 +936,31 @@ func (s *Server) Handler() http.Handler {
 	api := cors(s.requireAuth(mux))
 	root := http.NewServeMux()
 	root.Handle("/api/", api)
-	root.Handle("/", s.webuiHandler())
+	ui := s.webuiHandler()
+	root.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if adminPage(r.URL.Path) {
+			cookie, err := r.Cookie("it4us_token")
+			if err != nil {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
+			if role, ok := tokenRole(cookie.Value, s.jwtKey); !ok || role != "admin" {
+				writeErr(w, http.StatusForbidden, "Administrator page")
+				return
+			}
+		}
+		ui.ServeHTTP(w, r)
+	}))
 	return root
+}
+
+func adminPage(path string) bool {
+	for _, prefix := range []string{"/system/quickstart", "/system/llm", "/system/agents", "/system/mcp", "/system/tools", "/system/notify", "/system/logs", "/system/settings", "/function/commands", "/function/llm-records", "/function/workspace", "/dashboard", "/chat", "/function/sync"} {
+		if path == prefix || strings.HasPrefix(path, prefix+"/") || strings.HasPrefix(path, prefix+".") {
+			return true
+		}
+	}
+	return false
 }
 
 // --- handlers ---

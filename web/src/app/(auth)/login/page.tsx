@@ -17,6 +17,7 @@ import { auth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [username, setUsername] = useState("IT4US VA");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -69,7 +70,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const { token } = await api.login("IT4US VA", password);
+      const { token } = await api.login(username, password);
       auth.setToken(token);
       window.location.replace("/function/va-runs");
     } catch {
@@ -111,7 +112,10 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="username">Usuário</Label>
-              <Input id="username" value="IT4US VA" readOnly className="bg-muted text-muted-foreground" />
+              <select id="username" value={username} onChange={(event) => setUsername(event.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <option value="IT4US VA">Administrador</option>
+                <option value="IT4US SOC">Operação SOC</option>
+              </select>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Senha</Label>

@@ -33,6 +33,7 @@ type vaRunRecord struct {
 	CandidateCount int             `json:"candidate_count"`
 	Error          string          `json:"error,omitempty"`
 	Result         *vascan.Result  `json:"result,omitempty"`
+	CVEChecks      []vaCVEResult   `json:"cve_checks,omitempty"`
 }
 
 type vaActiveRun struct {

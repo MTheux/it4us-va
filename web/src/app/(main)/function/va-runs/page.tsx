@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRightIcon, CheckCircle2Icon, Loader2Icon, ScanSearchIcon, SquareIcon } from "lucide-react";
+import { ArrowRightIcon, Loader2Icon, ScanSearchIcon, SquareIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
-import type { Task, VACampaign, VACapabilities, VAPlan, VARun } from "@/lib/types";
+import type { Task, VACampaign, VACapabilities, VACVECheck, VAPlan, VARun } from "@/lib/types";
 
 const commonPorts = [21, 22, 25, 53, 80, 110, 135, 139, 143, 443, 445, 587, 993, 995, 1433, 1521, 3306, 3389, 5432, 5900, 8080, 8443];
 type PortChoice = "common" | "first1000" | "all" | "custom";
@@ -47,6 +47,12 @@ function initialExpiry() {
 }
 
 export default function VARunsPage() {
+  const [intent, setIntent] = React.useState<"discovery" | "cve">("discovery");
+  const [runs, setRuns] = React.useState<VARun[]>([]);
+  const [cveRunID, setCVERunID] = React.useState("");
+  const [cveID, setCVEID] = React.useState("");
+  const [cveResult, setCVEResult] = React.useState<VACVECheck | null>(null);
+  const [cveBusy, setCVEBusy] = React.useState(false);
   const [tasks, setTasks] = React.useState<Task[]>([]);
   const [capabilities, setCapabilities] = React.useState<VACapabilities | null>(null);
   const [selected, setSelected] = React.useState<VARun | null>(null);
@@ -73,6 +79,9 @@ export default function VARunsPage() {
         if (taskResult.value.tasks.length === 1) setTaskID(taskResult.value.tasks[0].id);
       }
       if (runResult.status === "fulfilled") {
+        setRuns(runResult.value);
+        const latest = runResult.value.find((run) => run.status === "completed" || run.status === "partial");
+        if (latest) setCVERunID(latest.id);
         const active = runResult.value.find((run) => run.status === "running");
         if (active) setSelected(active);
       }
@@ -146,6 +155,13 @@ export default function VARunsPage() {
     }
   }
 
+  async function checkCVE(event: React.FormEvent) {
+    event.preventDefault(); setCVEBusy(true); setError(""); setCVEResult(null);
+    try { setCVEResult(await api.vaCheckCVE(cveRunID, cveID)); }
+    catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível consultar a CVE."); }
+    finally { setCVEBusy(false); }
+  }
+
   return (
     <div className="mx-auto max-w-4xl space-y-7 p-6 pb-16 md:p-10">
       <header className="flex flex-wrap items-start justify-between gap-4">
@@ -159,7 +175,12 @@ export default function VARunsPage() {
         </Badge>
       </header>
 
-      <Card><CardContent className="p-5 md:p-7">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <button type="button" onClick={() => setIntent("discovery")} aria-pressed={intent === "discovery"} className={"rounded-xl border p-4 text-left " + (intent === "discovery" ? "border-primary bg-primary/5" : "border-border")}><span className="font-medium">Descobrir serviços</span><p className="mt-1 text-xs text-muted-foreground">Portas TCP e serviços da rede autorizada.</p></button>
+        <button type="button" onClick={() => setIntent("cve")} aria-pressed={intent === "cve"} className={"rounded-xl border p-4 text-left " + (intent === "cve" ? "border-primary bg-primary/5" : "border-border")}><span className="font-medium">Verificar CVE específica</span><p className="mt-1 text-xs text-muted-foreground">Correlacionar serviços observados com os critérios da NVD.</p></button>
+      </div>
+
+      {intent === "discovery" ? <Card><CardContent className="p-5 md:p-7">
         <form className="space-y-7" onSubmit={preview}>
           <div className="space-y-2">
             <Label htmlFor="va-task">Tarefa do cliente</Label>
@@ -174,19 +195,6 @@ export default function VARunsPage() {
             <Textarea id="va-targets" value={targets} onChange={(event) => setTargets(event.target.value)} rows={4} className="font-mono" spellCheck={false} placeholder={"192.0.2.10\n198.51.100.0/28"} />
             <p className="text-xs text-muted-foreground">Um IP ou CIDR por linha. Até 4.096 IPs; sem hostnames.</p>
           </div>
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">O que deseja fazer?</legend>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-lg border border-primary/50 bg-primary/5 p-4">
-                <div className="flex items-center justify-between gap-2"><span className="font-medium">Descobrir serviços</span><CheckCircle2Icon className="size-4 text-primary" /></div>
-                <p className="mt-1 text-xs text-muted-foreground">Portas TCP e serviços para revisão do SOC.</p>
-              </div>
-              <div aria-disabled="true" className="rounded-lg border border-border bg-muted/30 p-4 opacity-65">
-                <div className="flex items-center justify-between gap-2"><span className="font-medium">Verificar CVE específica</span><Badge variant="outline" className="text-[10px]">Em preparação</Badge></div>
-                <p className="mt-1 text-xs text-muted-foreground">Ainda não há executor de CVE nesta instalação.</p>
-              </div>
-            </div>
-          </fieldset>
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium">Portas TCP</legend>
             <div className="grid gap-2 sm:grid-cols-2">
@@ -205,7 +213,16 @@ export default function VARunsPage() {
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           <div className="flex justify-end"><Button type="submit" disabled={busy}>{busy && <Loader2Icon className="size-4 animate-spin" />} Revisar execução <ArrowRightIcon className="size-4" /></Button></div>
         </form>
-      </CardContent></Card>
+      </CardContent></Card> : <Card><CardContent className="space-y-5 p-5 md:p-7">
+        <form onSubmit={checkCVE} className="space-y-4">
+          <div className="space-y-2"><Label htmlFor="cve-run">Execução concluída</Label><select id="cve-run" value={cveRunID} onChange={(event) => setCVERunID(event.target.value)} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"><option value="">Selecione</option>{runs.filter((run) => run.status === "completed" || run.status === "partial").map((run) => <option key={run.id} value={run.id}>{run.campaign.name} · {new Date(run.created_at).toLocaleDateString("pt-BR")}</option>)}</select></div>
+          <div className="space-y-2"><Label htmlFor="cve-id">CVE</Label><Input id="cve-id" value={cveID} onChange={(event) => setCVEID(event.target.value.toUpperCase())} placeholder="CVE-2024-6387" autoComplete="off" /></div>
+          <p className="text-xs text-muted-foreground">Consulta os critérios CPE da NVD e as versões observadas na campanha. Não executa exploit nem confirma impacto ou ausência de backport.</p>
+          <Button disabled={cveBusy || !cveRunID || !/^CVE-\d{4}-\d{4,}$/.test(cveID)}>{cveBusy ? "Consultando…" : "Verificar aplicabilidade"}</Button>
+        </form>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        {cveResult && <div className="space-y-3 border-t border-border pt-5"><div className="flex items-center gap-2"><strong>{cveResult.cve}</strong><Badge variant="outline">{cveResult.status === "possible" ? "Possível aplicação" : cveResult.status === "not_detected" ? "Sem correspondência observada" : "Inconclusivo"}</Badge></div><p className="text-sm text-muted-foreground">{cveResult.note}</p><div className="max-h-64 space-y-2 overflow-auto">{cveResult.matches.map((match, index) => <div key={index} className="rounded-md border p-3 text-xs"><span className="font-mono">{match.target}:{match.port}</span> · {match.service} {match.version} · {match.status === "possible" ? "Possível" : match.status === "not_detected" ? "Sem correspondência" : "Inconclusivo"}</div>)}</div><a href={cveResult.source} target="_blank" rel="noreferrer" className="text-xs text-primary underline">Abrir registro NVD</a></div>}
+      </CardContent></Card>}
 
       {selected && <Card><CardContent className="space-y-4 p-5">
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">{selected.campaign.name}</p><p className="mt-1 text-xs text-muted-foreground">{selected.completed_hosts + selected.failed_hosts}/{selected.total_hosts} IPs · {selected.candidate_count} candidatos</p></div><Badge variant="outline">{statusLabels[selected.status]}</Badge></div>

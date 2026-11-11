@@ -19,6 +19,7 @@ import (
 const (
 	jwtKeyFilename = "jwt.key"
 	authPassKey    = "auth.password_hash"
+	socPassKey     = "auth.soc_password_hash"
 	jwtTTL         = 7 * 24 * time.Hour
 	keyChars       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -85,22 +86,72 @@ func loadOrCreateJWTKey(keyDir, dataDir string) ([]byte, error) {
 
 // signJWT issues a 7-day HS256 token for user IT4US VA.
 func signJWT(key []byte) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Subject:   "IT4US VA",
+	return signRoleJWT(key, "admin")
+}
+
+type roleClaims struct {
+	Role string `json:"role"`
+	jwt.RegisteredClaims
+}
+
+func signRoleJWT(key []byte, role string) (string, error) {
+	subject := "IT4US VA"
+	if role == "soc" {
+		subject = "IT4US SOC"
+	}
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: role, RegisteredClaims: jwt.RegisteredClaims{
+		Subject:   subject,
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtTTL)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
-	}).SignedString(key)
+	}}).SignedString(key)
 }
 
 // verifyJWT returns true when tokenStr is a valid, non-expired HS256 token.
 func verifyJWT(tokenStr string, key []byte) bool {
-	t, err := jwt.Parse(tokenStr, func(t *jwt.Token) (any, error) {
+	_, ok := tokenRole(tokenStr, key)
+	return ok
+}
+
+func tokenRole(tokenStr string, key []byte) (string, bool) {
+	claims := &roleClaims{}
+	t, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
 		return key, nil
 	})
-	return err == nil && t.Valid
+	if err != nil || !t.Valid {
+		return "", false
+	}
+	if claims.Role == "soc" && claims.Subject == "IT4US SOC" {
+		return "soc", true
+	}
+	if (claims.Role == "admin" || claims.Role == "") && claims.Subject == "IT4US VA" {
+		return "admin", true
+	}
+	return "", false
+}
+
+func socAllowedAPI(r *http.Request) bool {
+	p := r.URL.Path
+	for _, prefix := range []string{"/api/agents", "/api/tools", "/api/mcp", "/api/llm", "/api/settings", "/api/workspace", "/api/commands", "/api/logs", "/api/notify", "/api/visibility", "/api/audit", "/api/gc", "/api/skill-gaps"} {
+		if p == prefix || strings.HasPrefix(p, prefix+"/") {
+			return false
+		}
+	}
+	if p == "/api/skills" {
+		return r.Method == http.MethodGet
+	}
+	if strings.HasPrefix(p, "/api/skills/") {
+		return false
+	}
+	if p == "/api/sync/scopesentry/datasource" {
+		return false
+	}
+	if strings.Contains(p, "/credentials") {
+		return false
+	}
+	return true
 }
 
 // extractToken reads the JWT from Authorization: Bearer header,
@@ -129,8 +180,13 @@ func (s *Server) requireAuth(h http.Handler) http.Handler {
 			writeErr(w, 401, "Unauthorized")
 			return
 		}
-		if !verifyJWT(tok, s.jwtKey) {
+		role, valid := tokenRole(tok, s.jwtKey)
+		if !valid {
 			writeErr(w, 401, "token is invalid or expired")
+			return
+		}
+		if role == "soc" && !socAllowedAPI(r) {
+			writeErr(w, 403, "SOC access to administrator API is forbidden")
 			return
 		}
 		h.ServeHTTP(w, r)
@@ -213,7 +269,7 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 	if pg == nil {
 		return
 	}
-	if !verifyJWT(extractToken(r), s.jwtKey) {
+	if role, ok := tokenRole(extractToken(r), s.jwtKey); !ok || role != "admin" {
 		writeErr(w, 401, "Unauthorized")
 		return
 	}
@@ -258,6 +314,50 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
+// POST /api/auth/soc-password creates or rotates the separate SOC credential.
+// The current admin password is required even when a valid admin JWT exists.
+func (s *Server) authSetSOCPassword(w http.ResponseWriter, r *http.Request) {
+	if role, ok := tokenRole(extractToken(r), s.jwtKey); !ok || role != "admin" {
+		writeErr(w, 403, "Administrator access required")
+		return
+	}
+	var req struct {
+		AdminPassword string `json:"admin_password"`
+		SOCPassword   string `json:"soc_password"`
+	}
+	if err := decode(r, &req); err != nil {
+		writeErr(w, 400, "Invalid request format")
+		return
+	}
+	if msg := validatePassword(req.SOCPassword); msg != "" {
+		writeErr(w, 400, msg)
+		return
+	}
+	pg := s.pg(w)
+	if pg == nil {
+		return
+	}
+	hash, ok, err := pg.GetSetting(authPassKey)
+	if err != nil {
+		writeErr(w, 503, errDataSourceUnavailable)
+		return
+	}
+	if !ok || bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.AdminPassword)) != nil {
+		writeErr(w, 401, "Current administrator password is wrong")
+		return
+	}
+	socHash, err := bcrypt.GenerateFromPassword([]byte(req.SOCPassword), bcrypt.DefaultCost)
+	if err != nil {
+		writeErr(w, 500, "Password encryption failed")
+		return
+	}
+	if err := pg.SetSetting(socPassKey, string(socHash)); err != nil {
+		writeErr(w, 500, "Save failed")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
 // POST /api/auth/login — validates username/password and returns a JWT.
 func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 	pg := s.pg(w)
@@ -272,11 +372,14 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Invalid request format")
 		return
 	}
-	if req.Username != "IT4US VA" {
+	passKey, role := authPassKey, "admin"
+	if req.Username == "IT4US SOC" {
+		passKey, role = socPassKey, "soc"
+	} else if req.Username != "IT4US VA" {
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}
-	hash, ok, err := pg.GetSetting(authPassKey)
+	hash, ok, err := pg.GetSetting(passKey)
 	if err != nil {
 		writeErr(w, 503, errDataSourceUnavailable)
 		return
@@ -289,7 +392,7 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}
-	tok, err := signJWT(s.jwtKey)
+	tok, err := signRoleJWT(s.jwtKey, role)
 	if err != nil {
 		writeErr(w, 500, "token generation failed")
 		return

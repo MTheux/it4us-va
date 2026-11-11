@@ -45,10 +45,35 @@ type nmapPort struct {
 		State string `xml:"state,attr"`
 	} `xml:"state"`
 	Service struct {
-		Name    string `xml:"name,attr"`
-		Product string `xml:"product,attr"`
-		Version string `xml:"version,attr"`
+		Name    string   `xml:"name,attr"`
+		Product string   `xml:"product,attr"`
+		Version string   `xml:"version,attr"`
+		CPE     []string `xml:"cpe"`
 	} `xml:"service"`
+}
+
+// ParseNmapInventory keeps every open service for later CVE applicability
+// checks without promoting each open port to an Achados candidate.
+func ParseNmapInventory(raw []byte) ([]Asset, error) {
+	var run nmapRun
+	if err := xml.Unmarshal(raw, &run); err != nil {
+		return nil, fmt.Errorf("vacheck: XML do nmap invalido: %w", err)
+	}
+	var out []Asset
+	for _, h := range run.Hosts {
+		ip := ""
+		for _, a := range h.Addresses {
+			if a.Type == "ipv4" || a.Type == "ipv6" {
+				ip = a.Addr
+			}
+		}
+		for _, p := range h.Ports {
+			if p.State.State == "open" {
+				out = append(out, Asset{IP: ip, Port: p.PortID, Proto: p.Protocol, Service: p.Service.Name, Product: p.Service.Product, Version: p.Service.Version, CPE: p.Service.CPE})
+			}
+		}
+	}
+	return out, nil
 }
 
 // riskService classifies a sensitive exposed service by port. A port absent from
@@ -82,18 +107,18 @@ var riskByPort = map[int]riskService{
 // service identified by -sV on a NON-STANDARD port is still flagged (avoiding
 // false negatives when a DB/RDP listens off its default port).
 var riskByService = map[string]riskService{
-	"ms-sql-s":     {db.SeverityHigh, "Microsoft SQL Server"},
+	"ms-sql-s":      {db.SeverityHigh, "Microsoft SQL Server"},
 	"ms-wbt-server": {db.SeverityHigh, "RDP"},
-	"microsoft-ds": {db.SeverityMedium, "SMB"},
-	"netbios-ssn":  {db.SeverityMedium, "NetBIOS"},
-	"mysql":        {db.SeverityHigh, "MySQL"},
-	"postgresql":   {db.SeverityHigh, "PostgreSQL"},
-	"oracle-tns":   {db.SeverityHigh, "Oracle DB"},
-	"mongodb":      {db.SeverityHigh, "MongoDB"},
-	"ldap":         {db.SeverityMedium, "LDAP"},
-	"wsman":        {db.SeverityMedium, "WinRM"},
-	"ftp":          {db.SeverityHigh, "FTP (texto claro)"},
-	"telnet":       {db.SeverityHigh, "Telnet (texto claro)"},
+	"microsoft-ds":  {db.SeverityMedium, "SMB"},
+	"netbios-ssn":   {db.SeverityMedium, "NetBIOS"},
+	"mysql":         {db.SeverityHigh, "MySQL"},
+	"postgresql":    {db.SeverityHigh, "PostgreSQL"},
+	"oracle-tns":    {db.SeverityHigh, "Oracle DB"},
+	"mongodb":       {db.SeverityHigh, "MongoDB"},
+	"ldap":          {db.SeverityMedium, "LDAP"},
+	"wsman":         {db.SeverityMedium, "WinRM"},
+	"ftp":           {db.SeverityHigh, "FTP (texto claro)"},
+	"telnet":        {db.SeverityHigh, "Telnet (texto claro)"},
 }
 
 // ParseNmap turns nmap -oX XML into Candidates for sensitive exposed services.
@@ -135,7 +160,7 @@ func ParseNmap(raw []byte) ([]Candidate, error) {
 				Title:     fmt.Sprintf("Serviço sensível exposto: %s (porta %d/%s)", risk.label, p.PortID, p.Protocol),
 				VulnClass: "exposicao-de-servico",
 				Severity:  risk.severity,
-				Asset:     Asset{Host: host, IP: ip, Port: p.PortID, Proto: p.Protocol, Service: p.Service.Name},
+				Asset:     Asset{Host: host, IP: ip, Port: p.PortID, Proto: p.Protocol, Service: p.Service.Name, Product: p.Service.Product, Version: p.Service.Version, CPE: p.Service.CPE},
 				Summary:   fmt.Sprintf("O serviço %s está acessível na rede em %s:%d. Serviços dessa natureza expostos ampliam a superfície de ataque e devem ter acesso restrito por segmentação/firewall.", risk.label, ipOr(ip, host), p.PortID),
 				Evidence:  fmt.Sprintf("%d/%s %s -> %s", p.PortID, p.Protocol, p.Service.Name, banner),
 				Tags:      []string{"foresea:rede"},

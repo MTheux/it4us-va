@@ -76,9 +76,9 @@ The script checks Docker, then lets you choose **① Docker runtime** or **② l
 - **① Docker runtime**: requires Go 1.26+ and Node.js/npm to prepare the embedded Linux binary locally. Enter a Postgres password (press Enter for a random one) → auto-writes `.env` → builds the binary and starts Docker Compose.
 - **② Local run**: choose a database (connect to an existing one / start one with Docker) → generates `config.json` → `go` builds the embedded single binary → starts.
 
-Once installed, open **http://localhost:8787** (on first entry, `/setup` sets the admin password). The SOC navigation shows the operational workflow and the infrastructure Skills. Nmap discovery works locally without LLM or MCP. Agents can use the bundled Skills after a real LLM profile is configured. Keep passwords and API keys out of chat, tickets and logs.
+Once installed, open **http://localhost:8787** (on first entry, `/setup` sets the admin password). The SOC navigation shows the operational workflow and the infrastructure Skills. Nmap discovery works locally without LLM or MCP. Agents can use the bundled Skills after a real LLM profile is configured. The administrator sets a separate SOC password at `/system/settings`; the SOC account cannot access configuration pages or their APIs. Keep passwords and API keys out of chat, tickets and logs.
 
-The first infrastructure VA campaign runner is available under **Execuções VA** and from the CLI. It runs TCP connect and service detection with common, first-1000, all-port or custom TCP port selections; all-port campaigns are limited by a port-host budget. Authenticated checks, CVE-specific verification, vulnerability feeds and automated agent validation are not yet implemented. See [VA-SCANNER-v1.1-2026-11-11.md](VA-SCANNER-v1.1-2026-11-11.md).
+The infrastructure VA campaign runner is available under **Execuções VA** and from the CLI. It runs TCP connect and service detection with common, first-1000, all-port or custom TCP port selections; all-port campaigns are limited by a port-host budget. The CVE action queries NVD for one CVE and compares published CPE criteria against observed services in a completed campaign. This is applicability triage, never exploit validation or a confirmed finding. Authenticated checks and automated per-CVE impact validation are not implemented. See [VA-SCANNER-v1.1-2026-11-11.md](VA-SCANNER-v1.1-2026-11-11.md).
 
 ### Option 2: Docker Compose (manual)
 
@@ -99,7 +99,7 @@ The Compose VA image includes Nmap and basic operator tools; optional agent tool
 2. Open **Execuções VA** and verify that the scanner is available. The scanner does not require LLM or MCP.
 3. Create a task, then open **Execuções VA**, enter the authorized IPs/CIDRs, ports, approval owner and time window, validate the expanded target plan, and start discovery. The platform keeps the Chat for operator support; it is not required to launch a campaign.
 4. Agent-assisted investigation requires a configured LLM profile. Optional ScopeSentry or browser MCP connections require real endpoint and credentials and must pass a connection test. These administrator settings remain available by direct route (`/system/llm`, `/system/mcp`, `/system/tools`) but are not part of the SOC menu.
-5. Review candidates under **Achados**. A scan candidate is not a confirmed vulnerability; agent validation is not automatic in this version.
+5. Review candidates under **Achados**. Use **Verificar CVE específica** with a completed campaign to compare CPE and version against the NVD. A possible match is not a confirmed vulnerability; agent validation is not automatic in this version.
 
 For remote MCP, you can choose `http` (Streamable HTTP) or `sse` (legacy SSE) in system settings.
 Legacy SSE servers usually establish the event stream with `GET /sse`, then receive JSON-RPC requests via the

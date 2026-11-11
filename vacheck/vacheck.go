@@ -19,6 +19,9 @@ type Asset struct {
 	Port    int
 	Proto   string // tcp/udp
 	Service string
+	Product string
+	Version string
+	CPE     []string
 }
 
 // Candidate is a normalized, non-intrusive VA finding produced by a check

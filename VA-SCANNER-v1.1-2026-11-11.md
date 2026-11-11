@@ -10,6 +10,8 @@
 
 O LLM e o MCP são opcionais para o discovery. O agente pode apoiar a investigação dos candidatos na tarefa, mas a v1.1 não dispara validações adicionais automaticamente nem promove candidatos a vulnerabilidades confirmadas.
 
+Após uma campanha, **Verificar CVE específica** consulta a API da NVD pelo ID da CVE e cruza os critérios CPE com os serviços observados no recibo. O resultado persistido é `possible`, `not_detected` ou `inconclusive`. `possible` não confirma impacto; banners podem omitir patches e distribuições podem aplicar backports. A consulta não toca o alvo nem executa PoC. A API da NVD pode ficar indisponível ou limitar requisições; nesse caso a operação retorna erro e não grava resultado fictício.
+
 ## Execução e limites
 
 - IPs e CIDRs são expandidos na revisão antes do início; hostnames não são resolvidos. A lista personalizada aceita até 1.000 portas. O perfil **Todas as portas** cobre TCP 1–65535, com orçamento máximo de 4.096.000 combinações IP × porta (até 62 IPs nesse perfil).
@@ -20,6 +22,6 @@ O LLM e o MCP são opcionais para o discovery. O agente pode apoiar a investiga�
 
 ## Ainda não implementado
 
-Scans autenticados, feed de vulnerabilidades, verificação de CVE específica, checks específicos de TLS/SMB/AD/PKI, agendamento, comparação de campanhas, identificação estável de achados entre execuções e validação autônoma pelo agente. A opção de CVE aparece indisponível na interface até existir um executor verificável. Esta versão ainda não tem cobertura equivalente ao Greenbone.
+Scans autenticados, validação de impacto por CVE, checks específicos de TLS/SMB/AD/PKI, agendamento, comparação de campanhas, identificação estável de achados entre execuções e validação autônoma pelo agente. Esta versão ainda não tem cobertura equivalente ao Greenbone.
 
 O comando CLI de v1.0 continua disponível para operações a partir do terminal; veja [VA-SCANNER-v1.0-2026-11-11.md](VA-SCANNER-v1.0-2026-11-11.md).

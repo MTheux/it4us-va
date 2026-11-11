@@ -253,6 +253,7 @@ type HostResult struct {
 	Target     string              `json:"target"`
 	Status     string              `json:"status"`
 	SHA256     string              `json:"scanner_output_sha256,omitempty"`
+	Services   []vacheck.Asset     `json:"services,omitempty"`
 	Candidates []vacheck.Candidate `json:"candidates"`
 	Error      string              `json:"error,omitempty"`
 }
@@ -302,8 +303,21 @@ func RunWithProgress(ctx context.Context, c Campaign, scanner Scanner, now func(
 			sum := sha256.Sum256(raw)
 			h.SHA256 = hex.EncodeToString(sum[:])
 			h.Candidates, err = vacheck.ParseNmap(raw)
+			if err == nil {
+				h.Services, err = vacheck.ParseNmapInventory(raw)
+			}
 			if h.Candidates == nil {
 				h.Candidates = []vacheck.Candidate{}
+			}
+			if err == nil {
+				for _, service := range h.Services {
+					if service.IP == "" || !net.ParseIP(target).Equal(net.ParseIP(service.IP)) {
+						err = fmt.Errorf("scanner output contains a service outside target %s", target)
+						h.Services = nil
+						h.Candidates = []vacheck.Candidate{}
+						break
+					}
+				}
 			}
 			if err == nil {
 				for _, candidate := range h.Candidates {
