@@ -23,6 +23,7 @@ export function ScopeTextEditor({
   parsed,
   label = "Asset scope",
   description = "One per line; domains, IPs, CIDRs, ICP filings, and company keywords are recognized automatically.",
+  locale = "en",
 }: {
   id: string;
   value: string;
@@ -30,6 +31,7 @@ export function ScopeTextEditor({
   parsed: ParsedCompanyScopeText;
   label?: string;
   description?: string;
+  locale?: "en" | "pt-BR";
 }) {
   const counts = React.useMemo(() => {
     const result = new Map<CompanyScopeKind, number>();
@@ -46,13 +48,19 @@ export function ScopeTextEditor({
         rows={8}
         value={value}
         aria-invalid={parsed.errors.length > 0}
-        placeholder={"example.com\n203.0.113.10\n198.51.100.0/24\nBeijing ICP 12345678-1\nCompany name keyword"}
+        placeholder={
+          locale === "pt-BR"
+            ? "exemplo.com.br\n203.0.113.10\n198.51.100.0/24\nNome da empresa"
+            : "example.com\n203.0.113.10\n198.51.100.0/24\nBeijing ICP 12345678-1\nCompany name keyword"
+        }
         className="min-h-36 resize-y font-mono text-sm"
         onChange={(event) => onValueChange(event.target.value)}
       />
       {parsed.rules.length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 text-muted-foreground text-xs">
-          <span>{parsed.rules.length} recognized</span>
+          <span>
+            {parsed.rules.length} {locale === "pt-BR" ? "reconhecidos" : "recognized"}
+          </span>
           {Object.entries(SCOPE_KIND_LABELS).map(([kind, kindLabel]) => {
             const count = counts.get(kind as CompanyScopeKind) ?? 0;
             return count > 0 ? (
@@ -67,10 +75,14 @@ export function ScopeTextEditor({
         <FieldError>
           {parsed.errors.slice(0, 5).map((item) => (
             <span key={`${item.line}-${item.error}`} className="block">
-              Line {item.line}: {item.error}
+              {locale === "pt-BR" ? "Linha" : "Line"} {item.line}: {item.error}
             </span>
           ))}
-          {parsed.errors.length > 5 && <span className="block">{parsed.errors.length - 5} more errors</span>}
+          {parsed.errors.length > 5 && (
+            <span className="block">
+              {parsed.errors.length - 5} {locale === "pt-BR" ? "erros adicionais" : "more errors"}
+            </span>
+          )}
         </FieldError>
       )}
     </Field>

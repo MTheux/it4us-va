@@ -7,7 +7,6 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   GlobeIcon,
-  KeyRoundIcon,
   LayoutTemplateIcon,
   LinkIcon,
   type LucideIcon,
@@ -98,12 +97,12 @@ function statusTone(code: number) {
 const PAGE_SIZES = [25, 50, 100, 200];
 
 const TABS: { key: string; label: string; icon: LucideIcon }[] = [
-  { key: "company", label: "Companies", icon: BuildingIcon },
-  { key: "root_domain", label: "Root domains", icon: GlobeIcon },
-  { key: "ip", label: "IP", icon: NetworkIcon },
-  { key: "subdomain", label: "Subdomains", icon: GlobeIcon },
-  { key: "app", label: "Apps", icon: SmartphoneIcon },
-  { key: "service", label: "Services", icon: LayoutTemplateIcon },
+  { key: "company", label: "Clientes", icon: BuildingIcon },
+  { key: "ip", label: "IPs", icon: NetworkIcon },
+  { key: "service", label: "Serviços", icon: LayoutTemplateIcon },
+  { key: "root_domain", label: "Domínios", icon: GlobeIcon },
+  { key: "subdomain", label: "Subdomínios", icon: GlobeIcon },
+  { key: "app", label: "Aplicações", icon: SmartphoneIcon },
   { key: "endpoint", label: "Endpoints", icon: LinkIcon },
 ];
 
@@ -192,11 +191,11 @@ export default function AssetsPage() {
     setDeleting(true);
     try {
       const res = await api.deleteAssets(deleteIds);
-      toast.success(`Deleted ${res.deleted} assets`);
+      toast.success(`${res.deleted} ativo(s) excluído(s)`);
       setSelected(new Set());
       refresh();
     } catch (e) {
-      toast.error("Delete failed: " + String((e as Error)?.message ?? e));
+      toast.error("Falha ao excluir: " + String((e as Error)?.message ?? e));
     } finally {
       setDeleting(false);
       setDeleteOpen(false);
@@ -210,12 +209,12 @@ export default function AssetsPage() {
       const res = await api.deleteCompany(companyDeleteTarget.id, companyDeleteAssets);
       const msg =
         companyDeleteAssets && res.assets_deleted > 0
-          ? `Company deleted, along with ${res.assets_deleted} assets`
-          : "Company deleted";
+          ? `Cliente e ${res.assets_deleted} ativo(s) excluído(s)`
+          : "Cliente excluído";
       toast.success(msg);
       refresh();
     } catch (e) {
-      toast.error("Delete failed: " + String((e as Error)?.message ?? e));
+      toast.error("Falha ao excluir: " + String((e as Error)?.message ?? e));
     } finally {
       setCompanyDeleting(false);
       setCompanyDeleteTarget(null);
@@ -296,6 +295,9 @@ export default function AssetsPage() {
 
   const tabCounts: Record<string, number> = { ...counts, company: companies.length };
   const totalAssets = Object.values(counts).reduce((a, b) => a + b, 0);
+  const visibleTabs = TABS.filter(
+    (item) => ["company", "ip", "service"].includes(item.key) || (tabCounts[item.key] ?? 0) > 0,
+  );
 
   // rows are already the current server-side page.
   const tabData = (type: string): Asset[] => (rowsTab === type ? rows : []);
@@ -309,118 +311,147 @@ export default function AssetsPage() {
       loading={loading}
       error={dslError}
       count={dslMode ? total : undefined}
+      placeholder="Buscar ativo: ip=192.0.2.10 ou port==443"
     />
   );
 
   return (
-    <div className="flex h-[calc(100vh-6rem)] min-h-0 flex-col gap-4">
-      <div className="flex items-center justify-between gap-4">
+    <div className="mx-auto flex min-h-[calc(100vh-6rem)] max-w-7xl flex-col gap-8 px-4 py-7 pb-16 sm:px-6 lg:px-10 lg:py-10">
+      <header className="flex flex-col gap-5 border-b pb-7 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Assets</h1>
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-primary">SOC / INVENTÁRIO</p>
+          <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight sm:text-5xl">
+            Ativos
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Clientes, IPs e serviços observados em um só lugar.
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
-            <span className="tabular-nums">{totalAssets}</span> assets in total
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
           {selected.size > 0 && (
             <Button variant="destructive" size="sm" onClick={() => openDelete(Array.from(selected) as number[])}>
-              <Trash2Icon className="size-3.5" /> Delete selected ({selected.size})
+              <Trash2Icon className="size-3.5" /> Excluir seleção ({selected.size})
             </Button>
           )}
           <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
-            <RefreshCwIcon className={cn("size-4", loading && "animate-spin")} /> Refresh
+            <RefreshCwIcon className={cn("size-4", loading && "animate-spin")} /> Atualizar
           </Button>
           <CompanyDialog onSaved={refresh} />
         </div>
+      </header>
+
+      <div className="grid grid-cols-2 divide-x divide-y border-b pb-6 sm:grid-cols-4 sm:divide-y-0">
+        {[
+          { label: "Ativos", value: totalAssets },
+          { label: "Clientes", value: companies.length },
+          { label: "IPs", value: counts.ip ?? 0 },
+          { label: "Serviços", value: counts.service ?? 0 },
+        ].map((metric) => (
+          <div key={metric.label} className="px-4 py-3 first:pl-0 sm:px-6 sm:py-1">
+            <p className="font-mono text-2xl font-semibold tabular-nums text-foreground sm:text-3xl">{metric.value}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{metric.label}</p>
+          </div>
+        ))}
       </div>
 
-      <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col gap-4">
-        <div className="overflow-x-auto overflow-y-hidden">
-          <TabsList variant="default">
-            {TABS.map((t) => (
-              <TabsTrigger key={t.key} value={t.key}>
+      <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-col gap-5">
+        <div className="overflow-x-auto overflow-y-hidden border-b">
+          <TabsList variant="line" className="h-auto! gap-4 p-0">
+            {visibleTabs.map((t) => (
+              <TabsTrigger key={t.key} value={t.key} className="h-11! gap-2 px-2! pb-3 text-sm">
                 <t.icon className="size-3.5" />
                 {t.label}
-                <span className="ml-1 tabular-nums text-muted-foreground">{tabCounts[t.key]}</span>
+                <span className="rounded bg-muted px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+                  {tabCounts[t.key] ?? 0}
+                </span>
               </TabsTrigger>
             ))}
           </TabsList>
         </div>
 
         {/* Companies */}
-        <TabsContent value="company" className="mt-0 flex min-h-0 flex-1 flex-col">
-          <Card className="flex min-h-0 flex-1 flex-col overflow-hidden py-0">
-            <div className="min-h-0 flex-1 overflow-auto">
-              <Table>
-                <TableHeader className="sticky top-0 z-10 bg-card">
-                  <TableRow>
-                    <TableHead>Company</TableHead>
-                    <TableHead className="w-24 text-right">Assets</TableHead>
-                    <TableHead>Asset scope</TableHead>
-                    <TableHead className="w-36 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {companies.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <CompanyAvatar name={c.name} logo={c.logo} />
-                          <span className="font-medium">{c.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">{c.asset_count}</TableCell>
-                      <TableCell>
-                        {c.scope?.length ? (
-                          <div className="flex flex-wrap gap-1">
-                            {c.scope.map((s, i) => (
-                              <Badge key={i} variant="secondary" className="font-mono text-[11px]">
-                                {s.raw}
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">No scope set</span>
+        <TabsContent value="company" className="mt-0 space-y-5">
+          <div>
+            <h2 className="text-lg font-semibold">Clientes no inventário</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              A empresa organiza os ativos. A permissão para executar VA é definida na tarefa.
+            </p>
+          </div>
+          <div className="overflow-hidden rounded-xl border bg-card/60">
+            {companies.map((c) => {
+              const demo = /^\[DEMO\]/i.test(c.name);
+              const displayName = c.name.replace(/^\[DEMO\]\s*/i, "");
+              return (
+                <div
+                  key={c.id}
+                  className="flex flex-col gap-5 border-b px-5 py-5 last:border-b-0 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex min-w-0 items-start gap-3">
+                    <CompanyAvatar name={displayName} logo={c.logo} />
+                    <div className="min-w-0 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="truncate font-semibold">{displayName}</h3>
+                        {demo && (
+                          <Badge variant="outline" className="border-amber-500/40 text-amber-400">
+                            DEMO · dados fictícios
+                          </Badge>
                         )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <EditScopeDialog company={c} onSaved={refresh} />
-                          <AppendScopeDialog company={c} onSaved={refresh} />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="size-7 text-muted-foreground hover:text-destructive"
-                            onClick={() => {
-                              setCompanyDeleteTarget(c);
-                              setCompanyDeleteAssets(false);
-                            }}
-                            aria-label={`Delete company ${c.name}`}
-                          >
-                            <Trash2Icon className="size-3.5" />
-                          </Button>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                        <span>
+                          <strong className="font-mono text-foreground">{c.asset_count}</strong> ativo(s) associado(s)
+                        </span>
+                        <span>
+                          {c.scope?.length ? `${c.scope.length} regra(s) de associação` : "Sem regra de associação"}
+                        </span>
+                      </div>
+                      {c.scope?.length ? (
+                        <div className="flex flex-wrap gap-1.5">
+                          {c.scope.map((scope) => (
+                            <code key={scope.id} className="rounded border bg-background px-2 py-1 text-[11px]">
+                              {scope.raw}
+                            </code>
+                          ))}
                         </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                  {companies.length === 0 && (
-                    <TableRow>
-                      <TableCell colSpan={4} className="py-10 text-center text-sm text-muted-foreground">
-                        No companies yet. Click "Add company" in the top-right corner and fill in the asset scope; the system will automatically claim matching assets.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2 pl-10 sm:pl-0">
+                    <EditScopeDialog company={c} onSaved={refresh} />
+                    <AppendScopeDialog company={c} onSaved={refresh} />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-muted-foreground hover:text-destructive"
+                      onClick={() => {
+                        setCompanyDeleteTarget(c);
+                        setCompanyDeleteAssets(false);
+                      }}
+                      aria-label={`Excluir cliente ${c.name}`}
+                    >
+                      <Trash2Icon className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+            {companies.length === 0 && (
+              <div className="space-y-2 px-5 py-10 text-center">
+                <BuildingIcon className="mx-auto size-6 text-muted-foreground" />
+                <p className="font-medium">Nenhum cliente cadastrado</p>
+                <p className="text-sm text-muted-foreground">
+                  Adicione um cliente para organizar os ativos observados.
+                </p>
+              </div>
+            )}
+          </div>
         </TabsContent>
 
         {/* Root domains */}
         <TabsContent value="root_domain" className="mt-0 flex min-h-0 flex-1 flex-col gap-2">
           {searchBox}
           <AssetCard
-            cols={["", "Domain", "ICP filing", "Company", ""]}
+            cols={["", "Domínio", "Registro ICP", "Cliente", ""]}
             loaded={loaded}
             total={total}
             page={page}
@@ -439,7 +470,7 @@ export default function AssetsPage() {
                 <TableCell className="font-mono text-xs font-medium">{a.domain}</TableCell>
                 <TableCell className="text-xs">{a.icp || "—"}</TableCell>
                 <TableCell className="text-xs">
-                  {companyName(a.company_id) || <span className="text-muted-foreground">Unassigned</span>}
+                  {companyName(a.company_id) || <span className="text-muted-foreground">Sem cliente</span>}
                 </TableCell>
                 <TableCell className="w-8 pl-0">
                   <Button
@@ -447,7 +478,7 @@ export default function AssetsPage() {
                     size="icon"
                     className="size-7 text-muted-foreground hover:text-destructive"
                     onClick={() => openDelete([a.id])}
-                    aria-label={`Delete asset ${a.domain || a.id}`}
+                    aria-label={`Excluir ativo ${a.domain || a.id}`}
                   >
                     <Trash2Icon className="size-3.5" />
                   </Button>
@@ -461,7 +492,7 @@ export default function AssetsPage() {
         <TabsContent value="ip" className="mt-0 flex min-h-0 flex-1 flex-col gap-2">
           {searchBox}
           <AssetCard
-            cols={["", "IP", "C-segment", "Bound domains", "Open ports", ""]}
+            cols={["", "IP", "Rede", "Domínios", "Portas abertas", ""]}
             loaded={loaded}
             total={total}
             page={page}
@@ -494,7 +525,7 @@ export default function AssetsPage() {
                     size="icon"
                     className="size-7 text-muted-foreground hover:text-destructive"
                     onClick={() => openDelete([a.id])}
-                    aria-label={`Delete asset ${a.ip || a.id}`}
+                    aria-label={`Excluir ativo ${a.ip || a.id}`}
                   >
                     <Trash2Icon className="size-3.5" />
                   </Button>
@@ -508,7 +539,7 @@ export default function AssetsPage() {
         <TabsContent value="subdomain" className="mt-0 flex min-h-0 flex-1 flex-col gap-2">
           {searchBox}
           <AssetCard
-            cols={["", "Domain", "Root domain", "Record type", "Record value", ""]}
+            cols={["", "Domínio", "Domínio raiz", "Tipo", "Valor", ""]}
             loaded={loaded}
             total={total}
             page={page}
@@ -536,7 +567,7 @@ export default function AssetsPage() {
                     size="icon"
                     className="size-7 text-muted-foreground hover:text-destructive"
                     onClick={() => openDelete([a.id])}
-                    aria-label={`Delete asset ${a.domain || a.id}`}
+                    aria-label={`Excluir ativo ${a.domain || a.id}`}
                   >
                     <Trash2Icon className="size-3.5" />
                   </Button>
@@ -550,7 +581,7 @@ export default function AssetsPage() {
         <TabsContent value="app" className="mt-0 flex min-h-0 flex-1 flex-col gap-2">
           {searchBox}
           <AssetCard
-            cols={["", "App name", "Bundle ID", "Category", "ICP filing", ""]}
+            cols={["", "Aplicação", "Bundle ID", "Categoria", "Registro ICP", ""]}
             loaded={loaded}
             total={total}
             page={page}
@@ -576,7 +607,7 @@ export default function AssetsPage() {
                     size="icon"
                     className="size-7 text-muted-foreground hover:text-destructive"
                     onClick={() => openDelete([a.id])}
-                    aria-label={`Delete asset ${a.app_name || a.id}`}
+                    aria-label={`Excluir ativo ${a.app_name || a.id}`}
                   >
                     <Trash2Icon className="size-3.5" />
                   </Button>
@@ -590,7 +621,7 @@ export default function AssetsPage() {
         <TabsContent value="service" className="mt-0 flex min-h-0 flex-1 flex-col gap-2">
           {searchBox}
           <AssetCard
-            cols={["", "Service", "Domain", "IP", "Port", "Status", "Title", "Fingerprint", "Auth", ""]}
+            cols={["", "Serviço", "Alvo", "Porta", "HTTP", "Tecnologias", ""]}
             loaded={loaded}
             total={total}
             page={page}
@@ -629,10 +660,12 @@ export default function AssetsPage() {
                       {svc || "—"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-[14rem] truncate font-mono text-xs" title={a.domain || a.url}>
-                    {domainCell}
+                  <TableCell className="max-w-[18rem] font-mono text-xs" title={a.domain || a.ip || a.url}>
+                    <div className="truncate">{domainCell === "—" ? a.ip || "—" : domainCell}</div>
+                    {a.page_title && (
+                      <div className="mt-1 truncate font-sans text-muted-foreground">{a.page_title}</div>
+                    )}
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{a.ip || "—"}</TableCell>
                   <TableCell className="font-mono text-xs tabular-nums">{a.port || "—"}</TableCell>
                   <TableCell>
                     {a.status_code != null ? (
@@ -643,27 +676,8 @@ export default function AssetsPage() {
                       "—"
                     )}
                   </TableCell>
-                  <TableCell className="max-w-[12rem] truncate text-xs" title={a.page_title}>
-                    {a.page_title || "—"}
-                  </TableCell>
                   <TableCell>
                     <Chips items={a.technologies ?? []} />
-                  </TableCell>
-                  <TableCell>
-                    {(a.auth ?? []).length === 0 ? (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    ) : (
-                      (a.auth ?? []).map((authItem, i) => {
-                        const item = authItem as Record<string, string>;
-                        const label = item.type || item.username || "Auth";
-                        return (
-                          <span key={i} className="inline-flex items-center gap-1 text-[11px]">
-                            <KeyRoundIcon className="size-3 text-muted-foreground" />
-                            <span className="font-mono">{label}</span>
-                          </span>
-                        );
-                      })
-                    )}
                   </TableCell>
                   <TableCell className="w-8 pl-0">
                     <Button
@@ -671,7 +685,7 @@ export default function AssetsPage() {
                       size="icon"
                       className="size-7 text-muted-foreground hover:text-destructive"
                       onClick={() => openDelete([a.id])}
-                      aria-label={`Delete asset ${a.url || a.id}`}
+                      aria-label={`Excluir ativo ${a.url || a.id}`}
                     >
                       <Trash2Icon className="size-3.5" />
                     </Button>
@@ -686,7 +700,7 @@ export default function AssetsPage() {
         <TabsContent value="endpoint" className="mt-0 flex min-h-0 flex-1 flex-col gap-2">
           {searchBox}
           <AssetCard
-            cols={["", "Method", "Full URL", "Params", ""]}
+            cols={["", "Método", "URL", "Parâmetros", ""]}
             loaded={loaded}
             total={total}
             page={page}
@@ -723,7 +737,7 @@ export default function AssetsPage() {
                     size="icon"
                     className="size-7 text-muted-foreground hover:text-destructive"
                     onClick={() => openDelete([a.id])}
-                    aria-label={`Delete asset ${a.url || a.id}`}
+                    aria-label={`Excluir ativo ${a.url || a.id}`}
                   >
                     <Trash2Icon className="size-3.5" />
                   </Button>
@@ -737,14 +751,14 @@ export default function AssetsPage() {
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm delete</AlertDialogTitle>
+            <AlertDialogTitle>Excluir ativos</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <span className="font-semibold tabular-nums">{deleteIds.length}</span>{" "}
-               asset records. This action cannot be undone.
+              Os <span className="font-semibold tabular-nums">{deleteIds.length}</span> ativo(s) selecionado(s) serão
+              excluídos permanentemente.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -753,7 +767,7 @@ export default function AssetsPage() {
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Deleting…" : "Confirm delete"}
+              {deleting ? "Excluindo…" : "Excluir ativos"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -770,10 +784,10 @@ export default function AssetsPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete company · {companyDeleteTarget?.name}</AlertDialogTitle>
+            <AlertDialogTitle>Excluir cliente · {companyDeleteTarget?.name}</AlertDialogTitle>
             <AlertDialogDescription asChild>
               <div className="space-y-3">
-                <p>This will permanently delete the company and its asset scope configuration. This action cannot be undone.</p>
+                <p>O cliente e suas regras de associação serão excluídos permanentemente.</p>
                 <label
                   htmlFor="delete-assets-opt"
                   className="flex cursor-pointer items-center gap-2.5 rounded-md border p-3 hover:bg-muted/50"
@@ -784,15 +798,17 @@ export default function AssetsPage() {
                     onCheckedChange={(v) => setCompanyDeleteAssets(!!v)}
                   />
                   <span className="text-sm leading-snug">
-                    Also delete all assets under this company
-                    <span className="block text-xs text-muted-foreground">Leave unchecked to keep the assets and only remove the ownership</span>
+                    Excluir também os ativos deste cliente
+                    <span className="block text-xs text-muted-foreground">
+                      Deixe desmarcado para manter os ativos e remover apenas a associação.
+                    </span>
                   </span>
                 </label>
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={companyDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogCancel disabled={companyDeleting}>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={(e) => {
                 e.preventDefault();
@@ -801,7 +817,7 @@ export default function AssetsPage() {
               disabled={companyDeleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {companyDeleting ? "Deleting…" : "Confirm delete"}
+              {companyDeleting ? "Excluindo…" : "Excluir cliente"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -845,8 +861,8 @@ function AssetCard({
   const someSelected = selected != null && pageIds.some((id) => selected.has(id));
 
   return (
-    <Card className="flex min-h-0 flex-1 flex-col overflow-hidden py-0">
-      <div className="min-h-0 flex-1 overflow-auto scrollbar-thin scrollbar-track-transparent">
+    <Card className="overflow-hidden py-0">
+      <div className="overflow-x-auto scrollbar-thin scrollbar-track-transparent">
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-card">
             <TableRow>
@@ -870,7 +886,7 @@ function AssetCard({
             ) : (
               <TableRow>
                 <TableCell colSpan={cols.length} className="py-12 text-center text-sm text-muted-foreground">
-                  {loaded ? "No data." : "Loading…"}
+                  {loaded ? "Nenhum ativo nesta categoria." : "Carregando ativos…"}
                 </TableCell>
               </TableRow>
             )}
@@ -887,7 +903,7 @@ function AssetCard({
               <SelectGroup>
                 {PAGE_SIZES.map((n) => (
                   <SelectItem key={n} value={String(n)}>
-                    {n} / page
+                    {n} por página
                   </SelectItem>
                 ))}
               </SelectGroup>
@@ -987,11 +1003,11 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
 
   const submit = async () => {
     if (!name.trim()) {
-      toast.error("Please enter a company name");
+      toast.error("Informe o nome do cliente");
       return;
     }
     if (parsedScope.errors.length > 0) {
-      toast.error("Please fix the invalid asset scope");
+      toast.error("Corrija as linhas inválidas");
       return;
     }
     setBusy(true);
@@ -999,14 +1015,15 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
       const res = await api.createCompany(name.trim(), parsedScope.rules);
       const added = res.scope_added ?? 0;
       const invalid = res.scope_invalid ?? 0;
-      if (invalid > 0) toast.warning(`Company created, ${added} scopes added; ${invalid} invalid lines`);
-      else toast.success(`Company created, ${added} scopes added`);
+      if (invalid > 0)
+        toast.warning(`Cliente criado; ${added} regra(s) adicionada(s), ${invalid} linha(s) inválida(s)`);
+      else toast.success(`Cliente criado; ${added} regra(s) adicionada(s)`);
       setOpen(false);
       onSaved();
     } catch (e) {
       const msg = String((e as Error)?.message ?? e);
-      if (/:\s*409$/.test(msg)) toast.error("Company already exists; try a different name");
-      else toast.error(`Save failed: ${msg}`);
+      if (/:\s*409$/.test(msg)) toast.error("Este cliente já existe; use outro nome");
+      else toast.error(`Falha ao salvar: ${msg}`);
     } finally {
       setBusy(false);
     }
@@ -1016,34 +1033,44 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button size="sm">
-          <BuildingIcon data-icon="inline-start" /> Add company
+          <BuildingIcon data-icon="inline-start" /> Adicionar cliente
         </Button>
       </SheetTrigger>
       <SheetContent className="w-full! max-w-none! gap-0 p-0 sm:w-[520px]! sm:max-w-[520px]!">
         <SheetHeader className="border-b p-6">
-          <SheetTitle>Add company</SheetTitle>
-          <SheetDescription>Configure the company and its asset scope. Keywords only serve as agent hints and do not automatically assign assets.</SheetDescription>
+          <SheetTitle>Adicionar cliente</SheetTitle>
+          <SheetDescription>
+            Organize os ativos por cliente. Estas regras de associação não autorizam execução VA.
+          </SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto p-6">
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="cn-name">Company name</FieldLabel>
+              <FieldLabel htmlFor="cn-name">Nome do cliente</FieldLabel>
               <Input
                 id="cn-name"
-                placeholder="e.g. Acme Corp (name must be unique)"
+                placeholder="Ex.: Empresa Exemplo"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </Field>
-            <ScopeTextEditor id="cn-scope" value={scopeText} onValueChange={setScopeText} parsed={parsedScope} />
+            <ScopeTextEditor
+              id="cn-scope"
+              value={scopeText}
+              onValueChange={setScopeText}
+              parsed={parsedScope}
+              label="Regras de associação (opcional)"
+              description="Um domínio, IP, CIDR ou palavra-chave por linha. A autorização VA é configurada na tarefa."
+              locale="pt-BR"
+            />
           </FieldGroup>
         </div>
         <SheetFooter className="flex-row justify-end gap-2 border-t p-4">
           <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
-            Cancel
+            Cancelar
           </Button>
           <Button onClick={submit} disabled={busy || !name.trim() || parsedScope.errors.length > 0}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? "Salvando…" : "Salvar cliente"}
           </Button>
         </SheetFooter>
       </SheetContent>
@@ -1071,20 +1098,20 @@ function EditScopeDialog({ company, onSaved }: { company: Company; onSaved: () =
 
   const submit = async () => {
     if (parsedScope.errors.length > 0) {
-      toast.error("Please fix the invalid asset scope");
+      toast.error("Corrija as linhas inválidas");
       return;
     }
     setBusy(true);
     try {
       const res = await api.updateCompanyScope(company.id, parsedScope.rules, reason);
       const errCount = res.invalid ?? 0;
-      if (errCount > 0) toast.warning(`Saved; ${errCount} invalid lines`);
-      else toast.success(`Scope updated, ${res.added} entries in total`);
+      if (errCount > 0) toast.warning(`Salvo com ${errCount} linha(s) inválida(s)`);
+      else toast.success(`Regras atualizadas: ${res.added} no total`);
       showScopeWarnings(res.warnings);
       setOpen(false);
       onSaved();
     } catch (e) {
-      toast.error(`Save failed: ${String((e as Error)?.message ?? e)}`);
+      toast.error(`Falha ao salvar: ${String((e as Error)?.message ?? e)}`);
     } finally {
       setBusy(false);
     }
@@ -1094,14 +1121,15 @@ function EditScopeDialog({ company, onSaved }: { company: Company; onSaved: () =
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-7">
-          Edit
+          Editar regras
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit asset scope · {company.name}</DialogTitle>
+          <DialogTitle>Editar associação · {company.name}</DialogTitle>
           <DialogDescription>
-            Saving replaces all existing scopes. ICP matches assets exactly; company keywords only serve as agent hints.
+            Salvar substitui todas as regras atuais. Estas regras associam ativos ao cliente; a autorização VA fica na
+            tarefa.
           </DialogDescription>
         </DialogHeader>
         <FieldGroup className="py-2">
@@ -1110,12 +1138,15 @@ function EditScopeDialog({ company, onSaved }: { company: Company; onSaved: () =
             value={scopeText}
             onValueChange={setScopeText}
             parsed={parsedScope}
+            label="Regras de associação"
+            description="Um domínio, IP, CIDR ou palavra-chave por linha."
+            locale="pt-BR"
           />
           <Field>
-            <FieldLabel htmlFor="es-reason">Attribution basis (optional)</FieldLabel>
+            <FieldLabel htmlFor="es-reason">Base da associação (opcional)</FieldLabel>
             <Input
               id="es-reason"
-              placeholder="e.g. certificate / whois / ASN evidence"
+              placeholder="Ex.: certificado, WHOIS ou ASN"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
@@ -1123,10 +1154,10 @@ function EditScopeDialog({ company, onSaved }: { company: Company; onSaved: () =
         </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
-            Cancel
+            Cancelar
           </Button>
           <Button onClick={submit} disabled={busy || parsedScope.errors.length > 0}>
-            {busy ? "Saving…" : "Overwrite save"}
+            {busy ? "Salvando…" : "Substituir regras"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -1150,24 +1181,24 @@ function AppendScopeDialog({ company, onSaved }: { company: Company; onSaved: ()
 
   const submit = async () => {
     if (parsedScope.rules.length === 0) {
-      toast.error("Please enter the scopes to append");
+      toast.error("Informe as regras a adicionar");
       return;
     }
     if (parsedScope.errors.length > 0) {
-      toast.error("Please fix the invalid asset scope");
+      toast.error("Corrija as linhas inválidas");
       return;
     }
     setBusy(true);
     try {
       const res = await api.addCompanyScope(company.id, parsedScope.rules, reason);
       const errCount = res.invalid ?? 0;
-      if (errCount > 0) toast.warning(`Saved; ${errCount} invalid lines`);
-      else toast.success(`Appended ${res.added} scopes`);
+      if (errCount > 0) toast.warning(`Salvo com ${errCount} linha(s) inválida(s)`);
+      else toast.success(`${res.added} regra(s) adicionada(s)`);
       showScopeWarnings(res.warnings);
       setOpen(false);
       onSaved();
     } catch (e) {
-      toast.error(`Save failed: ${String((e as Error)?.message ?? e)}`);
+      toast.error(`Falha ao salvar: ${String((e as Error)?.message ?? e)}`);
     } finally {
       setBusy(false);
     }
@@ -1177,13 +1208,15 @@ function AppendScopeDialog({ company, onSaved }: { company: Company; onSaved: ()
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="h-7">
-          Append
+          Adicionar regras
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Append asset scope · {company.name}</DialogTitle>
-          <DialogDescription>New scopes are appended to the existing ones. ICP matches assets exactly; company keywords only serve as agent hints.</DialogDescription>
+          <DialogTitle>Adicionar regras · {company.name}</DialogTitle>
+          <DialogDescription>
+            As novas regras serão somadas às atuais. A autorização VA continua definida na tarefa.
+          </DialogDescription>
         </DialogHeader>
         <FieldGroup className="py-2">
           <ScopeTextEditor
@@ -1191,12 +1224,15 @@ function AppendScopeDialog({ company, onSaved }: { company: Company; onSaved: ()
             value={scopeText}
             onValueChange={setScopeText}
             parsed={parsedScope}
+            label="Novas regras de associação"
+            description="Um domínio, IP, CIDR ou palavra-chave por linha."
+            locale="pt-BR"
           />
           <Field>
-            <FieldLabel htmlFor="as-reason">Attribution basis (optional)</FieldLabel>
+            <FieldLabel htmlFor="as-reason">Base da associação (opcional)</FieldLabel>
             <Input
               id="as-reason"
-              placeholder="e.g. certificate / whois / ASN evidence"
+              placeholder="Ex.: certificado, WHOIS ou ASN"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
             />
@@ -1204,10 +1240,10 @@ function AppendScopeDialog({ company, onSaved }: { company: Company; onSaved: ()
         </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
-            Cancel
+            Cancelar
           </Button>
           <Button onClick={submit} disabled={busy || parsedScope.rules.length === 0 || parsedScope.errors.length > 0}>
-            {busy ? "Saving…" : "Append"}
+            {busy ? "Salvando…" : "Adicionar regras"}
           </Button>
         </DialogFooter>
       </DialogContent>

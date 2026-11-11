@@ -269,12 +269,14 @@ export function AssetDslSearch({
   loading,
   error,
   count,
+  placeholder = "DSL search: domain=example AND status_code>=400",
 }: {
   query: string;
   onChange: (v: string) => void;
   loading: boolean;
   error: string;
   count?: number;
+  placeholder?: string;
 }) {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [suggestions, setSuggestions] = React.useState<DslSuggestion[]>([]);
@@ -341,7 +343,7 @@ export function AssetDslSearch({
         <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           ref={inputRef}
-          placeholder="DSL search: domain=example AND status_code>=400"
+          placeholder={placeholder}
           value={query}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
