@@ -51,6 +51,11 @@ type nvdCVE struct {
 		Lang  string `json:"lang"`
 		Value string `json:"value"`
 	} `json:"descriptions"`
+	References []struct {
+		URL    string   `json:"url"`
+		Source string   `json:"source"`
+		Tags   []string `json:"tags"`
+	} `json:"references"`
 	Configurations []nvdConfiguration `json:"configurations"`
 }
 type nvdConfiguration struct {
@@ -76,14 +81,15 @@ type vaCVEMatch struct {
 	Status   string `json:"status"`
 }
 type vaCVEResult struct {
-	CVE         string       `json:"cve"`
-	CheckedAt   time.Time    `json:"checked_at"`
-	Source      string       `json:"source"`
-	Description string       `json:"description,omitempty"`
-	Status      string       `json:"status"`
-	Matches     []vaCVEMatch `json:"matches"`
-	Note        string       `json:"note"`
-	Automatic   bool         `json:"automatic,omitempty"`
+	CVE               string             `json:"cve"`
+	CheckedAt         time.Time          `json:"checked_at"`
+	Source            string             `json:"source"`
+	Description       string             `json:"description,omitempty"`
+	Status            string             `json:"status"`
+	Matches           []vaCVEMatch       `json:"matches"`
+	Note              string             `json:"note"`
+	Automatic         bool               `json:"automatic,omitempty"`
+	ExploitReferences []vaIntelReference `json:"exploit_references,omitempty"`
 }
 
 func fetchNVD(r *http.Request, id string) (nvdResponse, error) {
@@ -256,6 +262,7 @@ func assessCVE(id string, data nvdResponse, services []vacheck.Asset) vaCVEResul
 		result.Note = "CVE não encontrada na resposta da NVD."
 		return result
 	}
+	result.ExploitReferences = nvdIntel(*cve).ExploitReferences
 	if strings.EqualFold(cve.VulnStatus, "Rejected") {
 		result.Status = "inconclusive"
 		result.Note = "Registro rejeitado pela NVD; não gera candidato de vulnerabilidade."

@@ -36,6 +36,7 @@ type Campaign struct {
 	ApprovedBy  string    `json:"approved_by"`
 	ExpiresAt   time.Time `json:"expires_at"`
 	Targets     []string  `json:"targets"`
+	Depth       string    `json:"depth,omitempty"` // standard | deep
 	PortProfile string    `json:"port_profile,omitempty"`
 	Ports       []int     `json:"ports"`
 }
@@ -72,6 +73,12 @@ func (c Campaign) Validate(now time.Time) error {
 	targets, err := c.ExpandedTargets()
 	if err != nil {
 		return err
+	}
+	if c.Depth != "" && c.Depth != "standard" && c.Depth != "deep" {
+		return fmt.Errorf("unsupported VA depth %q", c.Depth)
+	}
+	if c.Depth == "deep" && len(targets) > 16 {
+		return errors.New("deep VA is limited to 16 IPs per campaign")
 	}
 	if c.PortProfile == "all" {
 		if len(c.Ports) != 0 {
@@ -255,6 +262,8 @@ type HostResult struct {
 	SHA256     string              `json:"scanner_output_sha256,omitempty"`
 	Services   []vacheck.Asset     `json:"services,omitempty"`
 	Candidates []vacheck.Candidate `json:"candidates"`
+	DeepChecks []DeepObservation   `json:"deep_checks,omitempty"`
+	DeepError  string              `json:"deep_error,omitempty"`
 	Error      string              `json:"error,omitempty"`
 }
 type Result struct {
@@ -333,6 +342,28 @@ func RunWithProgress(ctx context.Context, c Campaign, scanner Scanner, now func(
 			h.Error = err.Error()
 		} else {
 			h.Status = "completed"
+			if c.Depth == "deep" {
+				deep, ok := scanner.(DeepScanner)
+				if !ok {
+					h.DeepError = "deep VA scanner unavailable"
+				} else if deepPorts, truncated := selectDeepPorts(h.Services); len(deepPorts) > 0 {
+					if truncated {
+						h.DeepError = "deep VA port budget reached; coverage is partial"
+					}
+					deepCtx, deepCancel := context.WithDeadline(ctx, c.ExpiresAt)
+					deepRaw, deepErr := deep.ScanDeep(deepCtx, target, deepPorts)
+					deepCancel()
+					if deepErr == nil {
+						h.DeepChecks, h.Candidates, deepErr = parseDeepResult(deepRaw, target, deepPorts, h.Candidates, now())
+						if deepErr == nil && len(h.DeepChecks) == 0 {
+							deepErr = errors.New("no TLS or SMB deep check evidence returned")
+						}
+					}
+					if deepErr != nil {
+						h.DeepError = deepErr.Error()
+					}
+				}
+			}
 		}
 		r.Hosts = append(r.Hosts, h)
 		if onHost != nil {

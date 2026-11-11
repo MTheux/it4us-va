@@ -16,6 +16,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/MTheux/it4us-va/db"
 	"github.com/MTheux/it4us-va/vascan"
 )
 
@@ -66,6 +67,7 @@ func (s *Server) vaPlan(w http.ResponseWriter, r *http.Request) {
 		"ports":        campaign.Ports,
 		"port_count":   campaign.PortCount(),
 		"port_profile": campaign.PortProfile,
+		"depth":        campaign.Depth,
 		"expires_at":   campaign.ExpiresAt,
 	})
 }
@@ -102,6 +104,20 @@ func (s *Server) vaReadCampaign(w http.ResponseWriter, r *http.Request) (vascan.
 		return campaign, nil, false
 	}
 	targets, _ := campaign.ExpandedTargets()
+	globalBlock, err := s.m.PG().ListAssetInterceptRules()
+	if err != nil {
+		writeErr(w, http.StatusServiceUnavailable, "could not verify global asset rules")
+		return campaign, nil, false
+	}
+	taskBlock, taskAllow, err := s.m.PG().Assets().TaskInterceptRulesSplit(campaign.TaskID)
+	if err != nil {
+		writeErr(w, http.StatusServiceUnavailable, "could not verify task asset rules")
+		return campaign, nil, false
+	}
+	if err := db.ValidateTaskIPScope(targets, append(globalBlock, taskBlock...), taskAllow); err != nil {
+		writeErr(w, http.StatusForbidden, err.Error())
+		return campaign, nil, false
+	}
 	return campaign, targets, true
 }
 
@@ -159,9 +175,13 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 		s.vaMu.Unlock()
 	})
 	completed, failed := 0, 0
+	deepFailures := 0
 	for _, host := range result.Hosts {
 		if host.Status == "completed" {
 			completed++
+			if host.DeepError != "" {
+				deepFailures++
+			}
 		} else {
 			failed++
 		}
@@ -180,7 +200,7 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 		record.Status = "canceled"
 	case runErr != nil || record.Error != "":
 		record.Status = "failed"
-	case failed > 0:
+	case failed > 0 || deepFailures > 0:
 		record.Status = "partial"
 	default:
 		record.Status = "completed"

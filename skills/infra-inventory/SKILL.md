@@ -1,16 +1,16 @@
 ---
 name: infra-inventory
-description: "Inventariar ativos de infraestrutura e correlacionar hosts, portas e serviços de campanhas VA autorizadas, sem transformar observações em vulnerabilidades."
+description: "Medir cobertura de IPs, portas e serviços de campanhas VA, vinculando cada observação ao recibo e ao escopo autorizado."
 ---
 
 # Inventário de infraestrutura
 
-Use quando o SOC pedir cobertura de IPs, CIDRs, hosts, portas ou serviços.
+Use na fase **observar** do ciclo operacional: escopo → plano → execução → evidência → revisão.
 
-1. Leia a tarefa, o escopo exato, exclusões, janela, aprovador e orçamento. Se algum limite faltar, peça definição antes de execução ativa.
-2. Compare os alvos expandidos do plano com o escopo autorizado. Não inclua destinos descobertos fora do escopo.
-3. Use os recibos de Execuções VA para montar a matriz `alvo | porta | protocolo | serviço | versão observada | origem | horário | estado`.
-4. Separe `não testado`, `fechado`, `filtrado` e `aberto`. Ausência de resposta não prova ausência de serviço.
-5. Registre a cobertura e os limites do scan; não crie achado de vulnerabilidade por porta aberta ou banner.
+1. Leia a tarefa e o plano da campanha. Registre IPs/CIDRs autorizados, exclusões, portas, aprovador, expiração e origem do worker. Se faltar um limite necessário, pare antes de execução ativa.
+2. Compare a lista expandida do plano com as regras da tarefa. IP descoberto fora dessa lista é contexto, nunca um novo alvo automático.
+3. Leia o recibo da execução VA e produza `IP | porta | protocolo | serviço | versão/CPE | confiança | estado | horário | run_id`. Aponte a evidência de cada linha.
+4. Conte alvos planejados, concluídos, falhos e não executados. Marque `aberto`, `fechado`, `filtrado`, `falhou` ou `não testado` sem converter timeout em resultado negativo.
+5. Compare com inventário anterior somente se as duas campanhas tiverem escopo e perfis comparáveis. Destaque mudanças como hipóteses para revisão.
 
-O scanner local usa Nmap TCP connect e detecção de serviço. Perfis comuns, 1–1000, 1–65535 e portas customizadas são escolhidos no formulário, sujeitos ao orçamento do plano.
+**Saída:** matriz de inventário, cobertura com denominador explícito e lacunas. Porta aberta e banner são observações, não vulnerabilidades. O scanner integrado usa TCP connect e identificação de serviço; não faz UDP nem valida CVE por exploração.

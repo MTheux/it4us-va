@@ -55,8 +55,8 @@ export const sidebarItems: NavGroup[] = [
     label: "Operação VA",
     items: [
       { id: "dashboard", title: "Painel", url: "/dashboard", icon: LayoutDashboard },
-      { id: "va-runs", title: "Execuções VA", url: "/function/va-runs", icon: ScanSearch },
       { id: "tasks", title: "Tarefas", url: "/function/tasks", icon: Target },
+      { id: "va-runs", title: "Execuções VA", url: "/function/va-runs", icon: ScanSearch },
       { id: "assets", title: "Ativos", url: "/function/assets", icon: Network },
       { id: "findings", title: "Achados", url: "/function/findings", icon: Bug },
       { id: "chat", title: "Chat", url: "/chat", icon: MessageSquare },

@@ -8,6 +8,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/netip"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -49,6 +50,16 @@ func runVA(args []string) int {
 		log.Printf("[va] task_id in campaign (%d) differs from --task-id (%d)", c.TaskID, *taskID)
 		return 1
 	}
+	if *recordOnly {
+		targets, _ := c.ExpandedTargets()
+		for _, target := range targets {
+			ip, err := netip.ParseAddr(target)
+			if err != nil || !ip.IsLoopback() {
+				log.Printf("[va] --record-only accepts loopback laboratory targets only")
+				return 1
+			}
+		}
+	}
 	if *dryRun {
 		targets, _ := c.ExpandedTargets()
 		fmt.Printf("Campanha %q: %d IP(s), %d porta(s), tarefa %d, expira %s\n", c.Name, len(targets), len(c.Ports), *taskID, c.ExpiresAt.Format(time.RFC3339))
@@ -74,6 +85,21 @@ func runVA(args []string) int {
 		task, err := pg.GetTask(*taskID)
 		if err != nil || task == nil {
 			log.Printf("[va] tarefa %d indisponível: %v", *taskID, err)
+			return 1
+		}
+		globalBlock, err := pg.ListAssetInterceptRules()
+		if err != nil {
+			log.Printf("[va] regras globais indisponíveis: %v", err)
+			return 1
+		}
+		taskBlock, taskAllow, err := pg.Assets().TaskInterceptRulesSplit(*taskID)
+		if err != nil {
+			log.Printf("[va] regras da tarefa indisponíveis: %v", err)
+			return 1
+		}
+		targets, _ := c.ExpandedTargets()
+		if err := db.ValidateTaskIPScope(targets, append(globalBlock, taskBlock...), taskAllow); err != nil {
+			log.Printf("[va] escopo recusado: %v", err)
 			return 1
 		}
 	}

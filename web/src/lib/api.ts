@@ -242,7 +242,6 @@ export const api = {
   // ---- auth ----
   authStatus: () => get<{ initialized: boolean }>("/auth/status"),
   login: (username: string, password: string) => post<{ token: string }>("/auth/login", { username, password }),
-  setSOCPassword: (adminPassword: string, socPassword: string) => post<{ ok: boolean }>("/auth/soc-password", { admin_password: adminPassword, soc_password: socPassword }),
   initPassword: (password: string) => post<{ token: string }>("/auth/init", { password }),
   changePassword: (oldPassword: string, newPassword: string) =>
     post<{ ok: boolean }>("/auth/change-password", { old_password: oldPassword, new_password: newPassword }),
@@ -257,6 +256,7 @@ export const api = {
   vaStart: (campaign: VACampaign) => post<VARun>("/va/runs", campaign),
   vaCancel: (id: string) => post<{ ok: boolean }>(`/va/runs/${encodeURIComponent(id)}/cancel`, {}),
   vaCheckCVE: (runID: string, cve: string) => post<import("@/lib/types").VACVECheck>("/va/cve/check", { run_id: runID, cve }),
+  vaLookupCVE: (cve: string) => get<import("@/lib/types").VACVEIntel>("/va/cve/lookup/" + encodeURIComponent(cve)),
   task: (id: string) => get<Task>(`/tasks/${encodeURIComponent(id)}`),
   createTask: (input: {
     name?: string;
@@ -266,6 +266,7 @@ export const api = {
     llmProfileIds?: number[];
     sourceTaskIds?: string[];
     companyIds?: number[];
+    scope?: CompanyScopeRule[];
     timeoutSeconds?: number;
     seedFirstIntent?: boolean;
     planHeartbeatSeconds?: number;
@@ -281,6 +282,7 @@ export const api = {
       llm_profile_ids: input.llmProfileIds ?? [],
       source_task_ids: input.sourceTaskIds ?? [],
       company_ids: input.companyIds ?? [],
+      scope: input.scope ?? [],
       timeout_seconds: input.timeoutSeconds ?? 0,
       seed_first_intent: input.seedFirstIntent ?? false,
       plan_heartbeat_seconds: input.planHeartbeatSeconds ?? 0, // 0 = the backend normalizes to the default 600 (10min)

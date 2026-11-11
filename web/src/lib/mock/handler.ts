@@ -1063,7 +1063,12 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
   if (path === "/va/runs" && m === "GET") return { runs: [] };
   if (path === "/va/capabilities" && m === "GET") return { scanner_available: true, scanner: "Nmap TCP connect / service detection", llm_required: false, mcp_required: false };
   if (path === "/va/plan" && m === "POST") {
-    return { campaign: b.name, task_id: b.task_id, targets: b.targets, ports: b.ports, expires_at: b.expires_at };
+    const ports = Array.isArray(b.ports) ? b.ports : [];
+    return { campaign: b.name, task_id: b.task_id, targets: b.targets, ports, port_count: b.port_profile === "all" ? 65535 : ports.length, depth: b.depth, expires_at: b.expires_at };
+  }
+  if (path.startsWith("/va/cve/lookup/") && m === "GET") {
+    const cve = decodeURIComponent(path.slice("/va/cve/lookup/".length));
+    return { cve, description: "Registro de demonstração. A instância real consulta as fontes públicas.", nvd_url: `https://nvd.nist.gov/vuln/detail/${cve}`, exploit_references: [], references: [], advisories: [], kev: false, source_status: { nvd: "ok", github: "unavailable", epss: "unavailable", kev: "unavailable" } };
   }
 
   // ── task cold archives ──

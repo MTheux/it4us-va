@@ -57,6 +57,9 @@ func builtinToolsByAgent() map[string][]actool.CoreTool {
 		// domain tools can be checked on demand in the UI.
 		// New databases are seeded from here; old databases are migrated by seedAutoDefaultBindings.
 		"auto": {ts.addFinding(), ts.insertAssets(), ts.addCompanyScope(), ts.listAssets(), ts.listCompanies()},
+		// Chat's infrastructure assistant can inspect inventory and findings, but
+		// cannot start scans or change platform state through its default tools.
+		"infra": {ts.listAssets(), ts.listCompanies()},
 		// pentest (solo pentest agent) binds by default: list assets / insert assets /
 		// report finding / list findings / list companies.
 		// New databases are seeded from here; old databases are migrated by seedPentestDefaultBindings.
@@ -84,7 +87,7 @@ var defaultUnbound = map[string]bool{"goal_met": true}
 // force-bound to empty.
 func BuiltinToolSeeds() []ToolSeed {
 	byAgent := builtinToolsByAgent()
-	order := []string{"mainagent", "goals", "planner", "worker", "auto", "pentest"}
+	order := []string{"mainagent", "goals", "planner", "worker", "auto", "infra", "pentest"}
 
 	type acc struct {
 		tool   actool.CoreTool

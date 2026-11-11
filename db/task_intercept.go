@@ -63,6 +63,28 @@ func (s *AssetStore) TaskInterceptRulesSplit(taskID int64) (block, allow []Asset
 	return block, allow, nil
 }
 
+// ValidateTaskIPScope applies the same fail-closed gate to every literal IP in a
+// VA campaign. The normal asset gate leaves an empty allowlist inert; a VA scan
+// instead requires an explicit enabled IP/CIDR authorization on the task.
+func ValidateTaskIPScope(targets []string, block, allow []AssetInterceptRule) error {
+	hasAllow := false
+	for _, rule := range allow {
+		if rule.Enabled && (rule.Kind == "exact_ip" || rule.Kind == "cidr") {
+			hasAllow = true
+			break
+		}
+	}
+	if !hasAllow {
+		return fmt.Errorf("task needs an enabled IP or CIDR allow rule before a VA campaign")
+	}
+	for _, target := range targets {
+		if decision := EvaluateAssetGate(block, allow, nil, []string{target}, nil); !decision.Allowed {
+			return fmt.Errorf("VA target %s is outside the task's allowed scope or matches a block rule", target)
+		}
+	}
+	return nil
+}
+
 func normalizeRuleAction(action string) string {
 	if action == "allow" {
 		return "allow"

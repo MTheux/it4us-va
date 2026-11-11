@@ -46,6 +46,7 @@ import {
 import { toast } from "sonner";
 
 import { AssetInterceptRulesEditor } from "@/components/asset-intercept-rules-editor";
+import { parseCompanyScopeText } from "@/lib/company-scope";
 import { StatusBadge } from "@/components/status-badge";
 import { TablePagination } from "@/components/table-pagination";
 import { TaskLLMProfileChain } from "@/components/task-llm-profile-chain";
@@ -3078,6 +3079,8 @@ function CreateTaskSheet({
   const [categoryID, setCategoryID] = React.useState<number | undefined>(undefined);
   const [description, setDescription] = React.useState("");
   const [goal, setGoal] = React.useState("");
+  const [scopeText, setScopeText] = React.useState("");
+  const [scopeFileName, setScopeFileName] = React.useState("");
   const [selectedTemplateID, setSelectedTemplateID] = React.useState<number | null>(null);
   const [profiles, setProfiles] = React.useState<LLMProfile[]>([]);
   const [companies, setCompanies] = React.useState<Company[]>([]);
@@ -3096,7 +3099,31 @@ function CreateTaskSheet({
   const [uploadCount, setUploadCount] = React.useState(0);
   const draftIdRef = React.useRef<string>("");
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const scopeFileInputRef = React.useRef<HTMLInputElement>(null);
   const sheetContentRef = React.useRef<HTMLDivElement>(null);
+  const parsedScope = React.useMemo(() => parseCompanyScopeText(scopeText), [scopeText]);
+  const invalidScope = parsedScope.rules.some((rule) => rule.kind !== "ip" && rule.kind !== "cidr");
+  const scopeRules = React.useMemo(
+    () => [...new Map(parsedScope.rules.filter((rule) => rule.kind === "ip" || rule.kind === "cidr").map((rule) => [`${rule.kind}:${rule.value}`, rule])).values()],
+    [parsedScope.rules],
+  );
+
+  async function importScopeFile(file: File | undefined) {
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".txt") || file.size > 256 * 1024) {
+      toast.error("Use um arquivo .txt de até 256 KB.");
+      return;
+    }
+    try {
+      const content = await file.text();
+      setScopeText((current) => [current.trim(), content.trim()].filter(Boolean).join("\n"));
+      setScopeFileName(file.name);
+    } catch {
+      toast.error("Não foi possível ler o arquivo .txt.");
+    } finally {
+      if (scopeFileInputRef.current) scopeFileInputRef.current.value = "";
+    }
+  }
 
   // load LLM profiles once for the create-task profile picker.
   React.useEffect(() => {
@@ -3133,8 +3160,12 @@ function CreateTaskSheet({
   }
 
   async function createTask() {
-    if (!description.trim() || !goal.trim()) {
-      toast.error("Please fill in the description and goal");
+    if (!goal.trim() || (!description.trim() && scopeRules.length === 0)) {
+      toast.error("Informe o objetivo e o contexto ou escopo de IPs.");
+      return;
+    }
+    if (parsedScope.errors.length > 0 || invalidScope) {
+      toast.error("Corrija os IPs ou ranges antes de criar a tarefa.");
       return;
     }
     if (sourceTaskIDs.length > MAX_SOURCE_TASKS) {
@@ -3148,8 +3179,9 @@ function CreateTaskSheet({
       await api.createTask({
         name: name.trim(),
         categoryId: categoryID,
-        description: description.trim(),
+        description: description.trim() || `Avaliação de infraestrutura dos ${scopeRules.length} IPs ou ranges informados pelo operador.`,
         goal: goal.trim(),
+        scope: scopeRules,
         llmProfileIds: llmProfileIDs.map(Number),
         sourceTaskIds: sourceTaskIDs,
         companyIds: companyIDs,
@@ -3169,6 +3201,8 @@ function CreateTaskSheet({
       setCategoryID(undefined);
       setDescription("");
       setGoal("");
+      setScopeText("");
+      setScopeFileName("");
       setSelectedTemplateID(null);
       setSourceTaskIDs([]);
       setCompanyIDs([]);
@@ -3193,7 +3227,7 @@ function CreateTaskSheet({
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button size="sm">
-          <PlusIcon /> New task
+          <PlusIcon /> Nova tarefa
         </Button>
       </SheetTrigger>
       {/* A 45vw-wide right drawer: full-height and scrollable, so long forms are no longer bound by dialog height. Narrow screens fall back to full width.
@@ -3204,128 +3238,125 @@ function CreateTaskSheet({
         className="w-full! max-w-none! gap-0 p-0 sm:w-[45vw]! sm:max-w-[45vw]!"
       >
         <SheetHeader className="border-b p-6">
-          <SheetTitle>New task</SheetTitle>
-          <SheetDescription>Fill in the test target and goal; advanced parameters can be expanded as needed.</SheetDescription>
+          <SheetTitle>Nova tarefa</SheetTitle>
+          <SheetDescription>Defina o objetivo e os IPs autorizados. Os demais ajustes são opcionais.</SheetDescription>
         </SheetHeader>
 
         <div className="flex-1 overflow-y-auto p-6">
           <div className="grid gap-5">
-            <TaskTemplateControls
-              description={description}
-              goal={goal}
-              categoryID={categoryID}
-              interceptRules={interceptRules}
-              selectedTemplateID={selectedTemplateID}
-              onSelectedTemplateIDChange={setSelectedTemplateID}
-              onApply={(template) => {
-                setDescription(template.description);
-                setGoal(template.goal);
-                setCategoryID(template.category_id ?? undefined);
-                setInterceptRules(template.intercept_rules ?? []);
-                setUploadCount(0);
-              }}
-              portalContainer={sheetContentRef}
-            />
             <div className="grid gap-2">
-              <Label htmlFor="name">Name (optional)</Label>
+              <Label htmlFor="name">Nome da tarefa (opcional)</Label>
               <Input
                 id="name"
-                placeholder="A recognizable name for the task, e.g. Acme website penetration test"
+                placeholder="Ex.: Avaliação de infraestrutura do cliente"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
-            <Field>
-              <FieldLabel htmlFor="task-category">Task category</FieldLabel>
-              <CategoryPicker
-                categories={categories}
-                value={categoryID}
-                onValueChange={setCategoryID}
-                onCategoryCreated={onCategoriesChanged}
-                portalContainer={sheetContentRef}
-              />
-              <FieldDescription>Optional, single category; used for task list filtering and archiving, never affecting agent execution.</FieldDescription>
-            </Field>
             <div className="grid gap-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="task-ip-scope">IPs e ranges autorizados</Label>
+              <Textarea
+                id="task-ip-scope"
+                className="min-h-32 font-mono text-sm"
+                placeholder={"192.0.2.10\n198.51.100.0/24"}
+                value={scopeText}
+                aria-invalid={parsedScope.errors.length > 0 || invalidScope}
+                onChange={(e) => { setScopeText(e.target.value); setScopeFileName(""); }}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <input ref={scopeFileInputRef} type="file" accept=".txt,text/plain" className="hidden" onChange={(e) => void importScopeFile(e.target.files?.[0])} />
+                <Button type="button" variant="outline" size="sm" onClick={() => scopeFileInputRef.current?.click()}>
+                  <PaperclipIcon /> Importar .txt
+                </Button>
+                <span className="text-xs text-muted-foreground">Um IP ou CIDR por linha{scopeFileName ? ` · ${scopeFileName}` : ""}</span>
+              </div>
+              {scopeRules.length > 0 && <p className="text-xs text-muted-foreground">{scopeRules.length} entradas válidas</p>}
+              {(parsedScope.errors.length > 0 || invalidScope) && (
+                <p role="alert" className="text-xs text-destructive">
+                  {parsedScope.errors.length > 0 ? `Linha ${parsedScope.errors[0].line}: ${parsedScope.errors[0].error}` : "Use apenas IPs ou CIDRs neste campo."}
+                </p>
+              )}
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Contexto (opcional se houver IPs)</Label>
               <Textarea
                 id="description"
-                className="min-h-32"
-                placeholder="Test target and background, e.g. test the example.com site"
+                className="min-h-24"
+                placeholder="Descreva o ambiente e as restrições relevantes."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
               />
-              {/* Upload files (multi-select): staged under drafts/, with absolute paths appended to the description above so the worker can open them with Read/Bash. */}
-              <div className="flex flex-wrap items-center gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => void pickFiles(e.target.files)}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                >
-                  {uploading ? <Loader2Icon className="animate-spin" /> : <PaperclipIcon />}
-                  Upload files
-                </Button>
-                <span className="text-muted-foreground text-xs">
-                  {uploadCount > 0
-                    ? `${uploadCount} files uploaded; their absolute paths were appended to the end of the description (editable)`
-                    : "Multi-select; after upload, absolute file paths are appended to the description for the worker to open with Read/Bash"}
-                </span>
-              </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="goal">Goal</Label>
+              <Label htmlFor="goal">Objetivo</Label>
               <Textarea
                 id="goal"
-                className="min-h-32"
-                placeholder="What to achieve, e.g. gain admin panel access or server privileges"
+                className="min-h-24"
+                placeholder="Ex.: inventariar serviços e revisar candidatos a vulnerabilidade."
                 value={goal}
                 onChange={(e) => setGoal(e.target.value)}
               />
             </div>
+            <Collapsible>
+              <CollapsibleTrigger className="group flex w-full items-center gap-2 border-t pt-4 text-sm font-medium">
+                <ChevronRightIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                Opções avançadas
+              </CollapsibleTrigger>
+              <CollapsibleContent className="grid gap-5 pt-5">
+                <TaskTemplateControls
+                  description={description}
+                  goal={goal}
+                  categoryID={categoryID}
+                  interceptRules={interceptRules}
+                  selectedTemplateID={selectedTemplateID}
+                  onSelectedTemplateIDChange={setSelectedTemplateID}
+                  onApply={(template) => {
+                    setDescription(template.description);
+                    setGoal(template.goal);
+                    setCategoryID(template.category_id ?? undefined);
+                    setInterceptRules(template.intercept_rules ?? []);
+                    setUploadCount(0);
+                  }}
+                  portalContainer={sheetContentRef}
+                />
+                <Field>
+                  <FieldLabel htmlFor="task-category">Categoria</FieldLabel>
+                  <CategoryPicker categories={categories} value={categoryID} onValueChange={setCategoryID} onCategoryCreated={onCategoriesChanged} portalContainer={sheetContentRef} />
+                </Field>
+                <div className="flex flex-wrap items-center gap-2">
+                  <input ref={fileInputRef} type="file" multiple className="hidden" onChange={(e) => void pickFiles(e.target.files)} />
+                  <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                    {uploading ? <Loader2Icon className="animate-spin" /> : <PaperclipIcon />} Anexar arquivos de apoio
+                  </Button>
+                  {uploadCount > 0 && <span className="text-xs text-muted-foreground">{uploadCount} arquivo(s) anexado(s)</span>}
+                </div>
             <Field>
-              <FieldLabel htmlFor="source-tasks">Linked tasks</FieldLabel>
+              <FieldLabel htmlFor="source-tasks">Tarefas vinculadas</FieldLabel>
               <SourceTaskPicker
                 tasks={tasks}
                 value={sourceTaskIDs}
                 onValueChange={setSourceTaskIDs}
                 portalContainer={sheetContentRef}
               />
-              <FieldDescription>
-                Link up to {MAX_SOURCE_TASKS}{" "}
-                tasks. Live, read-only inheritance of the selected tasks' persistent blackboards, asset scope, and related traffic; the new task writes to its own blackboard.
-              </FieldDescription>
+              <FieldDescription>Até {MAX_SOURCE_TASKS} tarefas para herdar contexto de leitura.</FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="task-companies">Linked company asset scope</FieldLabel>
+              <FieldLabel htmlFor="task-companies">Empresa vinculada</FieldLabel>
               <CompanyPicker
                 companies={companies}
                 value={companyIDs}
                 onValueChange={setCompanyIDs}
                 portalContainer={sheetContentRef}
               />
-              <FieldDescription>
-                On task creation, the selected companies' current assets are added to "Test assets", and their domains, IPs, CIDRs, ICPs, and company keywords are provided to the agent
-                as scope context; no intents are generated automatically and execution goals are not forced to change.
-              </FieldDescription>
+              <FieldDescription>Inclui os ativos cadastrados da empresa no escopo da tarefa.</FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="task-intercept-rules">Task-level asset intercept / allow rules (optional)</FieldLabel>
+              <FieldLabel htmlFor="task-intercept-rules">Regras de bloqueio e permissão</FieldLabel>
               <AssetInterceptRulesEditor value={interceptRules} onChange={setInterceptRules} />
-              <FieldDescription>
-                Applies to this task only and is not written to global rules. Evaluation order: "Block" rules (including global ones) match first, and a hit forbids testing; with no hit and "Allow" rules configured for this task, an asset must match an allow rule to be permitted, otherwise testing is likewise forbidden; with no allow rules configured, no whitelist is active.
-              </FieldDescription>
+              <FieldDescription>Valem só para esta tarefa; bloqueios sempre têm prioridade.</FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="llm-profiles">LLM config chain</FieldLabel>
+              <FieldLabel htmlFor="llm-profiles">Perfis de IA</FieldLabel>
               <TaskLLMProfileChain
                 profiles={profiles}
                 value={llmProfileIDs}
@@ -3333,10 +3364,10 @@ function CreateTaskSheet({
                 inputId="llm-profiles"
                 portalContainer={sheetContentRef}
               />
-              <FieldDescription>Failover follows the list order; the first entry is the current config, and the next one is used only when the quota is clearly insufficient.</FieldDescription>
+              <FieldDescription>Opcional. Usa o perfil padrão se nada for escolhido.</FieldDescription>
             </Field>
             <Field>
-              <FieldLabel htmlFor="task-credentials">Test accounts (optional)</FieldLabel>
+              <FieldLabel htmlFor="task-credentials">Contas de teste</FieldLabel>
               <div className="grid gap-2">
                 {credentials.map((c, i) => (
                   <div key={i} className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
@@ -3382,19 +3413,14 @@ function CreateTaskSheet({
                   <PlusIcon className="size-4" /> Add account
                 </Button>
               </div>
-              <FieldDescription>
-                Test accounts reused by the agent for authenticated testing. Leave the password empty to have the agent register that
-                account itself and record the password it chose. Use dedicated test accounts only — anything declared here is sent to
-                the configured LLM provider during the task.
-              </FieldDescription>
+              <FieldDescription>Use apenas contas dedicadas. Dados informados aqui são enviados ao provedor de IA configurado.</FieldDescription>
             </Field>
 
             {/* Advanced parameters are collapsed by default: timeout/heartbeat/first intent; they take space only when expanded, keeping the common path clean. */}
             <Collapsible>
               <CollapsibleTrigger className="group flex w-full items-center gap-2 border-t pt-4 text-sm font-medium">
                 <ChevronRightIcon className="text-muted-foreground size-4 transition-transform group-data-[state=open]:rotate-90" />
-                Advanced settings
-                <span className="text-muted-foreground ml-auto text-xs font-normal">Timeout · Heartbeat · First intent</span>
+                Controles de execução
               </CollapsibleTrigger>
               <CollapsibleContent className="grid gap-5 pt-5">
                 <div className="grid gap-2">
@@ -3408,9 +3434,7 @@ function CreateTaskSheet({
                     value={timeoutMin}
                     onChange={(e) => setTimeoutMin(e.target.value)}
                   />
-                  <p className="text-muted-foreground text-xs">
-                    When the time is up, a graceful wind-down is triggered (each agent writes back + the planner makes the final verdict) and the task enters the timeout terminal state.
-                  </p>
+                  <p className="text-muted-foreground text-xs">Opcional. Encerra a tarefa ao atingir o limite.</p>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="heartbeat-min">planner heartbeat (minutes)</Label>
@@ -3423,10 +3447,7 @@ function CreateTaskSheet({
                     value={heartbeatMin}
                     onChange={(e) => setHeartbeatMin(e.target.value)}
                   />
-                  <p className="text-muted-foreground text-xs">
-                    When this much time has passed since the last planning round ended or the task started, with no
-                    triggers in between, a planning round fires automatically (deadlock backstop + wakes supervision of running workers). Minimum 10 minutes.
-                  </p>
+                  <p className="text-muted-foreground text-xs">Mínimo de 10 minutos.</p>
                 </div>
                 <div className="grid gap-2">
                   <label htmlFor="seed-first-intent" className="flex items-center gap-2 text-sm">
@@ -3437,10 +3458,7 @@ function CreateTaskSheet({
                     />
                     Dispatch the first intent directly (description + goal)
                   </label>
-                  <p className="text-muted-foreground text-xs">
-                    When enabled, the "description + goal" is dispatched as one intent right at creation; the worker starts without waiting for the first planning round and the planner
-                    takes over afterwards to judge/follow up. Recommended for settings like CTF where one run usually solves it directly; disabled follows the standard plan-then-execute flow.
-                  </p>
+                  <p className="text-muted-foreground text-xs">Pula o planejamento inicial e inicia um worker diretamente.</p>
                 </div>
                 <div className="grid gap-2">
                   <label htmlFor="coverage-enabled" className="flex items-center gap-2 text-sm">
@@ -3451,11 +3469,10 @@ function CreateTaskSheet({
                     />
                     Asset coverage feature
                   </label>
-                  <p className="text-muted-foreground text-xs">
-                    On by default: computes and displays test coverage, shows testing progress on the situational graph, and automatically accumulates the test scope. When off, coverage is no longer computed or displayed,
-                    the situational graph shows assets without progress, and agents no longer receive scope-related tools. Disabling does not affect "Linked company asset scope".
-                  </p>
+                  <p className="text-muted-foreground text-xs">Acompanha a cobertura dos ativos da tarefa.</p>
                 </div>
+              </CollapsibleContent>
+            </Collapsible>
               </CollapsibleContent>
             </Collapsible>
           </div>
@@ -3463,11 +3480,11 @@ function CreateTaskSheet({
 
         <SheetFooter className="flex-row justify-end gap-2 border-t p-4">
           <SheetClose asChild>
-            <Button variant="outline">Cancel</Button>
+            <Button variant="outline">Cancelar</Button>
           </SheetClose>
           <Button onClick={createTask} disabled={creating || uploading}>
             {creating && <Spinner data-icon="inline-start" />}
-            {creating ? "Creating" : "Create"}
+            {creating ? "Criando…" : "Criar tarefa"}
           </Button>
         </SheetFooter>
       </SheetContent>

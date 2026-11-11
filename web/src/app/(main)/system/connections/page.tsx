@@ -12,11 +12,9 @@ import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import type { Agent, LLMProfile, MCPServer, MCPTool } from "@/lib/types";
 
-type Provider = "claude" | "opencode";
+type Provider = "ollama" | "claude" | "openai";
 type DemoReport = { id: string; title: string; format: string; demo: boolean };
-const CLAUDE_MODEL = "claude-sonnet-5";
-const OPENCODE_MODEL = "claude-opus-4-8";
-const OPENCODE_URL = "http://127.0.0.1:4096/v1";
+const OLLAMA_URL = "http://127.0.0.1:11434/v1";
 const ROVO_URL = "https://mcp.atlassian.com/v2/mcp";
 
 export default function ConnectionsPage() {
@@ -24,9 +22,11 @@ export default function ConnectionsPage() {
   const [servers, setServers] = React.useState<MCPServer[]>([]);
   const [agents, setAgents] = React.useState<Agent[]>([]);
   const [visibility, setVisibility] = React.useState<Record<number, string[]>>({});
-  const [provider, setProvider] = React.useState<Provider>("claude");
+  const [provider, setProvider] = React.useState<Provider>("ollama");
   const [key, setKey] = React.useState("");
-  const [model, setModel] = React.useState(CLAUDE_MODEL);
+  const [model, setModel] = React.useState("");
+  const [localModels, setLocalModels] = React.useState<string[]>([]);
+  const [loadingModels, setLoadingModels] = React.useState(false);
   const [aiState, setAiState] = React.useState<"idle" | "testing" | "connected" | "error">("idle");
   const [aiMessage, setAiMessage] = React.useState("");
   const [connectorName, setConnectorName] = React.useState("atlassian_rovo");
@@ -51,39 +51,55 @@ export default function ConnectionsPage() {
   }, []);
   React.useEffect(() => { void load().catch((e) => toast.error((e as Error).message)); }, [load]);
 
-  const profileName = provider === "claude" ? "SOC Claude" : "SOC OpenCode local";
+  const profileName = provider === "claude" ? "SOC Claude" : provider === "openai" ? "VA OpenAI API" : "VA Ollama local";
   const savedProfile = profiles.find((p) => p.name === profileName);
   const activeProfile = profiles.find((p) => p.is_default);
   const demo = servers.find((s) => s.name === "soc_demo_reports");
 
   function chooseProvider(next: Provider) {
     setProvider(next);
-    setModel(next === "claude" ? CLAUDE_MODEL : OPENCODE_MODEL);
+    setModel(next === "ollama" ? localModels.find((name) => name === "gemma3:4b") || localModels[0] || "" : "");
     setKey("");
     setAiState("idle");
     setAiMessage("");
   }
 
+  async function loadLocalModels() {
+    setLoadingModels(true);
+    try {
+      const result = await api.fetchLLMModels("ollama", OLLAMA_URL, "");
+      if (!result.ok) throw new Error(result.error || "Ollama não respondeu.");
+      const installed = (result.models || []).filter((name) => !name.endsWith(":cloud"));
+      setLocalModels(installed);
+      if (installed.length && !model.trim()) setModel(installed.find((name) => name === "gemma3:4b") || installed[0]);
+      if (!installed.length) setAiMessage("Nenhum modelo local instalado. Baixe um modelo no servidor antes de conectar.");
+    } catch (error) {
+      setAiMessage((error as Error).message);
+    } finally { setLoadingModels(false); }
+  }
+
+  React.useEffect(() => { if (provider === "ollama") void loadLocalModels(); }, [provider]);
+
   async function connectAI() {
-    if (provider === "claude" && !key.trim() && !savedProfile?.api_key_hint) {
-      toast.error("Informe a API key do Claude.");
+    if (provider !== "ollama" && !key.trim() && !savedProfile?.api_key_hint) {
+      toast.error("Informe a API key do provedor.");
       return;
     }
     if (!model.trim()) { toast.error("Informe o modelo."); return; }
     setAiState("testing");
     setAiMessage("Testando uma resposta real do modelo…");
     try {
-      const format = provider === "claude" ? "anthropic" : "opencode";
-      const baseURL = provider === "claude" ? "" : OPENCODE_URL;
+      const format = provider === "claude" ? "anthropic" : provider === "openai" ? "openai" : "ollama";
+      const baseURL = provider === "ollama" ? OLLAMA_URL : "";
       const result = await api.testLLM(format, model.trim(), baseURL, key.trim(), "", "", "", savedProfile ? Number(savedProfile.id) : undefined);
       if (!result.ok || !result.reply?.trim()) throw new Error(result.error || "O modelo não respondeu ao teste.");
       const saved = await api.saveLLMProfile({
         ...(savedProfile ? { id: Number(savedProfile.id) } : {}),
         name: profileName,
-        format: provider === "claude" ? "anthropic" : "openai",
+        format,
         model: model.trim(),
         base_url: baseURL,
-        ...(key.trim() ? { api_key: key.trim() } : provider === "opencode" && !savedProfile ? { api_key: "opencode" } : {}),
+        ...(key.trim() ? { api_key: key.trim() } : {}),
         streaming: true,
       });
       await api.activateLLMProfile(String(saved.id));
@@ -176,27 +192,28 @@ export default function ConnectionsPage() {
     <div className="mx-auto w-full max-w-5xl space-y-6 p-4 md:p-6">
       <header className="space-y-1">
         <div className="flex items-center gap-2 text-sm font-medium text-primary"><PlugZap className="size-4" /> CONEXÕES DO SOC</div>
-        <h1 className="text-2xl font-semibold tracking-tight">Conectar IA e agentes</h1>
-        <p className="text-sm text-muted-foreground">Configure a chave uma vez, teste a conexão e escolha quais agentes podem usar cada MCP.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Conectar IA de infraestrutura</h1>
+        <p className="text-sm text-muted-foreground">Escolha um modelo local no servidor ou conecte uma API key.</p>
       </header>
 
       <Card className="overflow-hidden">
         <CardContent className="space-y-5 p-5 md:p-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
-            <div><h2 className="flex items-center gap-2 font-semibold"><KeyRound className="size-4" /> IA do VA</h2><p className="mt-1 text-sm text-muted-foreground">A chave é enviada ao servidor e não reaparece na tela.</p></div>
+            <div><h2 className="flex items-center gap-2 font-semibold"><KeyRound className="size-4" /> IA do VA</h2><p className="mt-1 text-sm text-muted-foreground">Ollama roda no servidor sem API key. A chave de nuvem, quando usada, não reaparece na tela.</p></div>
             {activeProfile && <Badge variant="outline">Em uso: {activeProfile.name}</Badge>}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {(["claude", "opencode"] as const).map((choice) => (
+          <div className="grid gap-2 sm:grid-cols-3">
+            {(["ollama", "claude", "openai"] as const).map((choice) => (
               <button key={choice} type="button" onClick={() => chooseProvider(choice)} className={`rounded-xl border p-4 text-left transition-colors ${provider === choice ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}>
-                <span className="block font-medium">{choice === "claude" ? "Claude API" : "OpenCode local"}</span>
-                <span className="mt-1 block text-xs text-muted-foreground">{choice === "claude" ? "Cole uma API key da Anthropic." : "Usa a conta já conectada no OpenCode deste Mac."}</span>
+                <span className="block font-medium">{choice === "claude" ? "API key · Claude" : choice === "openai" ? "API key · OpenAI" : "Infra local · Ollama"}</span>
+                <span className="mt-1 block text-xs text-muted-foreground">{choice === "claude" ? "Cole uma API key da Anthropic." : choice === "openai" ? "Cole uma API key da OpenAI." : "Sem chave e sem nuvem, com modelo instalado no servidor."}</span>
               </button>
             ))}
           </div>
+          {provider === "ollama" && <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground"><Button size="sm" variant="outline" onClick={() => void loadLocalModels()} disabled={loadingModels}>{loadingModels ? <Loader2 className="animate-spin" /> : <RefreshCw />} Buscar modelos locais</Button><span>{localModels.length ? `Instalados: ${localModels.join(", ")}` : aiMessage || "Instale Ollama no servidor e baixe um modelo com ollama pull gemma3:4b."}</span><a className="underline" href="https://ollama.com/download" target="_blank" rel="noreferrer">Baixar Ollama</a></div>}
           <div className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-            {provider === "claude" && <div className="space-y-2"><Label htmlFor="ai-key">API key</Label><Input id="ai-key" type="password" autoComplete="off" placeholder={savedProfile?.api_key_hint ? "Chave salva · deixe vazio para retestar" : "Cole sua chave aqui"} value={key} onChange={(e) => { setKey(e.target.value); setAiState("idle"); }} /></div>}
-            <div className="space-y-2"><Label htmlFor="ai-model">Modelo</Label><Input id="ai-model" value={model} onChange={(e) => setModel(e.target.value)} /></div>
+            {provider !== "ollama" && <div className="space-y-2"><Label htmlFor="ai-key">API key</Label><Input id="ai-key" type="password" autoComplete="off" placeholder={savedProfile?.api_key_hint ? "Chave salva · deixe vazio para retestar" : "Cole sua chave aqui"} value={key} onChange={(e) => { setKey(e.target.value); setAiState("idle"); }} /></div>}
+            <div className="space-y-2"><Label htmlFor="ai-model">Modelo</Label><Input id="ai-model" list={provider === "ollama" ? "ollama-installed-models" : undefined} placeholder={provider === "ollama" ? "Selecione um modelo instalado" : "Modelo da sua conta"} value={model} onChange={(e) => setModel(e.target.value)} />{provider === "ollama" && <datalist id="ollama-installed-models">{localModels.map((name) => <option key={name} value={name} />)}</datalist>}</div>
             <Button onClick={() => void connectAI()} disabled={aiState === "testing"} className="min-w-40">{aiState === "testing" ? <Loader2 className="animate-spin" /> : <ShieldCheck />} Testar e conectar</Button>
           </div>
           {aiState !== "idle" && <div role="status" className={`flex items-center gap-3 rounded-lg border p-3 text-sm ${aiState === "connected" ? "border-emerald-500/40 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300" : aiState === "error" ? "border-destructive/40 text-destructive" : "text-muted-foreground"}`}>

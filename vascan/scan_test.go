@@ -39,6 +39,7 @@ func TestCampaignRejectsInvalidScopeBeforeScannerRuns(t *testing.T) {
 		{"duplicate", func(c *Campaign) { c.Targets = []string{"127.0.0.1", "127.0.0.1"} }},
 		{"port", func(c *Campaign) { c.Ports = []int{0} }},
 		{"no approval", func(c *Campaign) { c.ApprovedBy = "" }},
+		{"deep host budget", func(c *Campaign) { c.Depth = "deep"; c.Targets = []string{"127.0.0.0/27"} }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			c := base

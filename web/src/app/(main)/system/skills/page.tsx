@@ -45,6 +45,12 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import type { Agent, SkillItem, MCPServer, SkillCall, MissingSkill } from "@/lib/types";
 
+const infraSkillOrder = [
+  "infra-preflight", "infra-campaign", "infra-inventory", "infra-service-triage",
+  "infra-exposure", "infra-tls-pki", "infra-cve-triage", "infra-coverage",
+  "infra-review", "infra-retest",
+];
+
 function fmtTime(ts?: string) {
   if (!ts) return "Never called";
   return new Date(ts).toLocaleString("zh-CN", {
@@ -192,9 +198,25 @@ function SkillsOverview({
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6">
       <div>
-        <h2 className="text-base font-semibold">Skill library overview</h2>
-        <p className="text-muted-foreground text-sm">Select a skill on the left to view details and call history, or get a quick picture of overall usage here.</p>
+        <h2 className="text-base font-semibold">Biblioteca de skills</h2>
+        <p className="text-muted-foreground text-sm">Selecione uma skill para ler o procedimento e conferir quais agentes podem usá-la.</p>
       </div>
+
+      {skills.some((s) => s.name.startsWith("infra-")) && (
+        <div className="rounded-lg border bg-muted/20 p-4">
+          <h3 className="text-sm font-semibold">Fluxo de infraestrutura</h3>
+          <p className="mt-1 text-xs text-muted-foreground">As skills orientam o agente; a execução VA e os limites de escopo são aplicados pelo servidor.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {[
+              ["Preparar", "infra-preflight"], ["Executar", "infra-campaign"],
+              ["Medir cobertura", "infra-coverage"], ["Revisar", "infra-review"],
+              ["Retestar", "infra-retest"],
+            ].filter(([, name]) => skills.some((s) => s.name === name)).map(([label, name]) => (
+              <Button key={name} size="sm" variant="outline" onClick={() => onSelect(name)}>{label}</Button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -699,13 +721,21 @@ export default function SkillsPage() {
   const selectedSkill = selected
     ? skills.find((s) => s.name === selected.skill) ?? null
     : null;
+  const orderedSkills = [...skills].sort((a, b) => {
+    const ai = infraSkillOrder.indexOf(a.name);
+    const bi = infraSkillOrder.indexOf(b.name);
+    if (ai >= 0 && bi >= 0) return ai - bi;
+    if (ai >= 0) return -1;
+    if (bi >= 0) return 1;
+    return a.name.localeCompare(b.name);
+  });
 
   return (
     <div data-content-padding="false" className="flex flex-1 flex-col overflow-hidden">
       <div className="flex items-center gap-3 border-b px-4 py-2.5 lg:px-6">
         <div className="flex flex-col gap-0.5">
-          <h1 className="text-sm font-semibold leading-tight">Skill</h1>
-          <p className="text-muted-foreground text-xs">Skill library · agentskills.io spec · visibility granted per agent</p>
+          <h1 className="text-sm font-semibold leading-tight">Skills</h1>
+          <p className="text-muted-foreground text-xs">Procedimentos dos agentes e histórico de uso</p>
         </div>
         {/* Gap list: skills agents invoke by name but missing from the library — direct evidence of what to add. */}
         {missing.length > 0 && (
@@ -764,12 +794,18 @@ export default function SkillsPage() {
               widening the rows past the sidebar. */}
           <ScrollArea className="flex-1 [&>[data-slot=scroll-area-viewport]>div]:!block">
             <div className="p-1">
-              {skills.map((s) => {
+              {orderedSkills.map((s, index) => {
                 const isOpen = expanded.has(s.name);
                 const tree = buildTree(s.files);
                 const isSkillSelected = selected?.skill === s.name && selected.path === null;
                 return (
                   <div key={s.name}>
+                    {index === 0 && s.name.startsWith("infra-") && (
+                      <p className="px-2 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Infraestrutura</p>
+                    )}
+                    {index > 0 && !s.name.startsWith("infra-") && orderedSkills[index - 1].name.startsWith("infra-") && (
+                      <p className="px-2 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Outras skills</p>
+                    )}
                     {/* skill root node */}
                     <div
                       className={cn(

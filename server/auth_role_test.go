@@ -10,21 +10,14 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func TestBothLoginsHaveAdminAccess(t *testing.T) {
+func TestSingleLoginAndLegacySessions(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
 	admin, err := signJWT(key)
 	if err != nil {
 		t.Fatal(err)
 	}
-	soc, err := signRoleJWT(key, "soc")
-	if err != nil {
-		t.Fatal(err)
-	}
 	if role, ok := tokenRole(admin, key); !ok || role != "admin" {
 		t.Fatalf("admin: %q %v", role, ok)
-	}
-	if role, ok := tokenRole(soc, key); !ok || role != "admin" {
-		t.Fatalf("soc: %q %v", role, ok)
 	}
 	legacy, err := jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: "soc", RegisteredClaims: jwt.RegisteredClaims{
 		Subject: "IT4US SOC", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
@@ -34,6 +27,16 @@ func TestBothLoginsHaveAdminAccess(t *testing.T) {
 	}
 	if role, ok := tokenRole(legacy, key); !ok || role != "admin" {
 		t.Fatalf("legacy soc: %q %v", role, ok)
+	}
+}
+
+func TestSOCLoginIsNoLongerAccepted(t *testing.T) {
+	s := &Server{}
+	r := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"IT4US SOC","password":"any-password"}`))
+	w := httptest.NewRecorder()
+	s.authLogin(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("SOC login: got %d, want 401", w.Code)
 	}
 }
 
@@ -48,9 +51,14 @@ func TestPageIgnoresCookieFromAnotherInstance(t *testing.T) {
 	}
 }
 
-func TestSOCMiddlewareAllowsAdministratorAPI(t *testing.T) {
+func TestLegacySOCSessionAllowsAdministratorAPI(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
-	soc, _ := signRoleJWT(key, "soc")
+	soc, err := jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: "soc", RegisteredClaims: jwt.RegisteredClaims{
+		Subject: "IT4US SOC", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+	}}).SignedString(key)
+	if err != nil {
+		t.Fatal(err)
+	}
 	admin, _ := signJWT(key)
 	s := &Server{jwtKey: key}
 	h := s.requireAuth(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(204) }))

@@ -28,19 +28,10 @@ export const auth = {
     document.cookie = `${TOKEN_KEY}=; path=/; max-age=0`;
   },
 
-  // Parse the current user from the JWT payload's sub field; display only, no signature verification.
+  // This installation has one shared login. Do not display unverified JWT claims
+  // or the retired SOC identity from sessions issued before the change.
   getCurrentUser(): CurrentUser | null {
-    const token = this.getToken();
-    if (!token) return null;
-    try {
-      const parts = token.split(".");
-      if (parts.length !== 3) return null;
-      // base64url → base64
-      const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
-      const username: string = payload.sub ?? "IT4US VA";
-      return { id: "1", name: username, username, email: "", avatar: "", role: "admin" };
-    } catch {
-      return null;
-    }
+    if (!this.getToken()) return null;
+    return { id: "1", name: "IT4US VA", username: "IT4US VA", email: "", avatar: "", role: "admin" };
   },
 };

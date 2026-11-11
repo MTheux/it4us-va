@@ -504,6 +504,7 @@ func (s *Server) seedOrchestrationTools() {
 	s.seedWorkerReadbackRebind()   // repairs an old migration's wrong removal: re-binds search_all_worker_traces/get_worker_trace/node_detail back onto worker (one-time)
 	s.seedTaskCredentialBindings() // save/list_task_credential onto worker + pentest (one-time, #3)
 	s.seedAutoReportFindingBinding()
+	s.seedInfraReadBindings()
 	s.unbindGoalMetDefault()
 	s.reseedGoalsPrompt()             // goals prompt gains the "extract operation constraints" step → old DBs append a new default version (one-time)
 	s.reseedMainAgentPrompt()         // mainagent prompt gains "after goals are met, ask via add_intent whether to register a goal" (one-time)
@@ -527,14 +528,31 @@ func (s *Server) seedInfraSkills() {
 		SELECT a.id, names.skill_name, true
 		FROM agents a
 		CROSS JOIN (VALUES
+			('infra-preflight'), ('infra-campaign'),
 			('infra-inventory'), ('infra-service-triage'),
-			('infra-cve-triage'), ('infra-review')
+			('infra-exposure'), ('infra-tls-pki'),
+			('infra-cve-triage'), ('infra-coverage'),
+			('infra-review'), ('infra-retest')
 		) AS names(skill_name)
-		WHERE a.key IN ('mainagent', 'worker', 'pentest', 'reporter')
+		WHERE a.key IN ('mainagent', 'worker', 'pentest', 'reporter', 'infra')
 		ON CONFLICT (agent_id, skill_name) DO NOTHING`)
 	if err != nil {
 		log.Printf("[skills] infrastructure bindings: %v", err)
 	}
+}
+
+// Existing installations were seeded before the infrastructure assistant
+// existed. Backfill only its read-only inventory bindings once.
+func (s *Server) seedInfraReadBindings() {
+	const flag = "infra_read_bindings_v1"
+	if v, _, _ := s.m.pg.GetSetting(flag); v == "true" {
+		return
+	}
+	if err := s.m.pg.AddAgentToToolBinding("infra", []string{"list_assets", "list_companies"}); err != nil {
+		log.Printf("[infra] read bindings failed: %v", err)
+		return
+	}
+	_ = s.m.pg.SetSetting(flag, "true")
 }
 
 // refreshBuiltinToolSchemas propagates code schema/description changes on the

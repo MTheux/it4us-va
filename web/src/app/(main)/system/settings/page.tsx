@@ -17,9 +17,6 @@ import { CHAT_SEND_MODE_OPTIONS, type ChatSendMode, setChatSendMode, useChatSend
 import type { Settings } from "@/lib/types";
 
 export default function SystemSettingsPage() {
-  const [adminPassword, setAdminPassword] = React.useState("");
-  const [socPassword, setSocPassword] = React.useState("");
-  const [savingSOC, setSavingSOC] = React.useState(false);
   const [trafficCapture, setTrafficCapture] = React.useState(false);
   const [agentTrafficBinding, setAgentTrafficBinding] = React.useState(false);
   const [webSearch, setWebSearch] = React.useState(false);
@@ -263,20 +260,6 @@ export default function SystemSettingsPage() {
         <h1 className="text-3xl font-semibold tracking-tight">Configurações do sistema</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">O discovery VA funciona sem LLM. Os controles abaixo ajustam os agentes e suas ferramentas; o scanner usa o plano de execução validado em cada campanha.</p>
       </header>
-
-      <Card>
-        <CardHeader><CardTitle>Acesso da equipe SOC</CardTitle><CardDescription>Defina uma senha exclusiva para a equipe. Esta conta também tem acesso administrativo; o menu permanece focado na operação.</CardDescription></CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
-          <div className="space-y-2"><Label htmlFor="admin-password-soc">Senha atual do administrador</Label><Input id="admin-password-soc" type="password" autoComplete="current-password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} /></div>
-          <div className="space-y-2"><Label htmlFor="new-password-soc">Nova senha do SOC</Label><Input id="new-password-soc" type="password" autoComplete="new-password" value={socPassword} onChange={(e) => setSocPassword(e.target.value)} /></div>
-          <Button disabled={savingSOC || !adminPassword || socPassword.length < 8} onClick={async () => {
-            setSavingSOC(true);
-            try { await api.setSOCPassword(adminPassword, socPassword); setAdminPassword(""); setSocPassword(""); toast.success("Senha do SOC salva. Entre como Operação SOC."); }
-            catch (e) { toast.error((e as Error).message); }
-            finally { setSavingSOC(false); }
-          }}>{savingSOC ? "Salvando…" : "Salvar acesso SOC"}</Button>
-        </CardContent>
-      </Card>
 
       <div className="grid gap-3 md:grid-cols-3">
         {[

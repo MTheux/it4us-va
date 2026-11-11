@@ -379,9 +379,9 @@ function DraftChat({
   const [sending, setSending] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
 
-  // default the agent to Auto once agents load.
+  // The SOC chat uses only the infrastructure VA assistant.
   React.useEffect(() => {
-    if (!agentKey && agents.some((a) => a.key === "auto")) setAgentKey("auto");
+    if (!agentKey && agents.some((a) => a.key === "infra")) setAgentKey("infra");
   }, [agentKey, agents]);
 
   const agent = agents.find((a) => a.key === agentKey);
@@ -418,30 +418,7 @@ function DraftChat({
     }
   }
 
-  const agentPicker = (
-    <Select value={agentKey} onValueChange={setAgentKey}>
-      <SelectTrigger className="w-full sm:w-40">
-        <SelectValue placeholder="Select an agent…" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          {agents.map((a) => (
-            <SelectItem key={a.key} value={a.key}>
-              <span className="flex items-center gap-2">
-                <Bot className="size-3.5" />
-                {a.name}
-                {!a.builtin && (
-                  <Badge variant="outline" className="px-1 py-0 text-[9px]">
-                    Custom
-                  </Badge>
-                )}
-              </span>
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
-  );
+  const agentPicker = <span className="flex items-center gap-2 px-2 text-xs text-muted-foreground"><Bot className="size-3.5" /> Infraestrutura VA</span>;
 
   return (
     <>
@@ -450,7 +427,7 @@ function DraftChat({
         <div className="bg-primary/10 flex size-12 items-center justify-center rounded-full">
           <Bot className="text-primary size-6" />
         </div>
-        <div className="text-sm font-medium">Start a conversation with "{agent?.name ?? "Agent"}"</div>
+        <div className="text-sm font-medium">Converse com {agent?.name ?? "Infraestrutura VA"}</div>
         {agent?.description && <p className="text-muted-foreground max-w-md text-xs">{agent.description}</p>}
       </div>
 
@@ -459,7 +436,7 @@ function DraftChat({
         onChange={setInput}
         onSend={send}
         disabled={sending || uploading || !agentKey}
-        placeholder="Type a message, @ to reference records, Enter to send"
+        placeholder="Pergunte sobre ativos, serviços e achados de infraestrutura"
         leftSlot={agentPicker}
         onPickFiles={pickFiles}
         uploading={uploading}
@@ -1046,7 +1023,6 @@ export default function ChatPage() {
   const [agents, setAgents] = React.useState<Agent[]>([]);
   const [profiles, setProfiles] = React.useState<LLMProfile[]>([]);
   const [convs, setConvs] = React.useState<Conversation[]>([]);
-  const [agentFilter, setAgentFilter] = React.useState<string | null>(null);
   const [selectedId, setSelectedId] = React.useState<number | null>(null);
   const [sourceRequested, setSourceRequested] = React.useState(false);
   const [convsLoaded, setConvsLoaded] = React.useState(false);
@@ -1173,11 +1149,11 @@ export default function ChatPage() {
     window.history.replaceState(null, "", url);
   }, [selectedId]);
 
-  const selected = React.useMemo(() => convs.find((c) => c.id === selectedId) ?? null, [convs, selectedId]);
+  const selected = React.useMemo(() => convs.find((c) => c.id === selectedId && c.agent_key === "infra") ?? null, [convs, selectedId]);
   const agentByKey = React.useMemo(() => new Map(agents.map((agent) => [agent.key, agent])), [agents]);
   const filteredConversations = React.useMemo(
-    () => (agentFilter === null ? convs : convs.filter((conversation) => conversation.agent_key === agentFilter)),
-    [convs, agentFilter],
+    () => convs.filter((conversation) => conversation.agent_key === "infra"),
+    [convs],
   );
   const visibleConversations = React.useMemo(
     () => filteredConversations.slice(0, visibleConversationCount),
@@ -1197,32 +1173,9 @@ export default function ChatPage() {
       ),
     [visibleConversations, agentByKey],
   );
-  // conversation agents: custom agents + conversational built-ins (role=assistant,
-  // e.g. Auto / penetration testing). The orchestration built-ins (goals/planner/mainagent/worker)
-  // are task-specific and stay hidden from the chat page.
-  const chatAgents = React.useMemo(() => agents.filter((a) => !a.builtin || a.role === "assistant"), [agents]);
-  const agentFilterOptions = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const conversation of convs) {
-      counts.set(conversation.agent_key, (counts.get(conversation.agent_key) ?? 0) + 1);
-    }
-    // Include historical sources even if their Agent has since been disabled or deleted.
-    const keys = new Set([...chatAgents.map((agent) => agent.key), ...counts.keys()]);
-    if (agentFilter !== null) keys.add(agentFilter);
-    return [...keys]
-      .map((key) => ({ key, name: agentByKey.get(key)?.name || key, count: counts.get(key) ?? 0 }))
-      .sort((a, b) => a.name.localeCompare(b.name, "zh-CN"));
-  }, [convs, chatAgents, agentByKey, agentFilter]);
-  const conversationCountLabel =
-    agentFilter === null ? `${convs.length} total` : `${filteredConversations.length} / ${convs.length}`;
-
-  function changeAgentFilter(key: string | null) {
-    setAgentFilter(key);
-    setVisibleConversationCount(CONVERSATION_LIST_PAGE);
-    setSelectedConversationIds(new Set());
-    setBulkDeleteOpen(false);
-    setRenamingId(null);
-  }
+  // The SOC chat is reserved for the infrastructure assistant.
+  const chatAgents = React.useMemo(() => agents.filter((a) => a.key === "infra" && a.enabled), [agents]);
+  const conversationCountLabel = `${filteredConversations.length} conversas`;
 
   const selectedConversationCount = selectedConversationIds.size;
   const allConversationsSelected =
@@ -1355,29 +1308,10 @@ export default function ChatPage() {
         <div className="bg-card flex flex-col overflow-hidden rounded-lg border">
           <div className="flex flex-col gap-2 border-b p-2">
             <Button size="sm" className="w-full" onClick={() => selectConversation(null)}>
-              <PlusIcon /> New conversation
+              <PlusIcon /> Nova conversa
             </Button>
-            <Select
-              value={agentFilter === null ? "all" : `agent:${agentFilter}`}
-              onValueChange={(value) => changeAgentFilter(value === "all" ? null : value.slice(6))}
-              disabled={bulkDeleting}
-            >
-              <SelectTrigger size="sm" className="w-full min-w-0" aria-label="Filter conversations by agent">
-                <Bot />
-                <SelectValue placeholder="All agents" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  <SelectItem value="all">All agents</SelectItem>
-                  {agentFilterOptions.map((agent) => (
-                    <SelectItem key={agent.key} value={`agent:${agent.key}`}>
-                      {agent.name} ({agent.count})
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-            {convs.length > 0 &&
+            <div className="flex items-center gap-2 px-2 py-1 text-sm font-medium"><Bot className="size-4" /> Infraestrutura VA</div>
+            {filteredConversations.length > 0 &&
               (selectionMode ? (
                 <div className="flex items-center gap-2 px-1">
                   <Checkbox
@@ -1423,14 +1357,14 @@ export default function ChatPage() {
               ))}
           </div>
           <ScrollArea
-            key={agentFilter === null ? "all" : `agent:${agentFilter}`}
+            key="infra"
             type="auto"
             className="min-h-0 min-w-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:block!"
           >
             <div className="flex min-w-0 flex-col gap-0.5 p-2">
               {filteredConversations.length === 0 && (
                 <p className="text-muted-foreground px-2 py-6 text-center text-xs">
-                  {agentFilter === null ? "No conversations yet" : "No conversations for this agent"}
+                  Nenhuma conversa de infraestrutura ainda
                 </p>
               )}
               {pinnedConversations.map((c) => (
@@ -1524,7 +1458,6 @@ export default function ChatPage() {
               agents={chatAgents}
               profiles={profiles}
               onStarted={(c, pending) => {
-                if (agentFilter !== null && agentFilter !== c.agent_key) changeAgentFilter(null);
                 // Insert the new conversation immediately so `selected` resolves to
                 // it on this render (switching to ChatView right away, before the
                 // async reloadConvs lands); reloadConvs then reconciles titles etc.

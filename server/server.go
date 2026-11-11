@@ -658,7 +658,6 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/auth/status", s.authStatus)
 	mux.HandleFunc("POST /api/auth/init", s.authInit)
 	mux.HandleFunc("POST /api/auth/login", s.authLogin)
-	mux.HandleFunc("POST /api/auth/soc-password", s.authSetSOCPassword)
 	mux.HandleFunc("POST /api/auth/change-password", s.authChangePassword)
 
 	mux.HandleFunc("GET /api/health", s.health)
@@ -671,6 +670,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("POST /api/tasks", s.createTask)
 	mux.HandleFunc("POST /api/va/plan", s.vaPlan)
 	mux.HandleFunc("POST /api/va/cve/check", s.vaCheckCVE)
+	mux.HandleFunc("GET /api/va/cve/lookup/{id}", s.vaLookupCVE)
 	mux.HandleFunc("GET /api/va/capabilities", s.vaCapabilities)
 	mux.HandleFunc("GET /api/va/runs", s.vaListRuns)
 	mux.HandleFunc("POST /api/va/runs", s.vaStartRun)
@@ -1486,20 +1486,21 @@ func truncateReply(s string) string {
 }
 
 type createTaskReq struct {
-	Name                 string   `json:"name,omitempty"` // optional task name; omitted/empty = unnamed
-	CategoryID           *int64   `json:"category_id,omitempty"`
-	Description          string   `json:"description"`
-	Goal                 string   `json:"goal"`
-	LLMProfileID         *int64   `json:"llm_profile_id,omitempty"`  // the LLM profile to run this task on; omitted/null = use the active profile
-	LLMProfileIDs        []int64  `json:"llm_profile_ids,omitempty"` // ordered task-level profile chain; the first entry takes effect initially
-	SourceTaskIDs        []string `json:"source_task_ids,omitempty"` // direct, read-only inherited source tasks
-	CompanyIDs           []int64  `json:"company_ids,omitempty"`     // links the company scope and snapshots its current assets; does not copy assets or force intent generation
-	TimeoutSeconds       int      `json:"timeout_seconds"`
-	LLMRotate            *bool    `json:"llm_rotate"`                  // task-level timeout (seconds); 0/omitted = no limit
-	PlanHeartbeatSeconds int      `json:"plan_heartbeat_seconds"`      // planner heartbeat interval (seconds); 0/omitted = default 600 (10min); floor = default = 600, lower values are raised to 600
-	PlanQuietMode        *bool    `json:"plan_quiet_mode,omitempty"`   // planner quiet-mode switch (#86); omitted = default on; false = edge rounds always plan
-	SeedFirstIntent      *bool    `json:"seed_first_intent,omitempty"` // issue one seed intent at creation (content = description + goal) so a worker can start right away without waiting for the first planner round; omitted/null = default off, the standard plan-then-execute flow. Pass true explicitly to enable (for CTF tasks often solved in one work, this skips the pre-start planner round).
-	CoverageEnabled      *bool    `json:"coverage_enabled,omitempty"`  // asset coverage feature; omitted/null = default on (true). false = disables coverage calculation/display/auto-accumulated scope + hides add_task_scope/list_untested_assets. company links are unaffected.
+	Name                 string             `json:"name,omitempty"` // optional task name; omitted/empty = unnamed
+	CategoryID           *int64             `json:"category_id,omitempty"`
+	Description          string             `json:"description"`
+	Goal                 string             `json:"goal"`
+	LLMProfileID         *int64             `json:"llm_profile_id,omitempty"`  // the LLM profile to run this task on; omitted/null = use the active profile
+	LLMProfileIDs        []int64            `json:"llm_profile_ids,omitempty"` // ordered task-level profile chain; the first entry takes effect initially
+	SourceTaskIDs        []string           `json:"source_task_ids,omitempty"` // direct, read-only inherited source tasks
+	CompanyIDs           []int64            `json:"company_ids,omitempty"`     // links the company scope and snapshots its current assets; does not copy assets or force intent generation
+	Scope                companyScopeInputs `json:"scope,omitempty"`           // operator-supplied IPs/CIDRs, registered before the task starts
+	TimeoutSeconds       int                `json:"timeout_seconds"`
+	LLMRotate            *bool              `json:"llm_rotate"`                  // task-level timeout (seconds); 0/omitted = no limit
+	PlanHeartbeatSeconds int                `json:"plan_heartbeat_seconds"`      // planner heartbeat interval (seconds); 0/omitted = default 600 (10min); floor = default = 600, lower values are raised to 600
+	PlanQuietMode        *bool              `json:"plan_quiet_mode,omitempty"`   // planner quiet-mode switch (#86); omitted = default on; false = edge rounds always plan
+	SeedFirstIntent      *bool              `json:"seed_first_intent,omitempty"` // issue one seed intent at creation (content = description + goal) so a worker can start right away without waiting for the first planner round; omitted/null = default off, the standard plan-then-execute flow. Pass true explicitly to enable (for CTF tasks often solved in one work, this skips the pre-start planner round).
+	CoverageEnabled      *bool              `json:"coverage_enabled,omitempty"`  // asset coverage feature; omitted/null = default on (true). false = disables coverage calculation/display/auto-accumulated scope + hides add_task_scope/list_untested_assets. company links are unaffected.
 	// InterceptRules: task-level asset interception/allow rules (entered at creation, stored in task_intercept_rules, never the global table).
 	InterceptRules []taskInterceptRuleReq `json:"intercept_rules,omitempty"`
 	// Credentials: test accounts declared at creation (#3). An empty password means
@@ -1514,9 +1515,45 @@ type taskCredentialReq struct {
 	Note     string `json:"note"`
 }
 
+func validateNewTaskIPScope(inputs []db.ScopeInput) error {
+	if err := db.ValidateCompanyScopeInputBounds(inputs); err != nil {
+		return fmt.Errorf("invalid IP scope: %w", err)
+	}
+	for i, input := range inputs {
+		if input.Kind != "ip" && input.Kind != "cidr" {
+			return fmt.Errorf("scope entry %d must be an IP or CIDR", i+1)
+		}
+		if _, err := db.ParseScopeInput(input); err != nil {
+			return fmt.Errorf("invalid scope entry %d: %w", i+1, err)
+		}
+	}
+	return nil
+}
+
+func newTaskIPAllowRules(inputs []db.ScopeInput) []db.TaskInterceptRuleInput {
+	rules := make([]db.TaskInterceptRuleInput, 0, len(inputs))
+	for _, input := range inputs {
+		kind := "exact_ip"
+		if input.Kind == "cidr" {
+			kind = "cidr"
+		}
+		rules = append(rules, db.TaskInterceptRuleInput{
+			Enabled: true, Action: "allow", Kind: kind,
+			Pattern: strings.TrimSpace(input.Value), Note: "IP scope supplied at task creation",
+		})
+	}
+	return rules
+}
+
 func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxTaskAssetRequestBytes)
 	var req createTaskReq
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		var tooLarge *http.MaxBytesError
+		if errors.As(err, &tooLarge) {
+			writeErr(w, http.StatusRequestEntityTooLarge, "request body too large")
+			return
+		}
 		writeErr(w, 400, "bad json: "+err.Error())
 		return
 	}
@@ -1562,11 +1599,16 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.CompanyIDs = companyIDs
+	if err := validateNewTaskIPScope(req.Scope); err != nil {
+		writeErr(w, 400, err.Error())
+		return
+	}
 	interceptRules, err := buildTaskInterceptRules(req.InterceptRules)
 	if err != nil {
 		writeErr(w, 400, "invalid task-level intercept rules: "+err.Error())
 		return
 	}
+	interceptRules = append(interceptRules, newTaskIPAllowRules(req.Scope)...)
 	t, err := s.m.CreateTaskWithOptions(req.Description, req.Goal, db.TaskCreateOptions{
 		Name: strings.TrimSpace(req.Name), CategoryID: req.CategoryID,
 		SourceTaskIDs: sourceIDs, CompanyIDs: req.CompanyIDs, LLMProfileIDs: req.LLMProfileIDs,
@@ -1586,6 +1628,16 @@ func (s *Server) createTask(w http.ResponseWriter, r *http.Request) {
 		}
 		writeErr(w, 500, err.Error())
 		return
+	}
+	if len(req.Scope) > 0 {
+		taskID, _ := strconv.ParseInt(t.ID, 10, 64)
+		if _, err := s.m.Assets().RegisterTaskAssetScopes(taskID, req.Scope); err != nil {
+			if _, cleanupErr := s.m.DeleteTask(t.ID, DeleteTaskOptions{}); cleanupErr != nil {
+				log.Printf("[task] failed to remove task #%s after scope error: %v", t.ID, cleanupErr)
+			}
+			writeTaskAssetError(w, err)
+			return
+		}
 	}
 	log.Printf("[task] created task #%s «%s» goal: %s", t.ID, req.Description, req.Goal)
 	// Task credentials (#3): rows land after the task row commits; a bad entry

@@ -10,6 +10,7 @@ export interface VACampaign {
   approved_by: string;
   expires_at: string;
   targets: string[];
+  depth?: "standard" | "deep";
   port_profile?: "all" | "custom";
   ports: number[];
 }
@@ -22,6 +23,7 @@ export interface VAPlan {
   ports: number[];
   port_count: number;
   port_profile: string;
+  depth?: "standard" | "deep";
 }
 
 export interface VACapabilities {
@@ -37,6 +39,8 @@ export interface VAHostResult {
   scanner_output_sha256?: string;
   services?: Array<{ IP: string; Port: number; Service: string; Product?: string; Version?: string; CPE?: string[] }>;
   candidates: Array<{ title: string; severity: string; summary: string }>;
+  deep_checks?: Array<{ port: number; script: string; output: string }>;
+  deep_error?: string;
   error?: string;
 }
 
@@ -48,7 +52,24 @@ export interface VACVECheck {
   status: "possible" | "not_detected" | "inconclusive";
   note: string;
   automatic?: boolean;
+  exploit_references?: Array<{ url: string; source?: string }>;
   matches: Array<{ target: string; port: number; service: string; version?: string; cpe?: string; criteria?: string; status: "possible" | "not_detected" | "inconclusive" }>;
+}
+
+export interface VACVEIntel {
+  cve: string;
+  description?: string;
+  published?: string;
+  vuln_status?: string;
+  nvd_url: string;
+  exploit_references: Array<{ url: string; source?: string }>;
+  references: Array<{ url: string; source?: string }>;
+  advisories: Array<{ url: string; source?: string }>;
+  epss?: number;
+  epss_percentile?: number;
+  kev: boolean;
+  kev_date?: string;
+  source_status: Record<string, "ok" | "unavailable">;
 }
 
 export interface VARun {

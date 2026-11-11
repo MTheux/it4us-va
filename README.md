@@ -39,7 +39,7 @@ docker compose -f docker-compose.yml ps
 curl -fsS http://localhost:8787/api/health
 ```
 
-Use `-f docker-compose.yml` nos comandos: o repositório contém um `docker-compose.override.yml` usado em uma instalação local com outra porta; o arquivo principal publica a aplicação em **8787**. No primeiro acesso, abra `http://localhost:8787/setup` e defina a senha de administrador. Para a equipe acessar de outra máquina, publique o serviço por HTTPS na rede interna/VPN, mantendo PostgreSQL fora da exposição pública.
+Use `-f docker-compose.yml` nos comandos: o repositório contém um `docker-compose.override.yml` usado em uma instalação local com outra porta; o arquivo principal publica a aplicação em **8787**. No primeiro acesso, abra `http://localhost:8787/setup` e defina a senha de acesso do IT4US VA. Para a equipe acessar de outra máquina, publique o serviço por HTTPS na rede interna/VPN, mantendo PostgreSQL fora da exposição pública.
 
 Para acompanhar problemas de inicialização:
 
@@ -55,6 +55,14 @@ docker compose -f docker-compose.yml down
 
 O volume do PostgreSQL e os diretórios `data/` e `skills/` persistem entre recriações dos containers. Faça backup antes de atualizar ou mover a instalação.
 
+As skills de infraestrutura distribuídas em `skills/infra-*` orientam pré-voo, campanha, inventário, triagem, cobertura, revisão e reteste. No painel **Skills**, confira a visibilidade por agente. Uma skill não concede escopo nem inicia scan sozinha: campanhas VA exigem uma regra `allow` ativa de IP/CIDR na tarefa, além de aprovador, janela e limites do plano. Consulte `VA-SCANNER-v1.3-2026-11-11.md` para os limites do fluxo.
+
+O **Chat** mostra apenas o agente **Infraestrutura VA**; conversas antigas de outros agentes permanecem no banco, mas não aparecem nessa tela. Em **Conexões**, escolha Ollama local sem chave, Claude com API key ou OpenAI com API key. Para uso local sem nuvem, instale Ollama no servidor e baixe um modelo (`ollama pull gemma3:4b`); o painel lista os modelos instalados e testa uma resposta antes de ativar o perfil.
+
+Em **Execuções VA**, o perfil **VA aprofundado** faz discovery TCP e checks read-only de certificado TLS e assinatura SMB nos serviços observados (até 16 IPs por campanha). **Pesquisar CVE** consulta NVD, GitHub Advisory, EPSS e CISA KEV sem exigir uma campanha, e mostra referências públicas de exploit/PoC indexadas pela NVD sem executá-las. O IT4US VA executa somente análises de infraestrutura; não há conector Web/API neste fluxo. Detalhes e limites: `VA-SCANNER-v1.4-2026-11-11.md`.
+
+Para visualizar a interface sem executar um scan, `scripts/demo-va-data.sh seed` cria uma empresa e tarefa **DEMO**, três IPs reservados para documentação, serviços e quatro achados pendentes com evidência marcada `DADO FICTICIO`. O script é idempotente. Use `scripts/demo-va-data.sh status` para conferir a quantidade de registros e `scripts/demo-va-data.sh clear` para retirar apenas esses dados, após revisar se a tarefa demo não recebeu dados reais. O comando usa o container PostgreSQL local; defina `IT4US_PG_CONTAINER` se o nome for diferente.
+
 ### Atualização
 
 ```bash
@@ -65,6 +73,8 @@ curl -fsS http://localhost:8787/api/health
 ```
 
 Esse fluxo recompila o código deste repositório. O `IT4US_TAG` da imagem local não substitui `git pull` e o script `update.sh` legado espera uma imagem remota que o Compose atual não define.
+
+Após atualizar uma instalação que oferecia os perfis Administrador e Operação SOC, use a senha da conta IT4US VA. A senha separada do SOC não pode mais iniciar sessão. Tokens SOC já emitidos continuam válidos até o prazo original de sete dias; a atualização não remove o hash antigo do banco.
 
 ## Primeiro teste com um IP do cliente
 

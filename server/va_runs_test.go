@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/MTheux/it4us-va/db"
 	"github.com/MTheux/it4us-va/vascan"
 )
 
@@ -55,5 +56,29 @@ func TestVAPlanRejectsUnboundedOrMalformedScopeBeforeDatabase(t *testing.T) {
 		if rec.Code != http.StatusBadRequest {
 			t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
 		}
+	}
+}
+
+func TestVACampaignRequiresEveryTargetWithinTaskAllowScope(t *testing.T) {
+	allow := []db.AssetInterceptRule{{Enabled: true, Action: "allow", Kind: "cidr", Pattern: "198.51.100.0/24"}}
+	if err := db.ValidateTaskIPScope([]string{"198.51.100.4", "198.51.100.250"}, nil, allow); err != nil {
+		t.Fatalf("approved targets rejected: %v", err)
+	}
+	for _, tc := range []struct {
+		name    string
+		targets []string
+		block   []db.AssetInterceptRule
+		allow   []db.AssetInterceptRule
+	}{
+		{name: "no allow scope", targets: []string{"198.51.100.4"}},
+		{name: "disabled allow scope", targets: []string{"198.51.100.4"}, allow: []db.AssetInterceptRule{{Kind: "cidr", Pattern: "198.51.100.0/24"}}},
+		{name: "mixed campaign", targets: []string{"198.51.100.4", "203.0.113.5"}, allow: allow},
+		{name: "blocked target", targets: []string{"198.51.100.4"}, block: []db.AssetInterceptRule{{Enabled: true, Action: "block", Kind: "exact_ip", Pattern: "198.51.100.4"}}, allow: allow},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if err := db.ValidateTaskIPScope(tc.targets, tc.block, tc.allow); err == nil {
+				t.Fatal("campaign should have been rejected")
+			}
+		})
 	}
 }

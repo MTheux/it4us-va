@@ -242,6 +242,7 @@ var builtinAgents = []builtinAgent{
 	// Auto: built-in "platform operations" agent. Does not join the pentest
 	// orchestration loop; driven from the chat page, operates the platform with tools.
 	{"auto", "Auto", "assistant", "Platform operations assistant: manages tasks (create/view/pause/hint) and assets with tools, and can create/modify skills, custom tools, and MCP.", nil, false, nil},
+	{"infra", "Infraestrutura VA", "assistant", "Assistente de infraestrutura para inventário, exposição de serviços e triagem de candidatos VA dentro do escopo autorizado.", nil, false, nil},
 	// Pentest: built-in "solo pentest" agent. Driven from the chat page, it walks the
 	// full pentest chain alone from recon to wrap-up, planning, executing and
 	// verifying by itself. Interactive shell is on by default.

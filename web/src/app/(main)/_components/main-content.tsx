@@ -69,7 +69,7 @@ export function MainContent({ children }: { children: ReactNode }) {
             )}
             <LayoutControls />
             <ThemeSwitcher />
-            <AccountSwitcher users={[currentUser]} />
+            <AccountSwitcher user={currentUser} />
           </div>
         </div>
       </header>

@@ -19,7 +19,6 @@ import (
 const (
 	jwtKeyFilename = "jwt.key"
 	authPassKey    = "auth.password_hash"
-	socPassKey     = "auth.soc_password_hash"
 	jwtTTL         = 7 * 24 * time.Hour
 	keyChars       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
@@ -84,23 +83,15 @@ func loadOrCreateJWTKey(keyDir, dataDir string) ([]byte, error) {
 	return buf, nil
 }
 
-// signJWT issues a 7-day HS256 token for user IT4US VA.
-func signJWT(key []byte) (string, error) {
-	return signRoleJWT(key, "admin")
-}
-
 type roleClaims struct {
 	Role string `json:"role"`
 	jwt.RegisteredClaims
 }
 
-func signRoleJWT(key []byte, role string) (string, error) {
-	subject := "IT4US VA"
-	if role == "soc" {
-		subject = "IT4US SOC"
-	}
+// signJWT issues a 7-day HS256 token for the single IT4US VA login.
+func signJWT(key []byte) (string, error) {
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: "admin", RegisteredClaims: jwt.RegisteredClaims{
-		Subject:   subject,
+		Subject:   "IT4US VA",
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtTTL)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
 	}}).SignedString(key)
@@ -290,56 +281,8 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
-// POST /api/auth/soc-password creates or rotates the separate SOC credential.
-// The current admin password is required even when a valid admin JWT exists.
-func (s *Server) authSetSOCPassword(w http.ResponseWriter, r *http.Request) {
-	if role, ok := tokenRole(extractToken(r), s.jwtKey); !ok || role != "admin" {
-		writeErr(w, 403, "Administrator access required")
-		return
-	}
-	var req struct {
-		AdminPassword string `json:"admin_password"`
-		SOCPassword   string `json:"soc_password"`
-	}
-	if err := decode(r, &req); err != nil {
-		writeErr(w, 400, "Invalid request format")
-		return
-	}
-	if msg := validatePassword(req.SOCPassword); msg != "" {
-		writeErr(w, 400, msg)
-		return
-	}
-	pg := s.pg(w)
-	if pg == nil {
-		return
-	}
-	hash, ok, err := pg.GetSetting(authPassKey)
-	if err != nil {
-		writeErr(w, 503, errDataSourceUnavailable)
-		return
-	}
-	if !ok || bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.AdminPassword)) != nil {
-		writeErr(w, 401, "Current administrator password is wrong")
-		return
-	}
-	socHash, err := bcrypt.GenerateFromPassword([]byte(req.SOCPassword), bcrypt.DefaultCost)
-	if err != nil {
-		writeErr(w, 500, "Password encryption failed")
-		return
-	}
-	if err := pg.SetSetting(socPassKey, string(socHash)); err != nil {
-		writeErr(w, 500, "Save failed")
-		return
-	}
-	writeJSON(w, 200, map[string]any{"ok": true})
-}
-
 // POST /api/auth/login — validates username/password and returns a JWT.
 func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
-	pg := s.pg(w)
-	if pg == nil {
-		return
-	}
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
@@ -348,14 +291,15 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Invalid request format")
 		return
 	}
-	passKey, role := authPassKey, "admin"
-	if req.Username == "IT4US SOC" {
-		passKey, role = socPassKey, "soc"
-	} else if req.Username != "IT4US VA" {
+	if req.Username != "IT4US VA" {
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}
-	hash, ok, err := pg.GetSetting(passKey)
+	pg := s.pg(w)
+	if pg == nil {
+		return
+	}
+	hash, ok, err := pg.GetSetting(authPassKey)
 	if err != nil {
 		writeErr(w, 503, errDataSourceUnavailable)
 		return
@@ -368,7 +312,7 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}
-	tok, err := signRoleJWT(s.jwtKey, role)
+	tok, err := signJWT(s.jwtKey)
 	if err != nil {
 		writeErr(w, 500, "token generation failed")
 		return
