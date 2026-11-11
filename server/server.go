@@ -1990,7 +1990,8 @@ func (s *Server) frontier(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) findings(w http.ResponseWriter, r *http.Request) {
 	// No task param → the global "Findings" page: read from the standalone findings table (findings survive task deletion).
-	// With a task param → that task only (task overview/Findings tab), read from exploration_nodes (nodes live as long as the task does).
+	// With a task param → that task only (task overview/Findings tab), including
+	// exploration nodes and scanner candidates without a node.
 	q := r.URL.Query()
 	taskParam := q.Get("task")
 	if taskParam == "" {
@@ -2042,6 +2043,23 @@ func (s *Server) findings(w http.ResponseWriter, r *http.Request) {
 	}
 	assets := s.resolveAssetIDs(aidSet)
 	out := findingDTOsForTask(t, f, meta, assets)
+	// Scanner candidates are standalone pending findings tied to the task, but
+	// have no exploration node. Include them in the task view for SOC triage.
+	standalone, _, err := s.m.pg.ListFindingsPage(db.FindingFilter{TaskID: t.ID}, 1, 200)
+	if err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	var candidates []*db.DBFinding
+	for _, item := range standalone {
+		if item.NodeID == nil {
+			candidates = append(candidates, item)
+		}
+	}
+	candidateAssets := s.resolveFindingAssets(candidates)
+	for _, item := range candidates {
+		out = append(out, findingFromDB(item, candidateAssets))
+	}
 
 	// Related-task findings are a live, read-only view. Provenance metadata lets
 	// the task UI suppress mutation affordances while retaining stable ids.
