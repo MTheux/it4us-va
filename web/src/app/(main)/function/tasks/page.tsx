@@ -167,13 +167,6 @@ function appendUploads(desc: string, atts: ChatAttachment[]): string {
 const POLL_MS = 10_000;
 const MAX_SOURCE_TASKS = 8;
 
-// fmtTokens renders a compact token count (1234 → 1.2k, 2_000_000 → 2M).
-function fmtTokens(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1) + "M";
-  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
-  return String(n);
-}
-
 // fmtDuration renders a run duration in seconds as a compact human string.
 function fmtDuration(sec: number): string {
   if (sec <= 0) return "—";
@@ -228,17 +221,17 @@ function fmtDateTime(unix?: number): string {
   if (!unix || unix <= 0) return "—";
   const d = new Date(unix * 1000);
   const p = (n: number) => String(n).padStart(2, "0");
-  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
-  { value: "created", label: "Created" },
-  { value: "queued", label: "Queued" },
-  { value: "running", label: "Running" },
-  { value: "paused", label: "Paused" },
-  { value: "done", label: "Completed" },
-  { value: "failed", label: "Failed" },
-  { value: "timeout", label: "Timed out" },
+  { value: "created", label: "Criada" },
+  { value: "queued", label: "Na fila" },
+  { value: "running", label: "Em execução" },
+  { value: "paused", label: "Pausada" },
+  { value: "done", label: "Concluída" },
+  { value: "failed", label: "Falhou" },
+  { value: "timeout", label: "Tempo esgotado" },
 ];
 
 // Select does not accept an empty-string value, so "no category" in the filter, the create form, and the bulk move
@@ -783,8 +776,8 @@ export default function TasksPage() {
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-4">
       <TabsList className="mx-4 lg:mx-6">
-        <TabsTrigger value="current">Current tasks</TabsTrigger>
-        <TabsTrigger value="archived">Archived</TabsTrigger>
+        <TabsTrigger value="current">Tarefas atuais</TabsTrigger>
+        <TabsTrigger value="archived">Arquivadas</TabsTrigger>
       </TabsList>
       <TabsContent value="current">
         <Card>
@@ -793,7 +786,7 @@ export default function TasksPage() {
               <div className="relative w-full sm:max-w-xs">
                 <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
                 <Input
-                  placeholder="Search description / goal / ID"
+                  placeholder="Buscar tarefa, escopo ou ID"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   className="pl-8"
@@ -815,7 +808,7 @@ export default function TasksPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="all">All statuses</SelectItem>
+                    <SelectItem value="all">Todos os status</SelectItem>
                     {STATUS_OPTIONS.map((s) => (
                       <SelectItem key={s.value} value={s.value}>
                         {s.label}
@@ -826,12 +819,12 @@ export default function TasksPage() {
               </Select>
               <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                 <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Task category" />
+                  <SelectValue placeholder="Categoria" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="all">All categories</SelectItem>
-                    <SelectItem value={UNCATEGORIZED_VALUE}>Uncategorized</SelectItem>
+                    <SelectItem value="all">Todas as categorias</SelectItem>
+                    <SelectItem value={UNCATEGORIZED_VALUE}>Sem categoria</SelectItem>
                     {categories.map((category) => (
                       <SelectItem key={category.id} value={String(category.id)}>
                         {category.name}
@@ -841,13 +834,13 @@ export default function TasksPage() {
                 </SelectContent>
               </Select>
               <span className="text-muted-foreground text-xs tabular-nums">
-                {filtered.length}/{tasks.length} tasks
+                {filtered.length}/{tasks.length} tarefas
               </span>
               {selectedIds.size > 0 && (
                 <>
-                  <span className="text-xs tabular-nums">{selectedIds.size} selected</span>
+                  <span className="text-xs tabular-nums">{selectedIds.size} selecionadas</span>
                   <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())}>
-                    Clear selection
+                    Limpar seleção
                   </Button>
                   {pausableTaskIDs.length > 0 && (
                     <Button
@@ -917,11 +910,11 @@ export default function TasksPage() {
 
             {tasks.length === 0 ? (
               <div className="text-muted-foreground mx-4 flex items-center justify-center rounded-lg border border-dashed py-20 text-sm lg:mx-6">
-                No tasks yet. Click "New task" at the top right to start.
+                Nenhuma tarefa ainda. Crie uma tarefa para começar.
               </div>
             ) : filtered.length === 0 ? (
               <div className="text-muted-foreground mx-4 flex items-center justify-center rounded-lg border border-dashed py-20 text-sm lg:mx-6">
-                No matching tasks.
+                Nenhuma tarefa encontrada.
               </div>
             ) : (
               <Table className="**:data-[slot='table-cell']:px-4 **:data-[slot='table-head']:px-4">
@@ -931,20 +924,17 @@ export default function TasksPage() {
                       <Checkbox
                         checked={headerChecked}
                         onCheckedChange={(checked) => toggleSelectedPage(checked === true)}
-                        aria-label="Select all tasks on this page"
+                        aria-label="Selecionar todas as tarefas desta página"
                       />
                     </TableHead>
                     <SortableTaskHead
                       field="id"
-                      label="ID"
+                      label="Tarefa"
                       activeField={sortField}
                       direction={sortDirection}
                       className="font-mono"
                       onSort={sortTasksBy}
                     />
-                    <TableHead>Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Goal</TableHead>
                     <SortableTaskHead
                       field="status"
                       label="Status"
@@ -952,30 +942,17 @@ export default function TasksPage() {
                       direction={sortDirection}
                       onSort={sortTasksBy}
                     />
-                    <TableHead className="text-center">Goal progress</TableHead>
-                    <TableHead className="text-center" title="Critical / High / Medium / Low">
-                      Findings <span className="text-muted-foreground font-normal">C/H/M/L</span>
-                    </TableHead>
-                    <TableHead className="text-center">Running workers</TableHead>
+                    <TableHead>Achados</TableHead>
                     <SortableTaskHead
                       field="created"
-                      label="Created at"
+                      label="Criada em"
                       activeField={sortField}
                       direction={sortDirection}
                       align="right"
                       onSort={sortTasksBy}
                     />
-                    <SortableTaskHead
-                      field="duration"
-                      label="Duration"
-                      activeField={sortField}
-                      direction={sortDirection}
-                      align="right"
-                      onSort={sortTasksBy}
-                    />
-                    <TableHead className="text-right">Token</TableHead>
                     <TableHead className="sticky right-0 z-10 bg-card text-right shadow-[-1px_0_0_0_hsl(var(--border))]">
-                      Actions
+                      Ações
                     </TableHead>
                   </TableRow>
                 </TableHeader>
@@ -1189,99 +1166,49 @@ const TaskRow = React.memo(function TaskRow({
           aria-label={`Select task ${task.id}`}
         />
       </TableCell>
-      <TableCell>
-        <code className="bg-muted rounded px-1.5 py-0.5 font-mono text-xs">{task.id}</code>
-      </TableCell>
-      <TableCell className="font-medium">
-        <div className="flex max-w-xs items-center gap-2">
+      <TableCell className="min-w-72 max-w-xl py-4 align-top">
+        <div className="flex items-center gap-2 font-medium">
+          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">#{task.id}</code>
           <TaskNameEditor task={task} onRename={onRename} />
           {task.active && <StarIcon className="size-4 shrink-0 fill-amber-400 text-amber-400" />}
-          {taskIsPinned(task) && <PinIcon className="text-primary size-4 shrink-0" aria-label="Pinned" />}
+          {taskIsPinned(task) && <PinIcon className="text-primary size-4 shrink-0" aria-label="Fixada" />}
         </div>
-      </TableCell>
-      <TableCell className="text-muted-foreground max-w-40">
-        <Link
-          href={`/function/tasks/detail?id=${encodeURIComponent(task.id)}`}
-          className="block truncate rounded-sm hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          title={task.description}
-        >
-          {task.description}
+        <Link href={`/function/tasks/detail?id=${encodeURIComponent(task.id)}`} className="mt-1 block line-clamp-2 text-xs text-muted-foreground hover:text-foreground hover:underline" title={task.description}>
+          {task.description || task.goal || "Abrir detalhes da tarefa"}
         </Link>
-      </TableCell>
-      <TableCell className="text-muted-foreground max-w-40 truncate" title={task.goal}>
-        {task.goal}
+        {task.goal && task.goal !== task.description && <p className="mt-1 truncate text-xs text-muted-foreground" title={task.goal}>Objetivo: {task.goal}</p>}
       </TableCell>
       <TableCell>
         <StatusBadge domain="task" value={task.status} dot />
       </TableCell>
-      <TableCell className="text-muted-foreground text-center text-xs tabular-nums">
-        {typeof task.goals_total === "number" && task.goals_total > 0 ? (
-          `${task.goals_met}/${task.goals_total}`
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
-      <TableCell className="text-center text-xs tabular-nums">
+      <TableCell className="text-xs tabular-nums">
         {(() => {
           const f = task.findings;
-          const total = f ? f.critical + f.high + f.medium + f.low : 0;
-          if (!f || total === 0) return <span className="text-muted-foreground">0</span>;
-          const seg = (n: number, cls: string) => (
-            <span className={n > 0 ? cls : "text-muted-foreground"}>{n}</span>
-          );
+          const levels = f ? [
+            { label: "Crítico", count: f.critical, cls: "border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400" },
+            { label: "Alto", count: f.high, cls: "border-red-500/30 bg-red-500/10 text-red-600 dark:text-red-400" },
+            { label: "Médio", count: f.medium, cls: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400" },
+            { label: "Baixo", count: f.low, cls: "border-slate-500/30 bg-slate-500/10 text-slate-600 dark:text-slate-400" },
+          ].filter((level) => level.count > 0) : [];
+          if (levels.length === 0) return <span className="text-muted-foreground">Nenhum</span>;
           return (
-            <span className="font-medium whitespace-nowrap" title="Critical / High / Medium / Low">
-              {seg(f.critical, "text-rose-600 dark:text-rose-400")}
-              <span className="text-muted-foreground">/</span>
-              {seg(f.high, "text-red-600 dark:text-red-400")}
-              <span className="text-muted-foreground">/</span>
-              {seg(f.medium, "text-amber-600 dark:text-amber-400")}
-              <span className="text-muted-foreground">/</span>
-              {seg(f.low, "text-slate-600 dark:text-slate-400")}
-            </span>
+            <div className="flex min-w-40 flex-wrap gap-1">
+              {levels.map((level) => <span key={level.label} className={`rounded-md border px-1.5 py-0.5 font-medium ${level.cls}`}>{level.count} {level.label}</span>)}
+            </div>
           );
         })()}
-      </TableCell>
-      <TableCell className="text-center text-xs tabular-nums">
-        {task.in_flight && task.in_flight > 0 ? (
-          <span className="text-foreground font-medium">{task.in_flight}</span>
-        ) : (
-          <span className="text-muted-foreground">0</span>
-        )}
-      </TableCell>
-      <TableCell className="text-muted-foreground text-right text-xs whitespace-nowrap tabular-nums">
-        {fmtDateTime(task.created_unix)}
       </TableCell>
       <TableCell className="text-right text-xs whitespace-nowrap tabular-nums">
+        <div className="text-foreground">{fmtDateTime(task.created_unix)}</div>
         {(() => {
           const secs = taskDuration(task, nowSec);
-          if (secs <= 0) return <span className="text-muted-foreground">—</span>;
+          if (secs <= 0) return null;
           return (
             <span className={task.status === "running" ? "text-foreground" : "text-muted-foreground"}>
-              {fmtDuration(secs)}
+              Duração: {fmtDuration(secs)}
             </span>
           );
         })()}
-      </TableCell>
-      <TableCell
-        className="text-right text-xs whitespace-nowrap tabular-nums"
-        title={
-          task.tokens
-            ? `Input ${task.tokens.input_tokens} · Cache ${task.tokens.cache_read_tokens} · Output ${task.tokens.output_tokens}`
-            : undefined
-        }
-      >
-        {task.tokens ? (
-          <span className="text-muted-foreground">
-            In <span className="text-foreground">{fmtTokens(task.tokens.input_tokens)}</span>
-            {" · Cache "}
-            <span className="text-foreground">{fmtTokens(task.tokens.cache_read_tokens)}</span>
-            {" · Out "}
-            <span className="text-foreground">{fmtTokens(task.tokens.output_tokens)}</span>
-          </span>
-        ) : (
-          "—"
-        )}
       </TableCell>
       <TableCell className="sticky right-0 z-10 bg-card text-right shadow-[-1px_0_0_0_hsl(var(--border))] group-hover:bg-muted/50">
         <div className="flex items-center justify-end gap-0.5">

@@ -51,16 +51,16 @@ import { RetestsTab } from "./_tabs/retests-tab";
 import { SessionsTab } from "./_tabs/sessions-tab";
 
 const TABS = [
-  { value: "sessions", label: "Sessions" },
-  { value: "overview", label: "Overview" },
-  { value: "graph", label: "Exploration graph" },
-  { value: "broadcast", label: "Broadcast" },
-  { value: "findings", label: "Findings" },
-  { value: "retests", label: "Retests" },
-  { value: "assets", label: "Test assets" },
-  { value: "credentials", label: "Credentials" },
-  { value: "coverage", label: "Asset coverage" },
-  { value: "report", label: "Report" },
+  { value: "overview", label: "Resumo" },
+  { value: "sessions", label: "Sessões" },
+  { value: "findings", label: "Achados" },
+  { value: "assets", label: "Ativos e escopo" },
+  { value: "report", label: "Relatório" },
+  { value: "graph", label: "Grafo" },
+  { value: "broadcast", label: "Comunicados" },
+  { value: "retests", label: "Retestes" },
+  { value: "credentials", label: "Credenciais" },
+  { value: "coverage", label: "Cobertura" },
 ];
 
 function taskProfileIDs(task: Task): string[] {
@@ -209,7 +209,7 @@ function TaskDetailInner() {
   const [task, setTask] = React.useState<Task | null>(null);
   const [paused, setPaused] = React.useState(false);
   const [loaded, setLoaded] = React.useState(false);
-  const [tab, setTab] = React.useState("sessions");
+  const [tab, setTab] = React.useState("overview");
   const [interceptPendingCount, setInterceptPendingCount] = React.useState(0);
   const [profiles, setProfiles] = React.useState<LLMProfile[]>([]);
   const [archiving, setArchiving] = React.useState(false);
@@ -326,15 +326,15 @@ function TaskDetailInner() {
   const engineMode = paused ? "paused" : (task.engine_mode ?? "idle");
   let controlVariant: "default" | "secondary" | "outline" = "outline";
   let controlIcon = <PauseIcon data-icon="inline-start" />;
-  let controlLabel = "Pause";
+  let controlLabel = "Pausar";
   if (terminal) {
     controlVariant = "secondary";
     controlIcon = <CheckIcon data-icon="inline-start" />;
-    controlLabel = completed ? "Completed" : "Ended";
+    controlLabel = completed ? "Concluída" : "Encerrada";
   } else if (paused) {
     controlVariant = "default";
     controlIcon = <PlayIcon data-icon="inline-start" />;
-    controlLabel = "Resume";
+    controlLabel = "Retomar";
   }
   const archiveTrigger = (
     <Button
@@ -350,7 +350,7 @@ function TaskDetailInner() {
   return (
     <Tabs value={tab} onValueChange={setTab} className="flex flex-1 flex-col gap-0">
       {/* Top fixed area */}
-      <header className="sticky top-0 z-10 flex flex-col gap-2 border-b bg-background/95 px-4 py-2.5 backdrop-blur lg:px-6">
+      <header className="relative z-10 flex flex-col gap-2 border-b bg-background/95 px-4 py-3 backdrop-blur lg:sticky lg:top-0 lg:px-6">
         <div className="flex items-center gap-2">
           <SidebarTrigger className="-ml-1" />
           <Button asChild variant="ghost" size="icon" className="size-7">
@@ -398,11 +398,11 @@ function TaskDetailInner() {
           </Button>
         </div>
         <p className="truncate text-xs text-muted-foreground">{task.goal}</p>
-        {/* Tabs */}
-        <div className="no-scrollbar min-w-0 overflow-x-auto">
-          <TabsList variant="default" className="min-w-max">
+        <div className="pt-2">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Áreas da tarefa</p>
+          <TabsList variant="default" style={{ height: "auto" }} className="grid w-full grid-cols-2 gap-2 bg-transparent p-0 sm:grid-cols-3 lg:grid-cols-5">
             {TABS.map((t) => (
-              <TabsTrigger key={t.value} value={t.value}>
+              <TabsTrigger key={t.value} value={t.value} className="h-10 min-w-0 justify-start rounded-lg border bg-card px-3 text-left text-xs sm:text-sm data-active:border-primary data-active:bg-primary/10 data-active:text-primary">
                 {t.label}
               </TabsTrigger>
             ))}
