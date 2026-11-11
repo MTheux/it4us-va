@@ -43,9 +43,10 @@ install_docker(){
   else
     info "reusing existing .env"
   fi
-  info "pulling images and starting..."
-  docker compose pull || true
-  docker compose up -d
+  info "building the embedded application for Docker..."
+  ./scripts/prepare-compose.sh
+  info "starting PostgreSQL and IT4US VA..."
+  docker compose up -d --build
   ok "started → http://localhost:8787"
   info "on first access set the admin password, then open Sistema → Preparar operação to configure the LLM, MCP and agents"
   info "view logs: docker compose logs -f it4us"

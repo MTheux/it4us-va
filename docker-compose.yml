@@ -15,7 +15,9 @@ services:
     restart: unless-stopped
 
   it4us:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.va
     image: it4us-va:${IT4US_TAG:-local}
     depends_on:
       postgres:

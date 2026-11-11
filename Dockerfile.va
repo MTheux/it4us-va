@@ -1,0 +1,16 @@
+# Local SOC VA runtime. The scanner needs Nmap; optional agent tooling can be
+# provided separately through the configured MCP servers.
+FROM debian:bookworm-slim
+ARG TARGETARCH
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates nmap curl git jq ripgrep \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY dist/${TARGETARCH}/it4us /app/it4us
+COPY start.sh /app/start.sh
+COPY skills/ /app/skills/
+RUN chmod 0755 /app/it4us /app/start.sh
+VOLUME ["/app/data"]
+EXPOSE 8787 8788
+ENTRYPOINT ["/app/start.sh"]
+CMD ["-addr", ":8787", "-proxy", ":8788"]

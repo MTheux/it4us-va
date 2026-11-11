@@ -71,9 +71,9 @@ cd it4us-va
 ./install.sh
 ```
 
-The script will: detect / auto-install Docker → then let you choose **① all-Docker** or **② local build and run**:
+The script checks Docker, then lets you choose **① Docker runtime** or **② local build and run**:
 
-- **① All-Docker**: enter a Postgres password (press Enter for a random one) → auto-writes `.env` → `docker compose up -d`.
+- **① Docker runtime**: requires Go 1.26+ and Node.js/npm to prepare the embedded Linux binary locally. Enter a Postgres password (press Enter for a random one) → auto-writes `.env` → builds the binary and starts Docker Compose.
 - **② Local run**: choose a database (connect to an existing one / start one with Docker) → generates `config.json` → `go` builds the embedded single binary → starts.
 
 Once installed, open **http://localhost:8787** (on first entry, `/setup` sets the admin password). After setting the password, **Preparar operação** guides the SOC through model, MCP, agent and asset configuration. Keep the password and LLM keys out of chat, tickets and logs.
@@ -86,11 +86,12 @@ The first infrastructure VA campaign runner is available under **Execuções VA*
 git clone https://github.com/MTheux/it4us-va.git
 cd it4us-va
 cp .env.example .env          # set POSTGRES_PASSWORD, optionally ANTHROPIC_API_KEY
-docker compose up -d --build  # builds this checkout and starts it with postgres
+./scripts/prepare-compose.sh   # requires Go 1.26+, Node.js/npm and Docker
+docker compose up -d --build  # packages the prepared binary and starts PostgreSQL
 # → http://localhost:8787
 ```
 
-The image already includes common tools (ripgrep/curl/vim/npm/nmap…); `./skills` and `./data` are persisted via bind mounts.
+The Compose VA image includes Nmap and basic operator tools; optional agent tools can be supplied through configured MCP servers. `./skills` and `./data` are persisted via bind mounts. The full research image remains available through `Dockerfile` for teams that explicitly need its larger toolset.
 
 ### SOC first-run flow
 
