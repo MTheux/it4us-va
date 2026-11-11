@@ -35,8 +35,6 @@ func TestCampaignRejectsInvalidScopeBeforeScannerRuns(t *testing.T) {
 		{"hostname", func(c *Campaign) { c.Targets = []string{"example.com"} }},
 		{"uncanonical cidr", func(c *Campaign) { c.Targets = []string{"127.0.0.1/24"} }},
 		{"oversized cidr", func(c *Campaign) { c.Targets = []string{"10.0.0.0/16"} }},
-		{"overlapping range", func(c *Campaign) { c.Targets = []string{"127.0.0.0/30", "127.0.0.1"} }},
-		{"duplicate", func(c *Campaign) { c.Targets = []string{"127.0.0.1", "127.0.0.1"} }},
 		{"port", func(c *Campaign) { c.Ports = []int{0} }},
 		{"no approval", func(c *Campaign) { c.ApprovedBy = "" }},
 		{"deep host budget", func(c *Campaign) { c.Depth = "deep"; c.Targets = []string{"127.0.0.0/27"} }},
@@ -52,6 +50,18 @@ func TestCampaignRejectsInvalidScopeBeforeScannerRuns(t *testing.T) {
 				t.Fatal("scanner called with invalid campaign")
 			}
 		})
+	}
+}
+
+func TestCampaignDeduplicatesOverlappingTaskScope(t *testing.T) {
+	c := Campaign{Targets: []string{"127.0.0.1", "127.0.0.0/30", "127.0.0.1"}}
+	targets, err := c.ExpandedTargets()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"127.0.0.1", "127.0.0.0", "127.0.0.2", "127.0.0.3"}
+	if strings.Join(targets, ",") != strings.Join(want, ",") {
+		t.Fatalf("expanded targets = %v, want %v", targets, want)
 	}
 }
 

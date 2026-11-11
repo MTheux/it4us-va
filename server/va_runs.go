@@ -45,6 +45,41 @@ type vaActiveRun struct {
 	failedHosts    int
 }
 
+// vaScopedScanner rechecks the task gate immediately before each host and deep
+// check. Disabling an allow rule or adding a block rule during a campaign stops
+// subsequent target traffic without relying on a stale plan-time snapshot.
+type vaScopedScanner struct {
+	pg      *db.DB
+	taskID  int64
+	scanner vascan.NmapScanner
+}
+
+func (v vaScopedScanner) allowed(target string) error {
+	global, err := v.pg.ListAssetInterceptRules()
+	if err != nil {
+		return err
+	}
+	block, allow, err := v.pg.Assets().TaskVAAllowRules(v.taskID)
+	if err != nil {
+		return err
+	}
+	return db.ValidateTaskIPScope([]string{target}, append(global, block...), allow)
+}
+
+func (v vaScopedScanner) Scan(ctx context.Context, target string, ports []int) ([]byte, error) {
+	if err := v.allowed(target); err != nil {
+		return nil, fmt.Errorf("VA scope revoked before host %s: %w", target, err)
+	}
+	return v.scanner.Scan(ctx, target, ports)
+}
+
+func (v vaScopedScanner) ScanDeep(ctx context.Context, target string, ports []int) ([]byte, error) {
+	if err := v.allowed(target); err != nil {
+		return nil, fmt.Errorf("VA scope revoked before deep check %s: %w", target, err)
+	}
+	return v.scanner.ScanDeep(ctx, target, ports)
+}
+
 func (s *Server) vaCapabilities(w http.ResponseWriter, _ *http.Request) {
 	_, err := exec.LookPath("nmap")
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -163,7 +198,7 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 		delete(s.vaActive, record.ID)
 		s.vaMu.Unlock()
 	}()
-	result, runErr := vascan.RunWithProgress(ctx, record.Campaign, vascan.NmapScanner{}, time.Now, func(host vascan.HostResult) {
+	result, runErr := vascan.RunWithProgress(ctx, record.Campaign, vaScopedScanner{pg: s.m.PG(), taskID: record.Campaign.TaskID}, time.Now, func(host vascan.HostResult) {
 		s.vaMu.Lock()
 		if active := s.vaActive[record.ID]; active != nil {
 			if host.Status == "completed" {

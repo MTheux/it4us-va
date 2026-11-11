@@ -140,7 +140,7 @@ func (c Campaign) ExpandedTargets() ([]string, error) {
 				return nil, fmt.Errorf("ambiguous IPv4-mapped target %q", raw)
 			}
 			if seen[ip.String()] {
-				return nil, fmt.Errorf("duplicate target %q", raw)
+				continue
 			}
 			seen[ip.String()] = true
 			out = append(out, ip.String())
@@ -151,11 +151,11 @@ func (c Campaign) ExpandedTargets() ([]string, error) {
 			return nil, fmt.Errorf("target %q must be a literal IP or canonical CIDR range", raw)
 		}
 		for ip := prefix.Addr(); prefix.Contains(ip); ip = ip.Next() {
+			if seen[ip.String()] {
+				continue
+			}
 			if len(out) >= maxTargets {
 				return nil, fmt.Errorf("campaign exceeds %d expanded IP targets", maxTargets)
-			}
-			if seen[ip.String()] {
-				return nil, fmt.Errorf("duplicate target %q in %q", ip, raw)
 			}
 			seen[ip.String()] = true
 			out = append(out, ip.String())

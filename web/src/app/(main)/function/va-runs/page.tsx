@@ -99,6 +99,16 @@ export default function VARunsPage() {
     return () => window.clearInterval(timer);
   }, [selected?.id, selected?.status]);
   React.useEffect(() => {
+    if (!selected || selected.status === "running") return;
+    let active = true;
+    void api.vaRuns().then((latest) => {
+      if (!active) return;
+      setRuns(latest);
+      if (selected.status === "completed" || selected.status === "partial") setCVERunID(selected.id);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, [selected?.id, selected?.status]);
+  React.useEffect(() => {
     if (!taskID) { setScopeTargets([]); setScopeError(""); return; }
     let active = true;
     setScopeLoading(true);
@@ -159,7 +169,9 @@ export default function VARunsPage() {
     setBusy(true);
     setError("");
     try {
-      setSelected(await api.vaStart(campaign()));
+      const started = await api.vaStart(campaign());
+      setSelected(started);
+      setRuns((current) => [started, ...current.filter((run) => run.id !== started.id)]);
       setPlan(null);
       setPlanSignature("");
       setScopeConfirmed(false);
@@ -274,8 +286,18 @@ export default function VARunsPage() {
         <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="font-semibold">{selected.campaign.name}</p><p className="mt-1 text-xs text-muted-foreground">{selected.completed_hosts + selected.failed_hosts}/{selected.total_hosts} IPs · {selected.candidate_count} candidatos</p></div><Badge variant="outline">{selected.phase === "cve_review" ? "Correlacionando CVEs" : statusLabels[selected.status]}</Badge></div>
         {selected.error && <p role="alert" className="text-sm text-destructive">{selected.error}</p>}
         {selected.cve_auto && <div className="space-y-2 rounded-lg border p-4 text-sm"><div className="flex flex-wrap items-center gap-2"><strong>CVEs correlacionadas automaticamente</strong><Badge variant="outline">{selected.cve_auto.status === "completed" ? "Consulta concluída" : selected.cve_auto.status === "partial" ? "Cobertura parcial" : selected.cve_auto.status === "unavailable" ? "Fonte indisponível" : "Sem CPE preciso"}</Badge></div><p className="text-xs text-muted-foreground">{selected.cve_auto.cpes_checked} CPEs consultados · {selected.cve_auto.cves_checked} CVEs avaliadas · {selected.cve_auto.candidates} correspondências pendentes</p><p className="text-xs text-muted-foreground">{selected.cve_auto.coverage_note}</p>{(selected.cve_checks || []).filter((check) => check.automatic && check.status === "possible").slice(0, 12).map((check) => <a key={check.cve} href={check.source} target="_blank" rel="noreferrer" className="block text-xs text-primary underline">{check.cve} · possível aplicação · revisar em Achados</a>)}<p className="text-xs text-muted-foreground">Correspondência de CPE e versão não confirma vulnerabilidade ou impacto. O SOC deve validar a CVE e a situação de patch do ativo.</p></div>}
-        {selected.result?.hosts?.length ? <details className="text-sm"><summary className="cursor-pointer">Ver resultados por IP</summary><div className="mt-3 max-h-80 overflow-auto rounded-lg border border-border">{selected.result.hosts.map((host) => <div key={host.target} className="space-y-1 border-b border-border px-3 py-2 last:border-0"><div className="flex items-center justify-between gap-3"><span className="font-mono text-xs">{host.target}</span><span className="text-xs text-muted-foreground">{host.error || String(host.candidates.length) + " candidato(s)"}</span></div>{host.deep_error && <p className="text-xs text-amber-600">VA aprofundado parcial: {host.deep_error}</p>}{host.deep_checks?.map((check) => <p key={check.port + check.script} className="text-xs text-muted-foreground">{check.port}/tcp · {check.script}: {check.output.slice(0, 180)}</p>)}</div>)}</div></details> : null}
+        {selected.result?.hosts?.length ? <details className="text-sm"><summary className="cursor-pointer">Ver resultados por IP</summary><div className="mt-3 max-h-80 overflow-auto rounded-lg border border-border">{selected.result.hosts.map((host) => <div key={host.target} className="space-y-2 border-b border-border px-3 py-2 last:border-0"><div className="flex items-center justify-between gap-3"><span className="font-mono text-xs">{host.target}</span><span className="text-xs text-muted-foreground">{host.error || `${host.services?.length ?? 0} serviço(s) · ${host.candidates.length} candidato(s)`}</span></div>{host.services?.map((service) => <p key={`${service.Port}/${service.Proto}`} className="font-mono text-xs text-muted-foreground">{service.Port}/tcp · {service.Service || "desconhecido"}{service.Product ? ` · ${service.Product}` : ""}{service.Version ? ` ${service.Version}` : ""}</p>)}{host.deep_error && <p className="text-xs text-amber-600">VA aprofundado parcial: {host.deep_error}</p>}{host.deep_checks?.map((check) => <p key={check.port + check.script} className="text-xs text-muted-foreground">{check.port}/tcp · {check.script}: {check.output.slice(0, 180)}</p>)}</div>)}</div></details> : null}
         <div className="flex flex-wrap gap-2">{selected.status === "running" && <Button variant="outline" size="sm" onClick={() => void stop()}><SquareIcon className="size-3" /> Interromper</Button>}<Button variant="outline" size="sm" asChild><Link href={"/function/tasks/detail?id=" + selected.campaign.task_id}>Abrir tarefa <ArrowRightIcon className="size-4" /></Link></Button></div>
+      </CardContent></Card>}
+
+      {runs.length > 0 && <Card><CardContent className="space-y-3 p-5">
+        <h2 className="text-sm font-semibold">Execuções recentes</h2>
+        <div className="divide-y rounded-lg border">
+          {runs.slice(0, 10).map((run) => <button key={run.id} type="button" className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-muted/40" onClick={() => void api.vaRun(run.id).then(setSelected).catch((cause) => setError(cause instanceof Error ? cause.message : "Não foi possível abrir a execução."))}>
+            <span className="min-w-0"><span className="block truncate font-medium">{run.campaign.name}</span><span className="block text-xs text-muted-foreground">{new Date(run.created_at).toLocaleString("pt-BR")} · {run.completed_hosts + run.failed_hosts}/{run.total_hosts} IPs</span></span>
+            <Badge variant="outline">{run.phase === "cve_review" ? "Correlacionando CVEs" : statusLabels[run.status]}</Badge>
+          </button>)}
+        </div>
       </CardContent></Card>}
 
       <Dialog open={plan !== null} onOpenChange={(open) => { if (!open) { setPlan(null); setScopeConfirmed(false); } }}>

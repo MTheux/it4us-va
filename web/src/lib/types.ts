@@ -37,7 +37,7 @@ export interface VAHostResult {
   target: string;
   status: "completed" | "failed";
   scanner_output_sha256?: string;
-  services?: Array<{ IP: string; Port: number; Service: string; Product?: string; Version?: string; CPE?: string[] }>;
+  services?: Array<{ IP: string; Port: number; Proto?: string; Service: string; Product?: string; Version?: string; CPE?: string[] }>;
   candidates: Array<{ title: string; severity: string; summary: string }>;
   deep_checks?: Array<{ port: number; script: string; output: string }>;
   deep_error?: string;
