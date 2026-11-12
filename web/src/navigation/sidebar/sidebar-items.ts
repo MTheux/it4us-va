@@ -1,6 +1,5 @@
 import {
   Bug,
-  FolderSync,
   LayoutDashboard,
   type LucideIcon,
   MessageSquare,
@@ -60,7 +59,6 @@ export const sidebarItems: NavGroup[] = [
       { id: "assets", title: "Ativos", url: "/function/assets", icon: Network },
       { id: "findings", title: "Achados", url: "/function/findings", icon: Bug },
       { id: "chat", title: "Chat", url: "/chat", icon: MessageSquare },
-      { id: "sync", title: "Sincronização de Ativos", url: "/function/sync", icon: FolderSync },
     ],
   },
   {

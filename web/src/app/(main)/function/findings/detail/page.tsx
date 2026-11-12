@@ -4,22 +4,16 @@ import * as React from "react";
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-
-import { ArrowLeftIcon, ArrowUpRightIcon, ShieldAlertIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, GitBranchIcon, ShieldAlertIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { CopyButton } from "@/components/copy-button";
-import { FindingRetestPanel } from "@/components/finding-retest-panel";
 import { Markdown } from "@/components/markdown";
 import { StatusBadge } from "@/components/status-badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/lib/api";
 import { statusMeta } from "@/lib/status";
 import type { Finding, FindingStatus, Severity } from "@/lib/types";
@@ -40,17 +34,8 @@ const FINDING_STATUSES: FindingStatus[] = [
 ];
 
 function fmtTime(ts: string) {
-  return new Date(ts).toLocaleString("zh-CN");
-}
-
-// FieldRow is one label/value line in the right-hand status panel.
-function FieldRow({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-3 py-2.5">
-      <span className="shrink-0 pt-0.5 text-xs text-muted-foreground">{label}</span>
-      <div className="flex min-w-0 flex-col items-end gap-1 text-right text-sm">{children}</div>
-    </div>
-  );
+  const date = new Date(ts);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
 function FindingDetailInner() {
@@ -59,7 +44,9 @@ function FindingDetailInner() {
   const contextTaskId = searchParams.get("context_task") ?? "";
   const [finding, setFinding] = React.useState<Finding | null>(null);
   const [loaded, setLoaded] = React.useState(false);
-  const [tab, setTab] = React.useState("overview");
+  const [view, setView] = React.useState<"overview" | "lineage">("overview");
+  const [hasLineage, setHasLineage] = React.useState(false);
+  const [lineageLoaded, setLineageLoaded] = React.useState(false);
 
   const load = React.useCallback(() => {
     if (!id) {
@@ -68,265 +55,307 @@ function FindingDetailInner() {
     }
     api
       .getFinding(id, contextTaskId || undefined)
-      .then((f) => setFinding(f))
+      .then(setFinding)
       .catch(() => setFinding(null))
       .finally(() => setLoaded(true));
   }, [contextTaskId, id]);
+
   React.useEffect(() => {
     load();
   }, [load]);
+  React.useEffect(() => {
+    if (!id) return;
+    let active = true;
+    setHasLineage(false);
+    setLineageLoaded(false);
+    setView("overview");
+    void api
+      .findingLineage(id)
+      .then((graph) => {
+        if (active) setHasLineage((graph.nodes?.length ?? 0) > 0);
+      })
+      .catch(() => {
+        if (active) setHasLineage(false);
+      })
+      .finally(() => {
+        if (active) setLineageLoaded(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id]);
 
-  const changeSeverity = React.useCallback(
-    async (next: Severity) => {
-      if (!finding || finding.inherited || next === finding.severity) return;
-      const prev = finding.severity;
-      setFinding({ ...finding, severity: next });
-      try {
-        const updated = await api.setFindingSeverity(id, next);
-        setFinding(updated);
-        toast.success(`Severity changed to "${statusMeta("severity", next).label}"`);
-      } catch (e) {
-        setFinding((cur) => (cur ? { ...cur, severity: prev } : cur));
-        toast.error("Update failed: " + (e as Error).message);
-      }
-    },
-    [finding, id],
-  );
+  async function changeSeverity(next: Severity) {
+    if (!finding || finding.inherited || next === finding.severity) return;
+    const previous = finding.severity;
+    setFinding({ ...finding, severity: next });
+    try {
+      setFinding(await api.setFindingSeverity(id, next));
+      toast.success(`Severidade alterada para ${statusMeta("severity", next).label}.`);
+    } catch (error) {
+      setFinding((current) => (current ? { ...current, severity: previous } : current));
+      toast.error("Não foi possível alterar a severidade: " + (error as Error).message);
+    }
+  }
 
-  const changeStatus = React.useCallback(
-    async (next: FindingStatus) => {
-      if (!finding || finding.inherited || next === finding.status) return;
-      const prev = finding.status;
-      setFinding({ ...finding, status: next });
-      try {
-        const updated = await api.setFindingStatus(id, next);
-        setFinding(updated);
-        toast.success(`Status changed to "${statusMeta("finding", next).label}"`);
-      } catch (e) {
-        setFinding((cur) => (cur ? { ...cur, status: prev } : cur));
-        toast.error("Update failed: " + (e as Error).message);
-      }
-    },
-    [finding, id],
-  );
+  async function changeStatus(next: FindingStatus) {
+    if (!finding || finding.inherited || next === finding.status) return;
+    const previous = finding.status;
+    setFinding({ ...finding, status: next });
+    try {
+      setFinding(await api.setFindingStatus(id, next));
+      toast.success(`Estado alterado para ${statusMeta("finding", next).label}.`);
+    } catch (error) {
+      setFinding((current) => (current ? { ...current, status: previous } : current));
+      toast.error("Não foi possível alterar o estado: " + (error as Error).message);
+    }
+  }
 
-  if (!finding) {
+  if (!finding)
     return (
-      <div className="flex flex-1 flex-col items-center justify-center gap-3 p-10 text-center">
-        <p className="text-muted-foreground">{loaded ? `Finding ${id} not found` : "Loading…"}</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-10 text-center">
+        <p className="text-sm text-muted-foreground">
+          {loaded ? `Achado #${id} não encontrado.` : "Carregando achado…"}
+        </p>
         {loaded && (
           <Button asChild variant="outline">
             <Link href="/function/findings">
-              <ArrowLeftIcon /> Back to findings
+              <ArrowLeftIcon /> Voltar aos achados
             </Link>
           </Button>
         )}
       </div>
     );
-  }
 
-  const title = finding.name || finding.vulnclass || "Uncategorized";
+  const title = finding.name || finding.vulnclass || `Achado #${finding.id}`;
+  const demo = title.startsWith("[DEMO]") || finding.evidence?.startsWith("DADO FICTICIO");
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className="flex flex-1 flex-col gap-0">
-      {/* Sticky header */}
-      <header className="sticky top-0 z-10 flex flex-col gap-2 border-b bg-background/95 px-4 py-2.5 backdrop-blur lg:px-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <SidebarTrigger className="-ml-1" />
-          <Button asChild variant="ghost" size="icon" className="size-7">
-            <Link href="/function/findings">
-              <ArrowLeftIcon />
-            </Link>
-          </Button>
-          <ShieldAlertIcon className="size-4 text-muted-foreground" />
-          <h1 className="max-w-md truncate text-sm font-semibold" title={title}>
+    <main data-content-padding="false" className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:px-10">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Button asChild variant="ghost" size="sm" className="-ml-2">
+          <Link href="/function/findings">
+            <ArrowLeftIcon /> Achados
+          </Link>
+        </Button>
+        <span className="font-mono text-xs text-muted-foreground">#{finding.id}</span>
+      </div>
+
+      <header className="border-b pb-6">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-primary">SOC / TRIAGEM</p>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <h1 className="min-w-0 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">
             {title}
           </h1>
-          <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">#{finding.id}</code>
-          <Separator orientation="vertical" className="mx-1 h-4" />
+          {demo && <Badge variant="secondary">Dado fictício</Badge>}
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
           <StatusBadge domain="severity" value={finding.severity} dot />
           <StatusBadge domain="finding" value={finding.status} dot />
-          {finding.inherited && finding.source_task_id && (
-            <Badge variant="outline">Source task #{finding.source_task_id} · read-only</Badge>
-          )}
+          {finding.inherited && <Badge variant="outline">Herdado · somente leitura</Badge>}
         </div>
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="lineage">Exploration graph</TabsTrigger>
-        </TabsList>
+        <p className="mt-4 max-w-3xl text-sm leading-6 text-muted-foreground">
+          {finding.summary || "Este achado ainda não tem um resumo registrado."}
+        </p>
       </header>
 
-      {/* Tab content */}
-      <div className="flex-1 p-4 lg:p-6">
-        {/* Overview: left (digest + evidence) / right (status panel) */}
-        <TabsContent value="overview" className="mt-0">
-          <div className="grid gap-4 lg:grid-cols-3">
-            {/* Left column */}
-            <div className="flex flex-col gap-4 lg:col-span-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Digest</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{finding.summary || "(no digest)"}</p>
-                </CardContent>
-              </Card>
-              <FindingRetestPanel key={id} findingId={id} readOnly={finding.inherited} onCompleted={load} />
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Evidence / PoC</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {finding.evidence ? (
-                    <pre className="max-h-[46vh] overflow-auto rounded-md bg-muted px-3 py-2 font-mono text-xs whitespace-pre-wrap">
-                      {finding.evidence}
-                    </pre>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">(no evidence)</p>
-                  )}
-                </CardContent>
-              </Card>
-              {/* Below evidence: detailed report (rendered Markdown) */}
-              <Card>
-                <CardHeader className="flex-row items-center justify-between">
-                  <CardTitle className="text-sm">Detailed report</CardTitle>
-                  {finding.report && <CopyButton text={finding.report} successMessage="Detailed report copied" />}
-                </CardHeader>
-                <CardContent>
-                  {finding.report_stale ? (
-                    <Alert>
-                      <AlertDescription>Traffic evidence has changed; the detailed report is pending an update.</AlertDescription>
-                    </Alert>
-                  ) : null}
-                  {finding.report ? (
-                    <Markdown text={finding.report} />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">No detailed report yet.</p>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
+      <div
+        className="flex flex-wrap items-center gap-2 border-b pb-3"
+        role="tablist"
+        aria-label="Visualizações do achado"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "overview"}
+          onClick={() => setView("overview")}
+          className={
+            view === "overview"
+              ? "rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary"
+              : "rounded-lg border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+          }
+        >
+          Visão geral
+        </button>
+        {hasLineage && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === "lineage"}
+            onClick={() => setView("lineage")}
+            className={
+              view === "lineage"
+                ? "rounded-lg border border-primary bg-primary/10 px-3 py-2 text-sm font-medium text-primary"
+                : "rounded-lg border px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+            }
+          >
+            <GitBranchIcon className="mr-1 inline size-4" /> Grafo de exploração
+          </button>
+        )}
+      </div>
 
-            {/* Right column: status panel */}
-            <Card className="h-fit lg:sticky lg:top-24">
-              <CardHeader>
-                <CardTitle className="text-sm">Status</CardTitle>
-              </CardHeader>
-              <CardContent className="divide-y">
-                {/* Vulnerability ID */}
-                <FieldRow label="Vulnerability ID">
-                  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
-                    #{finding.id}
-                  </code>
-                </FieldRow>
+      {view === "lineage" && hasLineage ? (
+        <section aria-label="Grafo de exploração" className="overflow-hidden rounded-xl border bg-card/50 p-2">
+          <FindingLineageView findingId={finding.id} />
+        </section>
+      ) : (
+        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(17rem,0.75fr)]">
+          <div className="min-w-0 space-y-4">
+            <section className="rounded-xl border bg-card/50 p-5" aria-labelledby="evidence-heading">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-primary">VALIDAÇÃO</p>
+                  <h2 id="evidence-heading" className="mt-1 text-lg font-semibold">
+                    Evidência registrada
+                  </h2>
+                </div>
+                <ShieldAlertIcon className="size-5 text-primary" />
+              </div>
+              {finding.evidence ? (
+                <pre className="mt-4 max-h-[48vh] overflow-auto rounded-lg border bg-background/70 p-4 font-mono text-xs leading-5 whitespace-pre-wrap break-words">
+                  {finding.evidence}
+                </pre>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">Nenhuma evidência registrada.</p>
+              )}
+              {demo && (
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Exemplo visual. Nenhuma resposta do alvo foi coletada.
+                </p>
+              )}
+            </section>
+            <section className="rounded-xl border bg-card/50 p-5" aria-labelledby="report-heading">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-widest text-primary">DOCUMENTAÇÃO</p>
+                  <h2 id="report-heading" className="mt-1 text-lg font-semibold">
+                    Relatório detalhado
+                  </h2>
+                </div>
+                {finding.report && <CopyButton text={finding.report} successMessage="Relatório copiado" />}
+              </div>
+              {finding.report_stale && (
+                <Alert className="mt-4">
+                  <AlertDescription>A evidência de tráfego mudou; o relatório aguarda atualização.</AlertDescription>
+                </Alert>
+              )}
+              {finding.report ? (
+                <div className="mt-4">
+                  <Markdown text={finding.report} />
+                </div>
+              ) : (
+                <p className="mt-4 text-sm text-muted-foreground">Ainda não há relatório detalhado para este achado.</p>
+              )}
+            </section>
+          </div>
 
-                {/* Severity */}
-                <FieldRow label="Severity">
+          <aside className="min-w-0 space-y-4">
+            <section className="rounded-xl border bg-card/50 p-5" aria-labelledby="triage-heading">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-primary">OPERAÇÃO</p>
+              <h2 id="triage-heading" className="mt-1 text-lg font-semibold">
+                Triagem
+              </h2>
+              <div className="mt-4 space-y-4 border-t pt-4">
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Severidade</p>
                   {finding.inherited ? (
                     <StatusBadge domain="severity" value={finding.severity} dot />
                   ) : (
-                    <Select value={finding.severity} onValueChange={(v) => changeSeverity(v as Severity)}>
-                      <SelectTrigger size="sm" className="h-7 w-auto border-none px-1 shadow-none focus-visible:ring-0">
+                    <Select value={finding.severity} onValueChange={(value) => void changeSeverity(value as Severity)}>
+                      <SelectTrigger className="w-full">
                         <StatusBadge domain="severity" value={finding.severity} dot />
                       </SelectTrigger>
                       <SelectContent position="popper" align="end">
                         <SelectGroup>
-                          {SEVERITIES.map((sv) => (
-                            <SelectItem key={sv} value={sv}>
-                              {statusMeta("severity", sv).label}
+                          {SEVERITIES.map((severity) => (
+                            <SelectItem key={severity} value={severity}>
+                              {statusMeta("severity", severity).label}
                             </SelectItem>
                           ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
                   )}
-                </FieldRow>
-
-                {/* Triage status */}
-                <FieldRow label="Triage status">
+                </div>
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">Estado</p>
                   {finding.inherited ? (
                     <StatusBadge domain="finding" value={finding.status} dot />
                   ) : (
-                    <Select value={finding.status} onValueChange={(v) => changeStatus(v as FindingStatus)}>
-                      <SelectTrigger size="sm" className="h-7 w-auto border-none px-1 shadow-none focus-visible:ring-0">
+                    <Select value={finding.status} onValueChange={(value) => void changeStatus(value as FindingStatus)}>
+                      <SelectTrigger className="w-full">
                         <StatusBadge domain="finding" value={finding.status} dot />
                       </SelectTrigger>
                       <SelectContent position="popper" align="end">
                         <SelectGroup>
-                          {FINDING_STATUSES.map((st) => (
-                            <SelectItem key={st} value={st}>
-                              {statusMeta("finding", st).label}
+                          {FINDING_STATUSES.map((status) => (
+                            <SelectItem key={status} value={status}>
+                              {statusMeta("finding", status).label}
                             </SelectItem>
                           ))}
                         </SelectGroup>
                       </SelectContent>
                     </Select>
                   )}
-                </FieldRow>
-
-                {/* Vulnerability type */}
-                <FieldRow label="Vulnerability type">
-                  {finding.vulnclass ? (
-                    <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-xs">{finding.vulnclass}</code>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </FieldRow>
-
-                {/* Assets */}
-                <FieldRow label="Assets">
-                  {finding.assets && finding.assets.length > 0 ? (
-                    <div className="flex flex-wrap justify-end gap-1">
-                      {finding.assets.map((a) => (
-                        <code
-                          key={a.id}
-                          className="max-w-[16rem] truncate rounded bg-muted px-1.5 py-0.5 font-mono text-xs"
-                          title={`${a.type} · ${a.label}`}
-                        >
-                          {a.label}
-                        </code>
-                      ))}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </FieldRow>
-
-                {/* Task */}
-                <FieldRow label="Task">
-                  {finding.task_id ? (
-                    <Link
-                      href={`/function/tasks/detail?id=${finding.task_id}`}
-                      className="inline-flex max-w-[16rem] items-center gap-1 text-primary hover:underline"
-                      title={finding.task_description}
+                </div>
+              </div>
+            </section>
+            <section className="rounded-xl border bg-card/50 p-5" aria-label="Contexto do achado">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-primary">CONTEXTO</p>
+              <h2 className="mt-1 text-lg font-semibold">Origem e ativos</h2>
+              <dl className="mt-4 divide-y border-t text-sm">
+                <div className="flex flex-wrap justify-between gap-2 py-3">
+                  <dt className="text-muted-foreground">Classe</dt>
+                  <dd className="min-w-0 break-all font-mono text-xs">{finding.vulnclass || "—"}</dd>
+                </div>
+                <div className="flex flex-wrap justify-between gap-2 py-3">
+                  <dt className="text-muted-foreground">Registrado em</dt>
+                  <dd>{fmtTime(finding.ts)}</dd>
+                </div>
+                <div className="flex flex-wrap justify-between gap-2 py-3">
+                  <dt className="text-muted-foreground">Tarefa</dt>
+                  <dd>
+                    {finding.task_id ? (
+                      <Link
+                        href={`/function/tasks/detail?id=${encodeURIComponent(finding.task_id)}`}
+                        className="inline-flex items-center gap-1 text-primary hover:underline"
+                      >
+                        #{finding.task_id} <ArrowRightIcon className="size-3" />
+                      </Link>
+                    ) : (
+                      "—"
+                    )}
+                  </dd>
+                </div>
+              </dl>
+              <p className="mt-3 text-xs text-muted-foreground">Ativos relacionados</p>
+              <div className="mt-2 flex flex-wrap gap-1">
+                {finding.assets?.length ? (
+                  finding.assets.map((asset) => (
+                    <code
+                      key={asset.id}
+                      className="max-w-full rounded-md border bg-background/70 px-2 py-1 font-mono text-xs break-all"
                     >
-                      <span className="truncate">{finding.task_description || `#${finding.task_id}`}</span>
-                      <ArrowUpRightIcon className="size-3 shrink-0" />
-                    </Link>
-                  ) : (
-                    <span className="text-muted-foreground">— (task deleted)</span>
-                  )}
-                </FieldRow>
-
-                {/* Found at */}
-                <FieldRow label="Found at">
-                  <span className="tabular-nums">{fmtTime(finding.ts)}</span>
-                </FieldRow>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Exploration graph: the attack chain traced back from the task's initial node to this finding's node */}
-        <TabsContent value="lineage" className="mt-0">
-          <FindingLineageView findingId={finding.id} />
-        </TabsContent>
-      </div>
-    </Tabs>
+                      {asset.label}
+                    </code>
+                  ))
+                ) : (
+                  <span className="text-xs text-muted-foreground">Nenhum ativo associado.</span>
+                )}
+              </div>
+            </section>
+            {lineageLoaded && !hasLineage && (
+              <div className="rounded-xl border border-dashed p-4 text-xs leading-5 text-muted-foreground">
+                Sem trilha de exploração registrada para este achado. O grafo aparece quando há nós e relações reais.
+              </div>
+            )}
+          </aside>
+        </div>
+      )}
+    </main>
   );
 }
 
-// useSearchParams must sit under a Suspense boundary for static export.
 export default function FindingDetailPage() {
   return (
     <React.Suspense fallback={null}>
