@@ -98,6 +98,9 @@ export default function VARunsPage() {
 
   React.useEffect(() => {
     setExpires(initialExpiry());
+    const params = new URLSearchParams(window.location.search);
+    setTaskID(params.get("task") || "");
+    if (params.get("depth") === "deep") setDepth("deep");
   }, []);
   React.useEffect(() => {
     let alive = true;
@@ -106,7 +109,7 @@ export default function VARunsPage() {
         if (!alive) return;
         if (taskResult.status === "fulfilled") {
           setTasks(taskResult.value.tasks);
-          if (taskResult.value.tasks.length === 1) setTaskID(taskResult.value.tasks[0].id);
+          if (taskResult.value.tasks.length === 1) setTaskID((current) => current || taskResult.value.tasks[0].id);
         }
         if (runResult.status === "fulfilled") {
           setRuns(runResult.value);
@@ -267,6 +270,7 @@ export default function VARunsPage() {
       setPlan(null);
       setPlanSignature("");
       setScopeConfirmed(false);
+      window.location.assign(`/chat?task=${encodeURIComponent(String(started.campaign.task_id))}&run=${encodeURIComponent(started.id)}`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível iniciar.");
     } finally {

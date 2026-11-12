@@ -3655,9 +3655,14 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 		Message     string           `json:"message"`
 		Attachments []chatAttachment `json:"attachments,omitempty"` // files uploaded via method 1 (paths relative to the task work dir)
 		Seg         *int             `json:"seg,omitempty"`         // target main-session segment; omitted = newest segment
+		RunID       string           `json:"run_id,omitempty"`      // optional VA receipt to discuss
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		writeErr(w, 400, err.Error())
+		return
+	}
+	if t.VAOnly && len(req.Attachments) > 0 {
+		writeErr(w, http.StatusBadRequest, "VA task chat does not accept attachments")
 		return
 	}
 	agentMessage, ok := s.prepareChatMentionMessage(w, req.Message)
@@ -3704,6 +3709,21 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request) {
 	humanTurn := userActivityWithAttachments("mainagent", req.Message, req.Attachments)
 	humanTurn.MainSeg = segPtr
 	s.engine.emitActivity(t, humanTurn)
+	if t.VAOnly {
+		go func() {
+			defer s.finishTaskChat(t.ID, cancel)
+			answerCtx, stop := context.WithTimeout(ctx, 90*time.Second)
+			defer stop()
+			answer, err := s.vaTaskChatReply(answerCtx, t, mainSeg, req.RunID, req.Message)
+			if err != nil {
+				s.engine.emitActivity(t, db.Activity{Worker: "mainagent", Kind: "text", IsError: true, Summary: "Não foi possível analisar a execução VA: " + err.Error(), MainSeg: segPtr})
+				return
+			}
+			s.engine.emitActivity(t, db.Activity{Worker: "mainagent", Kind: "result", Summary: answer, MainSeg: segPtr})
+		}()
+		writeJSON(w, http.StatusAccepted, map[string]any{"status": "accepted", "mode": "va_read_only"})
+		return
+	}
 	var ma *agent.MainAgent
 	if s.taskRuntimeAvailable(t, "mainagent") {
 		ma = s.agentsForTask(t).main

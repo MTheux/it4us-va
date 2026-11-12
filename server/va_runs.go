@@ -43,6 +43,7 @@ type vaActiveRun struct {
 	cancel         context.CancelFunc
 	completedHosts int
 	failedHosts    int
+	hosts          []vascan.HostResult
 }
 
 // vaScopedScanner rechecks the task gate immediately before each host and deep
@@ -201,6 +202,7 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 	result, runErr := vascan.RunWithProgress(ctx, record.Campaign, vaScopedScanner{pg: s.m.PG(), taskID: record.Campaign.TaskID}, time.Now, func(host vascan.HostResult) {
 		s.vaMu.Lock()
 		if active := s.vaActive[record.ID]; active != nil {
+			active.hosts = append(active.hosts, host)
 			if host.Status == "completed" {
 				active.completedHosts++
 			} else {
@@ -342,6 +344,9 @@ func (s *Server) vaCurrent(record *vaRunRecord) {
 	if active != nil {
 		record.CompletedHosts = active.completedHosts
 		record.FailedHosts = active.failedHosts
+		if record.Result == nil && len(active.hosts) > 0 {
+			record.Result = &vascan.Result{Campaign: record.Campaign.Name, StartedAt: record.CreatedAt, Hosts: append([]vascan.HostResult(nil), active.hosts...)}
+		}
 	} else {
 		record.Status = "interrupted"
 	}

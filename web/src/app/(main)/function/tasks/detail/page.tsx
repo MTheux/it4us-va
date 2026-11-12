@@ -388,7 +388,7 @@ function TaskDetailInner() {
               <TooltipContent>{archiveDisabledReason}</TooltipContent>
             </Tooltip>
           )}
-          {task.va_only ? <Button asChild size="sm"><Link href="/function/va-runs">Nova execução VA</Link></Button> : <Button size="sm" variant={controlVariant} onClick={togglePause} disabled={terminal}>
+          {task.va_only ? <><Button asChild size="sm" variant="outline"><Link href={`/chat?task=${encodeURIComponent(task.id)}`}>Abrir chat VA</Link></Button><Button asChild size="sm"><Link href={`/function/va-runs?task=${encodeURIComponent(task.id)}`}>Nova execução VA</Link></Button></> : <Button size="sm" variant={controlVariant} onClick={togglePause} disabled={terminal}>
             {controlIcon}
             {controlLabel}
           </Button>}

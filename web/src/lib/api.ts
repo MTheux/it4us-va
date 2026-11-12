@@ -903,8 +903,8 @@ export const api = {
       `/chat/mentions?${new URLSearchParams({ kind, q: query, cursor })}`,
       { signal },
     ),
-  chat: (message: string, task?: string, attachments?: ChatAttachment[], seg?: number) =>
-    post<{ reply: string; mode: string }>(`/chat${tq(task)}`, { message, attachments, seg }),
+  chat: (message: string, task?: string, attachments?: ChatAttachment[], seg?: number, runID?: string) =>
+    post<{ reply: string; mode: string }>(`/chat${tq(task)}`, { message, attachments, seg, run_id: runID }),
   chatStatus: (taskId: string) => get<{ running: boolean }>(`/tasks/${taskId}/chat/status`),
   // Option 1, file upload: lands in the session/task working directory uploads/, returning a relative path the agent can Read.
   chatUpload: async (scope: "task" | "session" | "staging", id: string, files: File[]) => {
