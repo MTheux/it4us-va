@@ -47,6 +47,7 @@ import { GraphTab } from "./_tabs/graph-tab";
 import { OverviewTab } from "./_tabs/overview-tab";
 import { ReportTab } from "./_tabs/report-tab";
 import { SessionsTab } from "./_tabs/sessions-tab";
+import { isDemoVATask, VADetail } from "./va-detail";
 
 const TABS = [
   { value: "overview", label: "Resumo" },
@@ -310,6 +311,8 @@ function TaskDetailInner() {
       </div>
     );
   }
+
+  if (task.va_only || isDemoVATask(task)) return <VADetail key={task.id} task={task} />;
 
   const completed = task.status === "done";
   const terminal = ["done", "failed", "timeout"].includes(task.status);
