@@ -23,6 +23,9 @@ import {
   ArrowUpIcon,
   ChevronRightIcon,
   EyeIcon,
+  LayoutGridIcon,
+  ListIcon,
+  MessageSquareIcon,
   FolderInputIcon,
   GripVerticalIcon,
   Loader2Icon,
@@ -33,6 +36,7 @@ import {
   PinOffIcon,
   PlayIcon,
   PlusIcon,
+  RadarIcon,
   TrashIcon,
   SaveIcon,
   SearchIcon,
@@ -136,6 +140,7 @@ import type {
   TaskArchiveState,
   TaskCategory,
   TaskStatus,
+  VARun,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -301,10 +306,12 @@ function compareTasks(left: Task, right: Task, field: TaskSortField, direction: 
 export default function TasksPage() {
   const [activeTab, setActiveTab] = React.useState("current");
   const [tasks, setTasks] = React.useState<Task[]>([]);
+  const [runs, setRuns] = React.useState<VARun[]>([]);
+  const [view, setView] = React.useState<"cards" | "table">("cards");
   const [categories, setCategories] = React.useState<TaskCategory[]>([]);
   const [categoriesLoaded, setCategoriesLoaded] = React.useState(false);
   const [query, setQuery] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState<TaskStatus | "all">("all");
+  const [statusFilter, setStatusFilter] = React.useState<"all" | "running" | "finished" | "pending" | "failed">("all");
   const [categoryFilter, setCategoryFilter] = React.useState("all");
   const [filtersHydrated, setFiltersHydrated] = React.useState(false);
   const [sortPreference, setSortPreference] = useStoredSortPreference(
@@ -325,8 +332,8 @@ export default function TasksPage() {
     if (raw) {
       try {
         const parsed = JSON.parse(raw) as { status?: unknown; category?: unknown };
-        if (parsed.status === "all" || STATUS_OPTIONS.some((option) => option.value === parsed.status)) {
-          setStatusFilter(parsed.status as TaskStatus | "all");
+        if (["all", "running", "finished", "pending", "failed"].includes(String(parsed.status))) {
+          setStatusFilter(parsed.status as "all" | "running" | "finished" | "pending" | "failed");
         }
         if (
           typeof parsed.category === "string" &&
@@ -352,7 +359,11 @@ export default function TasksPage() {
   const filtered = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     return tasks.filter((t) => {
-      if (statusFilter !== "all" && t.status !== statusFilter) return false;
+      const latestRun = runs.find((run) => String(run.campaign.task_id) === t.id);
+      if (statusFilter === "pending" && latestRun) return false;
+      if (statusFilter === "running" && latestRun?.status !== "running") return false;
+      if (statusFilter === "finished" && !["completed", "partial"].includes(latestRun?.status ?? "")) return false;
+      if (statusFilter === "failed" && !["failed", "canceled", "interrupted"].includes(latestRun?.status ?? "")) return false;
       if (categoryFilter === UNCATEGORIZED_VALUE && t.category_id != null) return false;
       if (
         categoryFilter !== "all" &&
@@ -369,7 +380,7 @@ export default function TasksPage() {
         t.id.toLowerCase().includes(q)
       );
     });
-  }, [tasks, query, statusFilter, categoryFilter]);
+  }, [tasks, runs, query, statusFilter, categoryFilter]);
 
   const sortNowSec = sortField === "duration" ? nowSec : 0;
   const ordered = React.useMemo(() => {
@@ -479,8 +490,10 @@ export default function TasksPage() {
   React.useEffect(() => {
     load();
     loadCategories();
+    void api.vaRuns().then(setRuns).catch(() => undefined);
     const i = setInterval(load, POLL_MS);
-    return () => clearInterval(i);
+    const runsInterval = setInterval(() => void api.vaRuns().then(setRuns).catch(() => undefined), 5_000);
+    return () => { clearInterval(i); clearInterval(runsInterval); };
   }, [load, loadCategories]);
 
   const refreshCategoriesAndTasks = React.useCallback(() => {
@@ -774,14 +787,28 @@ export default function TasksPage() {
   );
 
   return (
-    <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-4">
-      <TabsList className="mx-4 lg:mx-6">
-        <TabsTrigger value="current">Tarefas atuais</TabsTrigger>
+    <div data-content-padding="false" className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 lg:px-10">
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-6">
+        <div>
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-primary">SOC / OPERAÇÃO VA</p>
+          <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Tarefas</h1>
+          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Organize o escopo autorizado de cada cliente e acompanhe suas execuções de infraestrutura.</p>
+        </div>
+        <CreateTaskSheet onCreated={refreshCategoriesAndTasks} />
+      </header>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border bg-card/50 px-4 py-3"><p className="text-xs text-muted-foreground">Tarefas cadastradas</p><p className="mt-1 text-2xl font-semibold tabular-nums">{tasks.length}</p></div>
+        <div className="rounded-xl border bg-card/50 px-4 py-3"><p className="text-xs text-muted-foreground">VA em andamento</p><p className="mt-1 text-2xl font-semibold tabular-nums text-primary">{runs.filter((run) => run.status === "running" && tasks.some((task) => task.id === String(run.campaign.task_id))).length}</p></div>
+        <div className="rounded-xl border bg-card/50 px-4 py-3"><p className="text-xs text-muted-foreground">Com VA recente</p><p className="mt-1 text-2xl font-semibold tabular-nums">{new Set(runs.filter((run) => tasks.some((task) => task.id === String(run.campaign.task_id))).map((run) => String(run.campaign.task_id))).size}</p></div>
+      </div>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="gap-4">
+      <TabsList className="bg-muted/50">
+        <TabsTrigger value="current">Em operação</TabsTrigger>
         <TabsTrigger value="archived">Arquivadas</TabsTrigger>
       </TabsList>
       <TabsContent value="current">
-        <Card>
-          <CardContent className="flex flex-col gap-4 px-0 pt-6">
+        <Card className="overflow-hidden bg-card/50">
+          <CardContent className="flex flex-col gap-4 px-0 pt-5">
             <div className="flex flex-wrap items-center gap-2 px-4 lg:px-6">
               <div className="relative w-full sm:max-w-xs">
                 <SearchIcon className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
@@ -802,18 +829,17 @@ export default function TasksPage() {
                   </button>
                 )}
               </div>
-              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as TaskStatus | "all")}>
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
                 <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder="Estado da VA" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectGroup>
-                    <SelectItem value="all">Todos os status</SelectItem>
-                    {STATUS_OPTIONS.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="all">Todas as VAs</SelectItem>
+                    <SelectItem value="running">Em execução</SelectItem>
+                    <SelectItem value="finished">Concluídas</SelectItem>
+                    <SelectItem value="pending">Sem VA recente</SelectItem>
+                    <SelectItem value="failed">Com falha</SelectItem>
                   </SelectGroup>
                 </SelectContent>
               </Select>
@@ -836,6 +862,10 @@ export default function TasksPage() {
               <span className="text-muted-foreground text-xs tabular-nums">
                 {filtered.length}/{tasks.length} tarefas
               </span>
+              <div className="flex rounded-lg border bg-background/70 p-0.5 sm:ml-auto" aria-label="Visualização das tarefas">
+                <Button size="icon-sm" variant={view === "cards" ? "secondary" : "ghost"} onClick={() => setView("cards")} aria-label="Ver cartões" title="Ver cartões"><LayoutGridIcon /></Button>
+                <Button size="icon-sm" variant={view === "table" ? "secondary" : "ghost"} onClick={() => setView("table")} aria-label="Ver tabela" title="Ver tabela"><ListIcon /></Button>
+              </div>
               {selectedIds.size > 0 && (
                 <>
                   <span className="text-xs tabular-nums">{selectedIds.size} selecionadas</span>
@@ -893,15 +923,15 @@ export default function TasksPage() {
                   <BulkDeleteTasksDialog ids={[...selectedIds]} onDelete={deleteTasks} />
                 </>
               )}
-              <ConcurrencySettingsDialog />
-              <CategoryManagementSheet
-                categories={categories}
-                tasks={tasks}
-                onChanged={refreshCategoriesAndTasks}
-                onTaskMoved={applyTaskCategoryMove}
-              />
-              <CreateTaskSheet onCreated={refreshCategoriesAndTasks} />
             </div>
+
+            <details className="mx-4 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground lg:mx-6">
+              <summary className="cursor-pointer select-none font-medium text-foreground">Organização e ajustes</summary>
+              <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+                <ConcurrencySettingsDialog />
+                <CategoryManagementSheet categories={categories} tasks={tasks} onChanged={refreshCategoriesAndTasks} onTaskMoved={applyTaskCategoryMove} />
+              </div>
+            </details>
 
             {tasks.length === 0 ? (
               <div className="text-muted-foreground mx-4 flex items-center justify-center rounded-lg border border-dashed py-20 text-sm lg:mx-6">
@@ -910,6 +940,20 @@ export default function TasksPage() {
             ) : filtered.length === 0 ? (
               <div className="text-muted-foreground mx-4 flex items-center justify-center rounded-lg border border-dashed py-20 text-sm lg:mx-6">
                 Nenhuma tarefa encontrada.
+              </div>
+            ) : view === "cards" ? (
+              <div className="grid gap-3 px-4 pb-2 lg:grid-cols-2 lg:px-6">
+                {paginated.map((task) => <TaskOverviewCard
+                  key={task.id}
+                  task={task}
+                  run={runs.find((item) => String(item.campaign.task_id) === task.id)}
+                  selected={selectedIds.has(task.id)}
+                  onSelectedChange={toggleSelected}
+                  onRename={renameTask}
+                  onTogglePinned={toggleTaskPinned}
+                  onArchive={queueTaskArchive}
+                  onDelete={deleteTask}
+                />)}
               </div>
             ) : (
               <Table className="**:data-[slot='table-cell']:px-4 **:data-[slot='table-head']:px-4">
@@ -987,7 +1031,50 @@ export default function TasksPage() {
       <TabsContent value="archived">
         <TaskArchivesPanel onChanged={load} />
       </TabsContent>
-    </Tabs>
+      </Tabs>
+    </div>
+  );
+}
+
+function TaskOverviewCard({ task, run, selected, onSelectedChange, onRename, onTogglePinned, onArchive, onDelete }: {
+  task: Task;
+  run?: VARun;
+  selected: boolean;
+  onSelectedChange: (id: string, checked: boolean) => void;
+  onRename: (task: Task, name: string) => Promise<void>;
+  onTogglePinned: (task: Task) => Promise<void>;
+  onArchive: (task: Task) => Promise<void>;
+  onDelete: (id: string, options: DeleteTaskOptions) => Promise<void>;
+}) {
+  const findings = task.findings;
+  const findingTotal = findings ? findings.critical + findings.high + findings.medium + findings.low : 0;
+  const runStatus = run ? ({ running: "Em execução", completed: "Concluída", partial: "Parcial", failed: "Falhou", canceled: "Cancelada", interrupted: "Interrompida" } as Record<VARun["status"], string>)[run.status] : "Sem VA recente";
+  return (
+    <article className={cn("group flex min-w-0 flex-col rounded-xl border bg-background/70 p-4 transition-colors hover:border-primary/40", run?.status === "running" && "border-primary/40", selected && "bg-primary/5")}>
+      <div className="flex items-start gap-3">
+        <Checkbox checked={selected} onCheckedChange={(checked) => onSelectedChange(task.id, checked === true)} aria-label={`Selecionar tarefa ${task.id}`} className="mt-1" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2"><p className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-primary">TAREFA #{task.id}{task.category_name ? ` · ${task.category_name}` : ""}</p><Badge variant={run?.status === "running" ? "default" : "secondary"}>{runStatus}</Badge></div>
+          <div className="mt-1 flex min-w-0 items-center gap-2 text-base font-semibold"><TaskNameEditor task={task} onRename={onRename} />{taskIsPinned(task) && <PinIcon className="size-3.5 shrink-0 text-primary" />}</div>
+        </div>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 border-y py-3 text-xs">
+        <div><p className="text-muted-foreground">Escopo da VA recente</p><p className="mt-1 font-medium">{run ? `${run.campaign.targets.length} IP(s) · ${run.campaign.ports.length || "todas as"} portas` : "Confira na tarefa"}</p></div>
+        <div><p className="text-muted-foreground">Achados da tarefa</p><p className="mt-1 font-medium">{findingTotal ? `${findingTotal} para triagem` : "Nenhum registrado"}</p></div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">Criada em {fmtDateTime(task.created_unix)}</span>
+        <div className="flex items-center gap-1">
+          <TaskPinAction task={task} onTogglePinned={onTogglePinned} />
+          <TaskArchiveAction task={task} onArchive={onArchive} />
+          <DeleteTaskDialog task={task} onDelete={onDelete} />
+        </div>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-2 border-t pt-3">
+        <Button asChild size="sm" variant="outline"><Link href={`/function/tasks/detail?id=${encodeURIComponent(task.id)}`}><EyeIcon /> Ver tarefa</Link></Button>
+        {task.va_only && <><Button asChild size="sm" variant="outline"><Link href={`/chat?task=${encodeURIComponent(task.id)}`}><MessageSquareIcon /> Chat VA</Link></Button><Button asChild size="sm"><Link href={`/function/va-runs?task=${encodeURIComponent(task.id)}`}><RadarIcon /> {run ? "Nova VA" : "Iniciar VA"}</Link></Button></>}
+      </div>
+    </article>
   );
 }
 
