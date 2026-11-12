@@ -166,6 +166,7 @@ export function FindingsTable({
           const rowKey = findingRowKey(f);
           const open = expandedKey === rowKey;
           const retest = f.finding_id ? activeRetests[f.finding_id] : undefined;
+          const isDemo = f.name?.startsWith("[DEMO]") || f.evidence?.startsWith("DADO FICTICIO");
           return (
             <React.Fragment key={rowKey}>
               <TableRow
@@ -278,13 +279,13 @@ export function FindingsTable({
                         </Link>
                       </Button>
                     ) : null}
-                    {!retest && f.finding_id && !f.inherited ? (
+                    {!retest && f.finding_id && !f.inherited && !isDemo ? (
                       <Button size="sm" variant="ghost" onClick={() => onRetest(f)} title="Retestar este achado">
                         <RotateCcwIcon data-icon="inline-start" />
                         Retestar
                       </Button>
                     ) : null}
-                    {f.finding_id && f.task_id && (
+                    {f.finding_id && f.task_id && !isDemo && (
                       <Button size="sm" variant="ghost" onClick={() => onDeepen(f)}>
                         <FlaskConicalIcon data-icon="inline-start" />
                         Aprofundar

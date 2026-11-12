@@ -225,13 +225,13 @@ func (d *DB) QueueTaskArchive(taskID int64) (*TaskArchive, error) {
 	defer tx.Rollback() //nolint:errcheck
 	var name, description, goal, status, categoryName string
 	var categoryID *int64
-	var paused, queued bool
+	var paused, queued, vaOnly bool
 	var deadline *time.Time
 	err = tx.QueryRow(`SELECT COALESCE(t.name,''), t.description, t.goal, t.status,
- t.category_id, COALESCE(c.name,''), t.paused, t.queued, t.deadline_at
+ t.category_id, COALESCE(c.name,''), t.paused, t.queued, t.va_only, t.deadline_at
 FROM tasks t LEFT JOIN task_categories c ON c.id=t.category_id
 WHERE t.id=$1 AND t.deleted_at IS NULL FOR UPDATE OF t`, taskID).Scan(
-		&name, &description, &goal, &status, &categoryID, &categoryName, &paused, &queued, &deadline,
+		&name, &description, &goal, &status, &categoryID, &categoryName, &paused, &queued, &vaOnly, &deadline,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrTaskArchiveNotFound
@@ -242,7 +242,7 @@ WHERE t.id=$1 AND t.deleted_at IS NULL FOR UPDATE OF t`, taskID).Scan(
 	if queued {
 		return nil, ErrTaskArchiveQueued
 	}
-	if !paused && !IsTerminal(status) {
+	if !paused && !IsTerminal(status) && !(vaOnly && status == "created") {
 		return nil, ErrTaskArchiveIneligible
 	}
 	var dependent int64

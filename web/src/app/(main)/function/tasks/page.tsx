@@ -249,6 +249,10 @@ const UNCATEGORIZED_VALUE = "uncategorized";
 const PAUSABLE_STATUSES = new Set<TaskStatus>(["created", "queued", "running"]);
 const ARCHIVABLE_STATUSES = new Set<TaskStatus>(["paused", "done", "failed", "timeout"]);
 
+function isArchivable(task: Task): boolean {
+  return !task.queued && (ARCHIVABLE_STATUSES.has(task.status) || (task.va_only === true && task.status === "created"));
+}
+
 function taskControlAction(status: TaskStatus): "pause" | "resume" | null {
   if (status === "paused") return "resume";
   if (PAUSABLE_STATUSES.has(status)) return "pause";
@@ -689,7 +693,7 @@ export default function TasksPage() {
     [selectedTasks],
   );
   const archivableTaskIDs = React.useMemo(
-    () => selectedTasks.filter((task) => ARCHIVABLE_STATUSES.has(task.status) && !task.queued).map((task) => task.id),
+    () => selectedTasks.filter(isArchivable).map((task) => task.id),
     [selectedTasks],
   );
 
@@ -1478,7 +1482,7 @@ function TaskControlButton({
 
 function archiveBlockReason(task: Task): string {
   if (task.queued) return "Queued tasks must be paused first";
-  if (!ARCHIVABLE_STATUSES.has(task.status)) return "Running or unfinished tasks must be paused first";
+  if (!isArchivable(task)) return "Running or unfinished tasks must be paused first";
   if (task.archive_blocked_by_task_id) {
     return `The task is directly inherited by unarchived task #${task.archive_blocked_by_task_id}; archive the dependent task first`;
   }

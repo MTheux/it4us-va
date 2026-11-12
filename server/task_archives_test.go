@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/MTheux/it4us-va/db"
 )
 
 func TestTaskArchiveAPIQueueListAndLimits(t *testing.T) {
@@ -53,6 +55,22 @@ func TestTaskArchiveAPIQueueListAndLimits(t *testing.T) {
 	recorder := request(http.MethodPost, "/api/tasks/"+task.ID+"/archive", "{}")
 	if recorder.Code != http.StatusConflict {
 		t.Fatalf("running archive status=%d body=%s", recorder.Code, recorder.Body.String())
+	}
+	vaTask, err := m.CreateTaskWithOptions("VA archive API", "inventory", db.TaskCreateOptions{VAOnly: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	vaTaskID, err := strconv.ParseInt(vaTask.ID, 10, 64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_, _ = m.pg.Exec(`DELETE FROM task_archives WHERE task_id=$1`, vaTaskID)
+		_ = m.pg.DeleteTask(vaTaskID)
+	}()
+	recorder = request(http.MethodPost, "/api/tasks/"+vaTask.ID+"/archive", "{}")
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("unstarted VA archive status=%d body=%s", recorder.Code, recorder.Body.String())
 	}
 	if err := m.pg.SetPaused(taskID, true); err != nil {
 		t.Fatal(err)
