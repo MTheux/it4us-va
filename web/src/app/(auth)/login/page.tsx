@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 
 import { AlertTriangle, ShieldCheck } from "lucide-react";
 
-import { BrandProof } from "@/components/brand-proof";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogClose, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -56,7 +55,7 @@ export default function LoginPage() {
       .then(({ initialized }) => {
         if (!initialized) router.replace("/setup");
       })
-      .catch(() => setError("Unable to connect to the backend service"))
+      .catch(() => setError("Não foi possível conectar ao servidor"))
       .finally(() => setChecking(false));
   }, [router]);
 
@@ -88,63 +87,71 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex h-dvh">
-      <BrandProof />
-
-      {/* Right panel */}
-      <div className="flex w-full items-center justify-center bg-background p-8 lg:w-1/2">
-        <div className="w-full max-w-md space-y-10 py-24 lg:py-32">
-          <div className="space-y-6 text-center">
-            <div className="flex flex-col items-center gap-1">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/it4us-icon.svg" alt="IT4US" width={44} height={44} className="mb-2 rounded-xl" />
-              <div className="access-logo text-foreground">IT4US VA</div>
-              <div className="access-sub">Avaliação de vulnerabilidades</div>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <span className="access-eyebrow">
-                <span className="access-dot" /> Entrar na plataforma
-              </span>
-              <p className="max-w-xs text-sm text-muted-foreground">Digite sua senha para continuar no seu workspace.</p>
-            </div>
-          </div>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Digite sua senha"
-                autoFocus
-                autoComplete="current-password"
-              />
-            </div>
-            <div className="flex items-start gap-2">
-              <Checkbox
-                id="agree-terms"
-                checked={agreed}
-                onCheckedChange={(v) => setAgreed(v === true)}
-                className="mt-0.5"
-              />
-              <Label htmlFor="agree-terms" className="text-sm font-normal leading-relaxed text-muted-foreground">
-                Li e concordo com os
-                <button
-                  type="button"
-                  onClick={() => setTermsOpen(true)}
-                  className="mx-0.5 font-medium text-primary underline-offset-4 hover:underline"
-                >
-                  Termos de Uso
-                </button>
-              </Label>
-            </div>
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading || !password || !agreed}>
-              {loading ? "Entrando..." : "Entrar"}
-            </Button>
-          </form>
+    <main className="flex min-h-dvh items-center justify-center bg-[#070a08] px-6 py-12">
+      <div className="w-full max-w-[400px]">
+        <div className="text-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/it4us-icon.svg" alt="IT4US" width={42} height={42} className="mx-auto mb-2 rounded-xl" />
+          <h1 className="font-[family-name:var(--font-display)] text-[30px] font-bold leading-none tracking-tight">
+            IT4US VA
+          </h1>
+          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.23em] text-muted-foreground">
+            Avaliação de vulnerabilidades
+          </p>
+          <p className="mt-5 inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+            <span className="size-1.5 rounded-full bg-primary" /> Entrar na plataforma
+          </p>
+          <p className="mx-auto mt-2 max-w-[310px] text-sm leading-5 text-muted-foreground">
+            Acesse suas tarefas, execuções e achados de infraestrutura.
+          </p>
         </div>
+
+        <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="password" className="text-xs font-semibold">
+              Senha
+            </Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Digite sua senha"
+              autoComplete="current-password"
+              className="h-9 rounded-md bg-[#111713]"
+            />
+          </div>
+          <div className="flex items-start gap-2.5">
+            <Checkbox
+              id="agree-terms"
+              checked={agreed}
+              onCheckedChange={(v) => setAgreed(v === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="agree-terms" className="text-sm font-normal leading-relaxed text-muted-foreground">
+              Li e concordo com os{" "}
+              <button
+                type="button"
+                onClick={() => setTermsOpen(true)}
+                className="font-semibold text-primary underline underline-offset-2"
+              >
+                Termos de Uso
+              </button>
+            </Label>
+          </div>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <Button type="submit" className="h-10 w-full font-semibold" disabled={loading || !password || !agreed}>
+            {loading ? "Entrando..." : "Entrar"}
+          </Button>
+        </form>
+
+        <p className="mt-14 text-center text-xs text-muted-foreground">
+          Acesso restrito · somente para a equipe autorizada.
+        </p>
       </div>
 
       <Dialog open={termsOpen} onOpenChange={setTermsOpen}>
@@ -167,11 +174,14 @@ export default function LoginPage() {
             className="max-h-[60vh] space-y-5 overflow-y-auto px-6 py-5 text-sm leading-relaxed text-muted-foreground"
           >
             <p className="rounded-lg border bg-muted/40 p-3 text-foreground/80">
-              This Terms of Use and Disclaimer (the "Statement") is the agreement between you and the IT4US VA
-              project authors and contributors regarding your use of this software. Please read it carefully and fully understand each provision before use, especially the disclaimer, liability-limitation, and prohibition clauses highlighted in bold or color blocks.
+              This Terms of Use and Disclaimer (the "Statement") is the agreement between you and the IT4US VA project
+              authors and contributors regarding your use of this software. Please read it carefully and fully
+              understand each provision before use, especially the disclaimer, liability-limitation, and prohibition
+              clauses highlighted in bold or color blocks.
               <span className="font-medium text-foreground">
                 {" "}
-                Once you download, install, access, or use this software in any way, you are deemed to have read, understood, and agreed to be bound by all of this Statement.
+                Once you download, install, access, or use this software in any way, you are deemed to have read,
+                understood, and agreed to be bound by all of this Statement.
               </span>
             </p>
 
@@ -184,8 +194,10 @@ export default function LoginPage() {
               </h4>
               <p className="pl-7">
                 This software (IT4US VA) is an open-source program released under the GNU Affero General Public License
-                v3.0 (AGPL-3.0). You may freely use, copy, modify, and distribute it under that license; however, any derivative work (including online services provided to third parties over a network) must likewise be open-sourced under
-                the AGPL-3.0 license with the complete corresponding source code made public to its users. The full AGPL-3.0 terms are governed by the accompanying LICENSE file.
+                v3.0 (AGPL-3.0). You may freely use, copy, modify, and distribute it under that license; however, any
+                derivative work (including online services provided to third parties over a network) must likewise be
+                open-sourced under the AGPL-3.0 license with the complete corresponding source code made public to its
+                users. The full AGPL-3.0 terms are governed by the accompanying LICENSE file.
               </p>
             </section>
 
@@ -197,7 +209,13 @@ export default function LoginPage() {
                 Article 2 · Permitted Scope of Use
               </h4>
               <p className="pl-7">
-                This software is a security-testing platform. You may use it for: personal study, code research, and technical verification in environments you set up yourself; security testing of systems you own; security testing of third-party systems when you hold the owner's explicit authorization; and testing within the written scope of a bug bounty or vulnerability disclosure program, in compliance with that program's rules of engagement. You are responsible for obtaining and keeping proof of authorization, for staying inside the authorized scope, and for the safety and proportionality of every action the software takes on your behalf.
+                This software is a security-testing platform. You may use it for: personal study, code research, and
+                technical verification in environments you set up yourself; security testing of systems you own;
+                security testing of third-party systems when you hold the owner's explicit authorization; and testing
+                within the written scope of a bug bounty or vulnerability disclosure program, in compliance with that
+                program's rules of engagement. You are responsible for obtaining and keeping proof of authorization, for
+                staying inside the authorized scope, and for the safety and proportionality of every action the software
+                takes on your behalf.
               </p>
             </section>
 
@@ -211,11 +229,22 @@ export default function LoginPage() {
               </h4>
               <ul className="ml-7 list-decimal space-y-1.5 rounded-lg border border-destructive/20 bg-destructive/5 p-3 pl-8 text-foreground/80 marker:text-destructive/70">
                 <li>
-                  Strictly forbidden: scanning, probing, exploiting, or attacking any system whose owner has not explicitly authorized you to test it, or exceeding the authorized scope or a program's rules of engagement once granted;
+                  Strictly forbidden: scanning, probing, exploiting, or attacking any system whose owner has not
+                  explicitly authorized you to test it, or exceeding the authorized scope or a program's rules of
+                  engagement once granted;
                 </li>
-                <li>Strictly forbidden: using this software for illegal intrusion, data theft, extortion, denial of service (DoS/DDoS), or any destructive or criminal activity;</li>
-                <li>Strictly forbidden: removing, tampering with, or circumventing any copyright, license, or security notice in this software or its output;</li>
-                <li>Strictly forbidden: engaging in any conduct that violates the laws, regulations, or regulatory rules of your country or region.</li>
+                <li>
+                  Strictly forbidden: using this software for illegal intrusion, data theft, extortion, denial of
+                  service (DoS/DDoS), or any destructive or criminal activity;
+                </li>
+                <li>
+                  Strictly forbidden: removing, tampering with, or circumventing any copyright, license, or security
+                  notice in this software or its output;
+                </li>
+                <li>
+                  Strictly forbidden: engaging in any conduct that violates the laws, regulations, or regulatory rules
+                  of your country or region.
+                </li>
               </ul>
             </section>
 
@@ -227,8 +256,10 @@ export default function LoginPage() {
                 Article 4 · Intellectual Property
               </h4>
               <p className="pl-7">
-                The copyright and related intellectual property of this software belong to the project authors and contributors, who grant
-                you the corresponding rights within the scope of the AGPL-3.0 license. Beyond the rights expressly granted by that license, this Statement grants you no other rights, expressly or by implication.
+                The copyright and related intellectual property of this software belong to the project authors and
+                contributors, who grant you the corresponding rights within the scope of the AGPL-3.0 license. Beyond
+                the rights expressly granted by that license, this Statement grants you no other rights, expressly or by
+                implication.
               </p>
             </section>
 
@@ -240,7 +271,10 @@ export default function LoginPage() {
                 Article 5 · Data and Privacy
               </h4>
               <p className="pl-7">
-                This software is a self-deployable open-source program; the authors run no centralized service and neither collect nor upload your usage data. All data you generate, process, or touch while using it stays under your control, and you are responsible for its legality and security; any consequence of improper data handling is yours to bear.
+                This software is a self-deployable open-source program; the authors run no centralized service and
+                neither collect nor upload your usage data. All data you generate, process, or touch while using it
+                stays under your control, and you are responsible for its legality and security; any consequence of
+                improper data handling is yours to bear.
               </p>
             </section>
 
@@ -252,10 +286,15 @@ export default function LoginPage() {
                 Article 6 · Compliance and Legal Liability
               </h4>
               <p className="pl-7">
-                You must comply on your own with all laws and regulations of your country or region on cybersecurity, data security and personal-information protection, computer crime, and the like (for example, laws on unauthorized access to computer systems, on personal-data protection, and on the responsibilities of security researchers and penetration testers in your jurisdiction).
+                You must comply on your own with all laws and regulations of your country or region on cybersecurity,
+                data security and personal-information protection, computer crime, and the like (for example, laws on
+                unauthorized access to computer systems, on personal-data protection, and on the responsibilities of
+                security researchers and penetration testers in your jurisdiction).
                 <span className="font-medium text-foreground">
                   {" "}
-                  All legal liability and consequences arising from your violation of the above laws and regulations or of this Statement are borne by you alone and have nothing to do with this software's authors and contributors.
+                  All legal liability and consequences arising from your violation of the above laws and regulations or
+                  of this Statement are borne by you alone and have nothing to do with this software's authors and
+                  contributors.
                 </span>
               </p>
             </section>
@@ -268,8 +307,13 @@ export default function LoginPage() {
                 Article 7 · Disclaimer and Limitation of Liability
               </h4>
               <p className="pl-7">
-                This software is provided on an "AS IS" and "AS
-                AVAILABLE" basis, without any express or implied warranty, including but not limited to warranties of merchantability, fitness for a particular purpose, accuracy, and non-infringement. To the maximum extent permitted by applicable law, this software's authors and contributors are not liable for any direct, indirect, incidental, special, or consequential loss arising from using or being unable to use this software (regardless of whether it is used properly), including but not limited to data loss, system damage, business interruption, loss of profit, or legal disputes.
+                This software is provided on an "AS IS" and "AS AVAILABLE" basis, without any express or implied
+                warranty, including but not limited to warranties of merchantability, fitness for a particular purpose,
+                accuracy, and non-infringement. To the maximum extent permitted by applicable law, this software's
+                authors and contributors are not liable for any direct, indirect, incidental, special, or consequential
+                loss arising from using or being unable to use this software (regardless of whether it is used
+                properly), including but not limited to data loss, system damage, business interruption, loss of profit,
+                or legal disputes.
               </p>
             </section>
 
@@ -281,7 +325,11 @@ export default function LoginPage() {
                 Article 8 · Changes to the Terms and Final Interpretation
               </h4>
               <p className="pl-7">
-                The authors may update this Statement from time to time as laws, regulations, or project development require; the updated version ships with the project and takes effect on its publication date, and your continued use of this software means you accept the revised terms. To the extent permitted by law, the authors hold the final right of interpretation of this Statement. If any provision of this Statement is held invalid, the remaining provisions stay in effect.
+                The authors may update this Statement from time to time as laws, regulations, or project development
+                require; the updated version ships with the project and takes effect on its publication date, and your
+                continued use of this software means you accept the revised terms. To the extent permitted by law, the
+                authors hold the final right of interpretation of this Statement. If any provision of this Statement is
+                held invalid, the remaining provisions stay in effect.
               </p>
             </section>
           </div>
@@ -305,6 +353,6 @@ export default function LoginPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   );
 }
