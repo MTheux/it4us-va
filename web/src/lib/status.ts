@@ -57,22 +57,22 @@ const task: Record<string, StatusMeta> = {
 };
 
 const severity: Record<string, StatusMeta> = {
-  critical: { label: "Critical", tone: "rose" },
-  high: { label: "High", tone: "red" },
-  medium: { label: "Medium", tone: "amber" },
-  low: { label: "Low", tone: "slate" },
+  critical: { label: "Crítica", tone: "rose" },
+  high: { label: "Alta", tone: "red" },
+  medium: { label: "Média", tone: "amber" },
+  low: { label: "Baixa", tone: "slate" },
 };
 
 const finding: Record<string, StatusMeta> = {
-  pending: { label: "Pending", tone: "amber" },
-  in_progress: { label: "In progress", tone: "blue" },
-  confirmed: { label: "Confirmed", tone: "red" },
-  resolved: { label: "Resolved", tone: "green" },
-  fixed: { label: "Fixed", tone: "green" },
-  false_positive: { label: "False positive", tone: "slate" },
-  ignored: { label: "Ignored", tone: "neutral" },
-  duplicate: { label: "Duplicate", tone: "neutral" },
-  risk_accepted: { label: "Risk accepted", tone: "violet" },
+  pending: { label: "Pendente", tone: "amber" },
+  in_progress: { label: "Em análise", tone: "blue" },
+  confirmed: { label: "Confirmado", tone: "red" },
+  resolved: { label: "Resolvido", tone: "green" },
+  fixed: { label: "Corrigido", tone: "green" },
+  false_positive: { label: "Falso positivo", tone: "slate" },
+  ignored: { label: "Ignorado", tone: "neutral" },
+  duplicate: { label: "Duplicado", tone: "neutral" },
+  risk_accepted: { label: "Risco aceito", tone: "violet" },
 };
 
 const engine: Record<string, StatusMeta> = {

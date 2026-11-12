@@ -709,6 +709,63 @@ func (s *CompanyStore) UpdateScopeInputsChecked(companyID int64, inputs []ScopeI
 	return added, invalid, errs, nil
 }
 
+// UpdateCompanyDetailsChecked changes the display name and ownership rules in one
+// transaction. A failed rule or duplicate name leaves both values unchanged.
+func (s *CompanyStore) UpdateCompanyDetailsChecked(companyID int64, name string, inputs []ScopeInput) (int, error) {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return 0, &CompanyScopeValidationError{Message: "name required"}
+	}
+	if err := ValidateCompanyScopeInputBounds(inputs); err != nil {
+		return 0, err
+	}
+	rules, invalid, _ := parseScopeInputs(inputs)
+	if invalid > 0 {
+		return 0, &CompanyScopeValidationError{Message: fmt.Sprintf("company scope contains %d invalid rules", invalid)}
+	}
+	if err := validateParsedScopeBounds(rules); err != nil {
+		return 0, err
+	}
+	tx, err := s.db.Begin()
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback() //nolint:errcheck
+	if err := lockCompanyScopeMutation(tx); err != nil {
+		return 0, err
+	}
+	if err := ensureCompanyExistsTx(tx, companyID); err != nil {
+		return 0, err
+	}
+	var conflictID int64
+	err = tx.QueryRow(`SELECT id FROM companies WHERE nkey = $1 AND id <> $2`, companyNKey(name), companyID).Scan(&conflictID)
+	if err == nil {
+		return 0, ErrCompanyNameConflict
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return 0, err
+	}
+	if _, err := tx.Exec(`UPDATE companies SET name = $1, nkey = $2 WHERE id = $3`, name, companyNKey(name), companyID); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(`DELETE FROM company_scope WHERE company_id = $1`, companyID); err != nil {
+		return 0, err
+	}
+	added, _, _, err := insertScopeRulesTx(tx, companyID, rules, "soc edit")
+	if err != nil {
+		return 0, err
+	}
+	warning, err := recomputeAttributionTx(tx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to recompute company attribution: %w", err)
+	}
+	logAttributionWarning(warning)
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return added, nil
+}
+
 // ResolveCompany returns the company_id for a given root_domain and/or ip, or nil
 // if no scope rule matches. Mirrors the attribution logic used at asset insert time.
 func (s *CompanyStore) ResolveCompany(rootDomain, ipStr string) (*int64, error) {

@@ -255,7 +255,8 @@ export const api = {
   vaRun: (id: string) => get<VARun>(`/va/runs/${encodeURIComponent(id)}`),
   vaStart: (campaign: VACampaign) => post<VARun>("/va/runs", campaign),
   vaCancel: (id: string) => post<{ ok: boolean }>(`/va/runs/${encodeURIComponent(id)}/cancel`, {}),
-  vaCheckCVE: (runID: string, cve: string) => post<import("@/lib/types").VACVECheck>("/va/cve/check", { run_id: runID, cve }),
+  vaCheckCVE: (runID: string, cve: string) =>
+    post<import("@/lib/types").VACVECheck>("/va/cve/check", { run_id: runID, cve }),
   vaLookupCVE: (cve: string) => get<import("@/lib/types").VACVEIntel>("/va/cve/lookup/" + encodeURIComponent(cve)),
   task: (id: string) => get<Task>(`/tasks/${encodeURIComponent(id)}`),
   createTask: (input: {
@@ -540,6 +541,11 @@ export const api = {
         scope,
       },
     ),
+  updateCompany: (id: number, name: string, scope: CompanyScopeRule[]) =>
+    http<{ updated: boolean; scope_added: number }>(`/companies/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name, scope }),
+    }),
   addCompanyScope: (id: number, scope: CompanyScopeRule[], reason = "") =>
     post<CompanyScopeMutation>(`/companies/${id}/scope`, {
       scope,
@@ -846,8 +852,7 @@ export const api = {
   // Channels are multi-instance resources (several bots of the same kind, each with its own
   // filter rules), so they form their own group instead of the flat settings key/value store.
   notifyMeta: () => get<NotificationMeta>(`/notify/meta`),
-  notifyChannels: () =>
-    get<{ channels: NotificationChannel[] }>(`/notify/channels`).then((r) => arr(r.channels)),
+  notifyChannels: () => get<{ channels: NotificationChannel[] }>(`/notify/channels`).then((r) => arr(r.channels)),
   notifyCreateChannel: (payload: {
     name: string;
     kind: string;
@@ -1237,7 +1242,8 @@ export const api = {
   // ---- intercept pending (ask) ----
   // Aprovação interativa removida na excisão ofensiva (Plano 3): nunca há pendentes.
   interceptPending: (): Promise<InterceptPending[]> => Promise.resolve([]),
-  interceptGetOne: (_id: number): Promise<InterceptPending> => Promise.reject(new Error("aprovação interativa foi removida")),
+  interceptGetOne: (_id: number): Promise<InterceptPending> =>
+    Promise.reject(new Error("aprovação interativa foi removida")),
   interceptDecide: (_id: number, _decision: "allowed" | "denied"): Promise<{ ok: boolean }> =>
     Promise.reject(new Error("aprovação interativa foi removida")),
   interceptExecution: (id: number, conversationId?: number) =>

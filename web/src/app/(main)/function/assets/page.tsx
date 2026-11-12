@@ -18,7 +18,6 @@ import {
 import { toast } from "sonner";
 
 import { AssetDslSearch } from "@/components/asset-dsl-search";
-import { ScopeTextEditor } from "@/components/scope-text-editor";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,7 +42,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -57,6 +56,7 @@ import {
 } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
 import { parseCompanyScopeText } from "@/lib/company-scope";
 import type { Asset, Company, CompanyScopeRule } from "@/lib/types";
@@ -402,23 +402,25 @@ export default function AssetsPage() {
                           <strong className="font-mono text-foreground">{c.asset_count}</strong> ativo(s) associado(s)
                         </span>
                         <span>
-                          {c.scope?.length ? `${c.scope.length} regra(s) de associação` : "Sem regra de associação"}
+                          {(c.scope ?? []).filter((scope) => scope.kind === "ip" || scope.kind === "cidr").length}{" "}
+                          IP(s)/range(s) cadastrado(s)
                         </span>
                       </div>
-                      {c.scope?.length ? (
+                      {c.scope?.some((scope) => scope.kind === "ip" || scope.kind === "cidr") ? (
                         <div className="flex flex-wrap gap-1.5">
-                          {c.scope.map((scope) => (
-                            <code key={scope.id} className="rounded border bg-background px-2 py-1 text-[11px]">
-                              {scope.raw}
-                            </code>
-                          ))}
+                          {c.scope
+                            .filter((scope) => scope.kind === "ip" || scope.kind === "cidr")
+                            .map((scope) => (
+                              <code key={scope.id} className="rounded border bg-background px-2 py-1 text-[11px]">
+                                {scope.raw}
+                              </code>
+                            ))}
                         </div>
                       ) : null}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2 pl-10 sm:pl-0">
-                    <EditScopeDialog company={c} onSaved={refresh} />
-                    <AppendScopeDialog company={c} onSaved={refresh} />
+                    <EditCompanyDialog company={c} onSaved={refresh} />
                     <Button
                       variant="ghost"
                       size="icon"
@@ -967,24 +969,58 @@ function CompanyAvatar({ name, logo }: { name: string; logo?: string }) {
   );
 }
 
-// Warnings from the backend describe pre-existing data problems (not errors in the submitted lines); the save itself
-// already succeeded. Show them longer because the user must fix specific assets — a glance at the title is not enough.
-function showScopeWarnings(warnings?: string[]) {
-  for (const warning of warnings ?? []) {
-    toast.warning(warning, { duration: 15000 });
-  }
-}
-
 function savedScopeRules(company: Company): CompanyScopeRule[] {
   return (company.scope ?? [])
     .map((scope) => ({ kind: scope.kind, value: scope.raw.trim() }))
     .filter((scope) => scope.value);
 }
 
-function savedScopeText(company: Company): string {
-  return savedScopeRules(company)
-    .map((scope) => scope.value)
-    .join("\n");
+function parseIPScopeText(value: string) {
+  const parsed = parseCompanyScopeText(value);
+  const otherKinds = parsed.rules.filter((rule) => rule.kind !== "ip" && rule.kind !== "cidr");
+  return {
+    rules: parsed.rules.filter((rule) => rule.kind === "ip" || rule.kind === "cidr"),
+    errors: [
+      ...parsed.errors.map((issue) => `Linha ${issue.line}: ${issue.error}`),
+      ...(otherKinds.length ? ["Use somente endereços IP ou ranges CIDR."] : []),
+    ],
+  };
+}
+
+function IPScopeField({
+  id,
+  value,
+  onChange,
+  errors,
+}: {
+  id: string;
+  value: string;
+  onChange: (value: string) => void;
+  errors: string[];
+}) {
+  return (
+    <Field data-invalid={errors.length > 0}>
+      <FieldLabel htmlFor={id}>IPs e ranges</FieldLabel>
+      <FieldDescription>
+        Um IP ou CIDR por linha. Você pode colar a lista inteira e remover linhas para desvincular.
+      </FieldDescription>
+      <Textarea
+        id={id}
+        rows={8}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-invalid={errors.length > 0}
+        spellCheck={false}
+        placeholder={"192.0.2.10\n198.51.100.0/28"}
+        className="min-h-36 resize-y font-mono text-sm"
+      />
+      {errors.length > 0 && (
+        <p role="alert" className="text-sm text-destructive">
+          {errors.slice(0, 3).join(" · ")}
+        </p>
+      )}
+    </Field>
+  );
 }
 
 // Creating a company uses the same right-side drawer as tasks and LLM editing.
@@ -993,7 +1029,7 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
   const [name, setName] = React.useState("");
   const [scopeText, setScopeText] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const parsedScope = React.useMemo(() => parseCompanyScopeText(scopeText), [scopeText]);
+  const parsedScope = React.useMemo(() => parseIPScopeText(scopeText), [scopeText]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -1016,8 +1052,8 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
       const added = res.scope_added ?? 0;
       const invalid = res.scope_invalid ?? 0;
       if (invalid > 0)
-        toast.warning(`Cliente criado; ${added} regra(s) adicionada(s), ${invalid} linha(s) inválida(s)`);
-      else toast.success(`Cliente criado; ${added} regra(s) adicionada(s)`);
+        toast.warning(`Cliente criado; ${added} IP(s)/range(s) cadastrado(s), ${invalid} linha(s) inválida(s)`);
+      else toast.success(`Cliente criado; ${added} IP(s)/range(s) cadastrado(s)`);
       setOpen(false);
       onSaved();
     } catch (e) {
@@ -1054,15 +1090,7 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
                 onChange={(e) => setName(e.target.value)}
               />
             </Field>
-            <ScopeTextEditor
-              id="cn-scope"
-              value={scopeText}
-              onValueChange={setScopeText}
-              parsed={parsedScope}
-              label="Regras de associação (opcional)"
-              description="Um domínio, IP, CIDR ou palavra-chave por linha. A autorização VA é configurada na tarefa."
-              locale="pt-BR"
-            />
+            <IPScopeField id="cn-scope" value={scopeText} onChange={setScopeText} errors={parsedScope.errors} />
           </FieldGroup>
         </div>
         <SheetFooter className="flex-row justify-end gap-2 border-t p-4">
@@ -1078,40 +1106,43 @@ function CompanyDialog({ onSaved }: { onSaved: () => void }) {
   );
 }
 
-// Edit (overwrite) asset scope dialog
-function EditScopeDialog({ company, onSaved }: { company: Company; onSaved: () => void }) {
+// One client editor keeps the name and IP/CIDR association list together.
+function EditCompanyDialog({ company, onSaved }: { company: Company; onSaved: () => void }) {
   const [open, setOpen] = React.useState(false);
+  const [name, setName] = React.useState("");
   const [scopeText, setScopeText] = React.useState("");
-  const [reason, setReason] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const preservedScopeRules = React.useMemo(() => savedScopeRules(company), [company]);
-  const parsedScope = React.useMemo(
-    () => parseCompanyScopeText(scopeText, { preservedRules: preservedScopeRules }),
-    [preservedScopeRules, scopeText],
+  const parsed = React.useMemo(() => parseIPScopeText(scopeText), [scopeText]);
+  const otherRules = React.useMemo(
+    () => savedScopeRules(company).filter((rule) => rule.kind !== "ip" && rule.kind !== "cidr"),
+    [company],
   );
+  const demo = /^\[DEMO\]/i.test(company.name);
 
   React.useEffect(() => {
     if (!open) return;
-    setScopeText(savedScopeText(company));
-    setReason("");
+    setName(company.name.replace(/^\[DEMO\]\s*/i, ""));
+    setScopeText(
+      (company.scope ?? [])
+        .filter((rule) => rule.kind === "ip" || rule.kind === "cidr")
+        .map((rule) => rule.raw)
+        .join("\n"),
+    );
   }, [open, company]);
 
   const submit = async () => {
-    if (parsedScope.errors.length > 0) {
-      toast.error("Corrija as linhas inválidas");
-      return;
-    }
+    if (!name.trim() || parsed.errors.length > 0) return;
     setBusy(true);
     try {
-      const res = await api.updateCompanyScope(company.id, parsedScope.rules, reason);
-      const errCount = res.invalid ?? 0;
-      if (errCount > 0) toast.warning(`Salvo com ${errCount} linha(s) inválida(s)`);
-      else toast.success(`Regras atualizadas: ${res.added} no total`);
-      showScopeWarnings(res.warnings);
+      const nextName = demo ? `[DEMO] ${name.trim()}` : name.trim();
+      await api.updateCompany(company.id, nextName, [...otherRules, ...parsed.rules]);
+      toast.success("Cliente atualizado");
       setOpen(false);
       onSaved();
-    } catch (e) {
-      toast.error(`Falha ao salvar: ${String((e as Error)?.message ?? e)}`);
+    } catch (error) {
+      const message = String((error as Error)?.message ?? error);
+      if (/:\s*409$/.test(message)) toast.error("Já existe um cliente com esse nome");
+      else toast.error(`Falha ao salvar: ${message}`);
     } finally {
       setBusy(false);
     }
@@ -1120,130 +1151,43 @@ function EditScopeDialog({ company, onSaved }: { company: Company; onSaved: () =
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-7">
-          Editar regras
+        <Button variant="outline" size="sm">
+          Editar cliente
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Editar associação · {company.name}</DialogTitle>
+          <DialogTitle>Editar cliente</DialogTitle>
           <DialogDescription>
-            Salvar substitui todas as regras atuais. Estas regras associam ativos ao cliente; a autorização VA fica na
-            tarefa.
+            Altere o nome e os IPs/ranges associados. A autorização de execução VA permanece na tarefa.
           </DialogDescription>
         </DialogHeader>
         <FieldGroup className="py-2">
-          <ScopeTextEditor
-            id={`edit-company-scope-${company.id}`}
-            value={scopeText}
-            onValueChange={setScopeText}
-            parsed={parsedScope}
-            label="Regras de associação"
-            description="Um domínio, IP, CIDR ou palavra-chave por linha."
-            locale="pt-BR"
-          />
           <Field>
-            <FieldLabel htmlFor="es-reason">Base da associação (opcional)</FieldLabel>
+            <FieldLabel htmlFor={`company-name-${company.id}`}>Nome</FieldLabel>
             <Input
-              id="es-reason"
-              placeholder="Ex.: certificado, WHOIS ou ASN"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
+              id={`company-name-${company.id}`}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              autoComplete="organization"
             />
           </Field>
+          <IPScopeField
+            id={`company-ips-${company.id}`}
+            value={scopeText}
+            onChange={setScopeText}
+            errors={parsed.errors}
+          />
+          <p className="text-xs text-muted-foreground">
+            Remover uma linha desfaz a associação automática; não exclui os ativos ou achados já registrados.
+          </p>
         </FieldGroup>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
             Cancelar
           </Button>
-          <Button onClick={submit} disabled={busy || parsedScope.errors.length > 0}>
-            {busy ? "Salvando…" : "Substituir regras"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Append asset scope dialog
-function AppendScopeDialog({ company, onSaved }: { company: Company; onSaved: () => void }) {
-  const [open, setOpen] = React.useState(false);
-  const [scopeText, setScopeText] = React.useState("");
-  const [reason, setReason] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const parsedScope = React.useMemo(() => parseCompanyScopeText(scopeText), [scopeText]);
-
-  React.useEffect(() => {
-    if (!open) return;
-    setScopeText("");
-    setReason("");
-  }, [open]);
-
-  const submit = async () => {
-    if (parsedScope.rules.length === 0) {
-      toast.error("Informe as regras a adicionar");
-      return;
-    }
-    if (parsedScope.errors.length > 0) {
-      toast.error("Corrija as linhas inválidas");
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await api.addCompanyScope(company.id, parsedScope.rules, reason);
-      const errCount = res.invalid ?? 0;
-      if (errCount > 0) toast.warning(`Salvo com ${errCount} linha(s) inválida(s)`);
-      else toast.success(`${res.added} regra(s) adicionada(s)`);
-      showScopeWarnings(res.warnings);
-      setOpen(false);
-      onSaved();
-    } catch (e) {
-      toast.error(`Falha ao salvar: ${String((e as Error)?.message ?? e)}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="h-7">
-          Adicionar regras
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Adicionar regras · {company.name}</DialogTitle>
-          <DialogDescription>
-            As novas regras serão somadas às atuais. A autorização VA continua definida na tarefa.
-          </DialogDescription>
-        </DialogHeader>
-        <FieldGroup className="py-2">
-          <ScopeTextEditor
-            id={`append-company-scope-${company.id}`}
-            value={scopeText}
-            onValueChange={setScopeText}
-            parsed={parsedScope}
-            label="Novas regras de associação"
-            description="Um domínio, IP, CIDR ou palavra-chave por linha."
-            locale="pt-BR"
-          />
-          <Field>
-            <FieldLabel htmlFor="as-reason">Base da associação (opcional)</FieldLabel>
-            <Input
-              id="as-reason"
-              placeholder="Ex.: certificado, WHOIS ou ASN"
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-            />
-          </Field>
-        </FieldGroup>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={busy}>
-            Cancelar
-          </Button>
-          <Button onClick={submit} disabled={busy || parsedScope.rules.length === 0 || parsedScope.errors.length > 0}>
-            {busy ? "Salvando…" : "Adicionar regras"}
+          <Button onClick={submit} disabled={busy || !name.trim() || parsed.errors.length > 0}>
+            {busy ? "Salvando…" : "Salvar alterações"}
           </Button>
         </DialogFooter>
       </DialogContent>

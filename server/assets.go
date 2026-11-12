@@ -174,6 +174,58 @@ func (s *Server) getCompany(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"company": c, "scope": scope})
 }
 
+// PATCH /api/companies/{id} updates the client name and its association rules atomically.
+func (s *Server) updateCompany(w http.ResponseWriter, r *http.Request) {
+	cs := s.companyStore()
+	if cs == nil {
+		writeErr(w, 503, "database unavailable")
+		return
+	}
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || id <= 0 {
+		writeErr(w, 400, "invalid company id")
+		return
+	}
+	var req struct {
+		Name  string          `json:"name"`
+		Scope json.RawMessage `json:"scope"`
+	}
+	if !decodeCompanyMutationRequest(w, r, &req) {
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		writeErr(w, 400, "name required")
+		return
+	}
+	if len(req.Scope) == 0 || strings.TrimSpace(string(req.Scope)) == "null" {
+		writeErr(w, 400, "scope array required")
+		return
+	}
+	var scope companyScopeInputs
+	if err := json.Unmarshal(req.Scope, &scope); err != nil {
+		writeErr(w, 400, "invalid scope array: "+err.Error())
+		return
+	}
+	added, err := cs.UpdateCompanyDetailsChecked(id, req.Name, scope)
+	if err != nil {
+		switch {
+		case errors.Is(err, db.ErrCompanyNameConflict):
+			writeErr(w, 409, "Company name already exists")
+		case errors.Is(err, db.ErrCompanyNotFound):
+			writeErr(w, 404, "company not found")
+		default:
+			var validationErr *db.CompanyScopeValidationError
+			if errors.As(err, &validationErr) {
+				writeErr(w, 400, validationErr.Error())
+			} else {
+				writeErr(w, 500, err.Error())
+			}
+		}
+		return
+	}
+	writeJSON(w, 200, map[string]any{"updated": true, "scope_added": added})
+}
+
 // =====================================================================
 // POST /api/companies/{id}/scope
 // =====================================================================

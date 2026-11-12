@@ -290,9 +290,9 @@ export default function FindingsPage() {
         ids: [...selectedIds],
       });
       setExportOpen(false);
-      toast.success("Export download started");
+      toast.success("Download do export iniciado");
     } catch (e) {
-      toast.error(`Export failed: ${(e as Error).message}`);
+      toast.error(`Falha ao exportar: ${(e as Error).message}`);
     } finally {
       setExporting(false);
     }
@@ -678,7 +678,7 @@ export default function FindingsPage() {
               : x,
           ),
         );
-        toast.success("Saved");
+        toast.success("Achado atualizado");
         api
           .findingStats()
           .then(setStats)
@@ -711,7 +711,7 @@ export default function FindingsPage() {
         setFlat((cur) => ({ ...cur, total: Math.max(0, cur.total - 1) }));
         const rowKey = findingRowKey(f);
         setExpanded((cur) => (cur === rowKey ? null : cur));
-        toast.success("Vulnerability deleted");
+        toast.success("Achado excluído");
         api
           .findingStats()
           .then(setStats)
@@ -752,12 +752,12 @@ export default function FindingsPage() {
   }
 
   const statCards = [
-    { label: "Total findings", value: stats.total, icon: BugIcon },
-    { label: "Pending", value: stats.pending, tone: "text-amber-500", icon: ClockIcon },
-    { label: "Critical", value: stats.critical, tone: "text-rose-600", icon: ShieldAlertIcon },
-    { label: "High", value: stats.high, tone: "text-red-500", icon: TriangleAlertIcon },
-    { label: "Medium", value: stats.medium, tone: "text-amber-500", icon: TriangleAlertIcon },
-    { label: "Low", value: stats.low, tone: "text-slate-500", icon: InfoIcon },
+    { label: "Total", value: stats.total, icon: BugIcon },
+    { label: "Pendentes", value: stats.pending, tone: "text-amber-500", icon: ClockIcon },
+    { label: "Críticos", value: stats.critical, tone: "text-rose-500", icon: ShieldAlertIcon },
+    { label: "Altos", value: stats.high, tone: "text-red-500", icon: TriangleAlertIcon },
+    { label: "Médios", value: stats.medium, tone: "text-amber-500", icon: TriangleAlertIcon },
+    { label: "Baixos", value: stats.low, tone: "text-muted-foreground", icon: InfoIcon },
   ];
 
   // The "current filter" count in the export dialog: both views share the same filters, only the counting source differs.
@@ -796,7 +796,9 @@ export default function FindingsPage() {
           </div>
         ) : (
           <>
-            <FindingsTable items={flat.items} selectAllLabel="Select all on this page" {...rowProps} />
+            <div className="overflow-x-auto">
+              <FindingsTable items={flat.items} selectAllLabel="Selecionar todos nesta página" {...rowProps} />
+            </div>
             <TablePagination
               page={flatPage}
               pageSize={flatPageSize}
@@ -815,46 +817,63 @@ export default function FindingsPage() {
   );
 
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="mx-auto flex min-h-[calc(100vh-6rem)] w-full max-w-7xl flex-1 flex-col gap-8 px-4 py-7 pb-16 sm:px-6 lg:px-10 lg:py-10">
+      <header className="flex flex-wrap items-end justify-between gap-5 border-b pb-7">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight">Achados</h1>
-          <p className="text-muted-foreground text-sm">Visão geral de vulnerabilidades entre tarefas</p>
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-primary">SOC / TRIAGEM</p>
+          <h1 className="mt-3 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight sm:text-5xl">
+            Achados
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-6 text-muted-foreground">
+            Priorize vulnerabilidades observadas e acompanhe a análise por tarefa ou ativo.
+          </p>
         </div>
-        <Tabs value={view} onValueChange={(v) => setView(v as FindingView)}>
-          <TabsList>
-            <TabsTrigger value="flat">Todos os achados</TabsTrigger>
-            <TabsTrigger value="grouped">Por tarefa</TabsTrigger>
-            <TabsTrigger value="asset">Por ativo</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
-      <div className="flex flex-1 flex-col gap-4 md:gap-6">
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <Button size="sm" variant="outline" onClick={openExport}>
+          <DownloadIcon /> Exportar
+        </Button>
+      </header>
+      <div className="flex flex-1 flex-col gap-6">
+        <div className="grid grid-cols-2 divide-x divide-y border-b pb-6 sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
           {statCards.map((stat) => {
             const StatIcon = stat.icon;
             return (
-              <Card key={stat.label} className="gap-1 py-4">
-                <CardHeader className="px-4">
-                  <CardDescription>{stat.label}</CardDescription>
-                  <CardTitle className={cn("flex items-center gap-2 text-2xl tabular-nums", stat.tone)}>
-                    <StatIcon className="size-5" aria-hidden="true" />
-                    {stat.value}
-                  </CardTitle>
-                </CardHeader>
-              </Card>
+              <div key={stat.label} className="px-4 py-3 first:pl-0 lg:px-5 lg:py-1">
+                <p className={cn("font-mono text-2xl font-semibold tabular-nums sm:text-3xl", stat.tone)}>
+                  {stat.value}
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <StatIcon className="size-3" aria-hidden="true" />
+                  {stat.label}
+                </p>
+              </div>
             );
           })}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <Tabs value={view} onValueChange={(v) => setView(v as FindingView)}>
+          <div className="overflow-x-auto border-b">
+            <TabsList variant="line" className="h-auto! gap-4 p-0">
+              <TabsTrigger value="flat" className="h-11! px-2! pb-3 text-sm">
+                Todos os achados
+              </TabsTrigger>
+              <TabsTrigger value="grouped" className="h-11! px-2! pb-3 text-sm">
+                Por tarefa
+              </TabsTrigger>
+              <TabsTrigger value="asset" className="h-11! px-2! pb-3 text-sm">
+                Por ativo
+              </TabsTrigger>
+            </TabsList>
+          </div>
+        </Tabs>
+
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card/40 p-3">
           <InputGroup className="w-full sm:w-72">
             <InputGroupInput
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search findings"
-              aria-label="Search findings"
+              placeholder="Buscar achado, ativo ou CVE"
+              aria-label="Buscar achados"
             />
             <InputGroupAddon>
               <SearchIcon aria-hidden="true" />
@@ -871,14 +890,14 @@ export default function FindingsPage() {
           >
             {(
               [
-                ["all", "All"],
-                ["critical", "Critical"],
-                ["high", "High"],
-                ["medium", "Medium"],
-                ["low", "Low"],
+                ["all", "Todas"],
+                ["critical", "Crítica"],
+                ["high", "Alta"],
+                ["medium", "Média"],
+                ["low", "Baixa"],
               ] as const
             ).map(([val, label]) => (
-              <ToggleGroupItem key={val} value={val} aria-label={`Filter by ${label} severity`}>
+              <ToggleGroupItem key={val} value={val} aria-label={`Filtrar severidade ${label}`}>
                 {label}
               </ToggleGroupItem>
             ))}
@@ -889,7 +908,7 @@ export default function FindingsPage() {
               <SelectValue placeholder="Status" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
+              <SelectItem value="all">Todos os status</SelectItem>
               {FINDING_STATUSES.map((st) => (
                 <SelectItem key={st} value={st}>
                   {statusMeta("finding", st).label}
@@ -900,10 +919,10 @@ export default function FindingsPage() {
 
           <Select value={vulnclass} onValueChange={setVulnclass}>
             <SelectTrigger size="sm" className="w-40">
-              <SelectValue placeholder="Vulnerability type" />
+              <SelectValue placeholder="Tipo de vulnerabilidade" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="all">Todos os tipos</SelectItem>
               {stats.vulnclasses.map((vc) => (
                 <SelectItem key={vc} value={vc}>
                   {vc}
@@ -914,14 +933,14 @@ export default function FindingsPage() {
 
           <Select value={task} onValueChange={setTask}>
             <SelectTrigger size="sm" className="w-48">
-              <SelectValue placeholder="Task" />
+              <SelectValue placeholder="Tarefa" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All tasks</SelectItem>
-              <SelectItem value={UNASSIGNED_TASK}>Unlinked / task deleted</SelectItem>
+              <SelectItem value="all">Todas as tarefas</SelectItem>
+              <SelectItem value={UNASSIGNED_TASK}>Sem tarefa vinculada</SelectItem>
               {(stats.tasks ?? []).map((t) => {
                 const id = String(t.id);
-                const label = t.name || t.description || `Task #${id} (deleted)`;
+                const label = t.name || t.description || `Tarefa #${id} (excluída)`;
                 return (
                   <SelectItem key={id} value={id}>
                     <span className="flex w-full items-center gap-2">
@@ -944,18 +963,15 @@ export default function FindingsPage() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="severity">By severity</SelectItem>
-              <SelectItem value="time">By time</SelectItem>
+              <SelectItem value="severity">Por severidade</SelectItem>
+              <SelectItem value="time">Mais recentes</SelectItem>
             </SelectContent>
           </Select>
 
           <div className="ml-auto flex items-center gap-3">
             {selectedIds.size > 0 && (
-              <span className="text-xs text-muted-foreground tabular-nums">{selectedIds.size} selected</span>
+              <span className="text-xs text-muted-foreground tabular-nums">{selectedIds.size} selecionado(s)</span>
             )}
-            <Button size="sm" variant="outline" onClick={openExport}>
-              <DownloadIcon /> Export
-            </Button>
           </div>
         </div>
 
@@ -990,7 +1006,7 @@ export default function FindingsPage() {
                   className={cn("hover:text-foreground", assetScope === null && "font-medium text-foreground")}
                   onClick={() => setAssetScope(null)}
                 >
-                  All assets
+                  Todos os ativos
                 </button>
                 {assetPath.map((node) => (
                   <React.Fragment key={node.key}>
@@ -1008,7 +1024,7 @@ export default function FindingsPage() {
                     </button>
                   </React.Fragment>
                 ))}
-                <span className="ml-auto shrink-0 text-xs tabular-nums">{flat.total} in total</span>
+                <span className="ml-auto shrink-0 text-xs tabular-nums">{flat.total} no total</span>
               </div>
               {flatListCard}
             </div>
@@ -1047,13 +1063,13 @@ export default function FindingsPage() {
                         <div className="flex min-w-0 flex-col gap-1">
                           <CardTitle className="truncate text-sm">
                             {group.task_id === null
-                              ? "Unlinked / task deleted"
+                              ? "Sem tarefa vinculada"
                               : group.task_name
-                                ? `${group.task_name} (task #${group.task_id})`
-                                : `Task #${group.task_id}`}
+                                ? `${group.task_name} (tarefa #${group.task_id})`
+                                : `Tarefa #${group.task_id}`}
                           </CardTitle>
                           <CardDescription className="truncate" title={group.task_description}>
-                            {group.task_description || "Source task unavailable"}
+                            {group.task_description || "Descrição da tarefa indisponível"}
                           </CardDescription>
                         </div>
                       </button>
@@ -1076,7 +1092,7 @@ export default function FindingsPage() {
                           <Button size="icon-sm" variant="ghost" asChild>
                             <Link
                               href={`/function/tasks/detail?id=${group.task_id}`}
-                              aria-label={`View task #${group.task_id}`}
+                              aria-label={`Ver tarefa #${group.task_id}`}
                             >
                               <ArrowUpRightIcon />
                             </Link>
@@ -1093,7 +1109,13 @@ export default function FindingsPage() {
                         </div>
                       ) : (
                         <>
-                          <FindingsTable items={state.items} selectAllLabel="Select all on this page in this group" {...rowProps} />
+                          <div className="overflow-x-auto">
+                            <FindingsTable
+                              items={state.items}
+                              selectAllLabel="Selecionar todos nesta página da tarefa"
+                              {...rowProps}
+                            />
+                          </div>
                           <TablePagination
                             page={state.page}
                             pageSize={state.pageSize}
@@ -1110,7 +1132,9 @@ export default function FindingsPage() {
             })}
             {groups.length === 0 && (
               <Card>
-                <CardContent className="py-12 text-center text-sm text-muted-foreground">No matching findings.</CardContent>
+                <CardContent className="py-12 text-center text-sm text-muted-foreground">
+                  Nenhum achado corresponde aos filtros.
+                </CardContent>
               </Card>
             )}
             <TablePagination
@@ -1159,25 +1183,25 @@ export default function FindingsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Deepen exploitation</DialogTitle>
+            <DialogTitle>Aprofundar análise</DialogTitle>
             <DialogDescription className="break-words">
-              A priority-10 worker intent will be created in the original task #{deepenFinding?.task_id} to run secondary verification based on this vulnerability:
+              Uma verificação adicional será criada na tarefa #{deepenFinding?.task_id} para este achado:
               {deepenFinding?.name || deepenFinding?.vulnclass || deepenFinding?.summary}
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
             <Field>
-              <FieldLabel htmlFor="finding-deepen-description">Exploitation description</FieldLabel>
+              <FieldLabel htmlFor="finding-deepen-description">O que verificar</FieldLabel>
               <Textarea
                 id="finding-deepen-description"
                 value={deepenDescription}
                 onChange={(event) => setDeepenDescription(event.target.value)}
                 maxLength={4000}
-                placeholder="Describe the exploitation path to verify, boundary conditions, targets, or expected evidence"
+                placeholder="Descreva a verificação, os limites e a evidência esperada"
                 disabled={deepening}
               />
               <FieldDescription className="flex justify-between gap-3">
-                <span>The new intent inherits this vulnerability's asset anchors.</span>
+                <span>A verificação usa os ativos vinculados a este achado.</span>
                 <span className="shrink-0 tabular-nums">{deepenDescription.length} / 4000</span>
               </FieldDescription>
             </Field>
@@ -1191,11 +1215,11 @@ export default function FindingsPage() {
               }}
               disabled={deepening}
             >
-              Cancel
+              Cancelar
             </Button>
             <Button onClick={submitDeepen} disabled={deepening || !deepenDescription.trim()}>
               {deepening && <Spinner data-icon="inline-start" />}
-              Create deepen intent
+              Criar verificação
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1204,42 +1228,42 @@ export default function FindingsPage() {
       <Dialog open={exportOpen} onOpenChange={setExportOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Export findings</DialogTitle>
-            <DialogDescription>Choose the export scope and format; the browser downloads the file automatically once generated.</DialogDescription>
+            <DialogTitle>Exportar achados</DialogTitle>
+            <DialogDescription>Escolha quais achados incluir e o formato do arquivo.</DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-col gap-5 py-1">
             <div className="flex flex-col gap-2">
-              <span className="text-xs text-muted-foreground">Export scope</span>
+              <span className="text-xs text-muted-foreground">Achados incluídos</span>
               <RadioGroup value={exportScope} onValueChange={(v) => setExportScope(v as typeof exportScope)}>
                 <label htmlFor="export-scope-filtered" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-scope-filtered" value="filtered" /> Export the current filter results ({filteredTotal}{" "}
-                  items)
+                  <RadioGroupItem id="export-scope-filtered" value="filtered" /> Resultado dos filtros ({filteredTotal}{" "}
+                  itens)
                 </label>
                 <label htmlFor="export-scope-all" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-scope-all" value="all" /> Export all
+                  <RadioGroupItem id="export-scope-all" value="all" /> Todos os achados
                 </label>
                 <label
                   htmlFor="export-scope-selected"
                   className={cn("flex items-center gap-2 text-sm", selectedIds.size === 0 && "text-muted-foreground")}
                 >
                   <RadioGroupItem id="export-scope-selected" value="selected" disabled={selectedIds.size === 0} />
-                  Export the {selectedIds.size} selected items
+                  {selectedIds.size} selecionado(s)
                 </label>
               </RadioGroup>
             </div>
 
             <div className="flex flex-col gap-2">
-              <span className="text-xs text-muted-foreground">Export format</span>
+              <span className="text-xs text-muted-foreground">Formato</span>
               <RadioGroup value={exportFormat} onValueChange={(v) => setExportFormat(v as typeof exportFormat)}>
                 <label htmlFor="export-format-md-single" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-format-md-single" value="md-single" /> Markdown summary report (a single .md file)
+                  <RadioGroupItem id="export-format-md-single" value="md-single" /> Resumo em Markdown (.md)
                 </label>
                 <label htmlFor="export-format-md-zip" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-format-md-zip" value="md-zip" /> Markdown per finding (one .md per vulnerability, packaged as .zip)
+                  <RadioGroupItem id="export-format-md-zip" value="md-zip" /> Um Markdown por achado (.zip)
                 </label>
                 <label htmlFor="export-format-csv" className="flex items-center gap-2 text-sm">
-                  <RadioGroupItem id="export-format-csv" value="csv" /> CSV table (.csv)
+                  <RadioGroupItem id="export-format-csv" value="csv" /> Planilha CSV (.csv)
                 </label>
                 <label htmlFor="export-format-json" className="flex items-center gap-2 text-sm">
                   <RadioGroupItem id="export-format-json" value="json" /> JSON (.json)
@@ -1250,10 +1274,10 @@ export default function FindingsPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setExportOpen(false)} disabled={exporting}>
-              Cancel
+              Cancelar
             </Button>
             <Button onClick={doExport} disabled={exporting || (exportScope === "selected" && selectedIds.size === 0)}>
-              <DownloadIcon /> {exporting ? "Exporting…" : "Export"}
+              <DownloadIcon /> {exporting ? "Exportando…" : "Exportar"}
             </Button>
           </DialogFooter>
         </DialogContent>

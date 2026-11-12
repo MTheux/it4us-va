@@ -313,6 +313,52 @@ func TestUpdateScopeRollsBackOnInsertFailure(t *testing.T) {
 	}
 }
 
+func TestUpdateCompanyDetailsKeepsNameAndScopeTogether(t *testing.T) {
+	d, err := Open(testDSN(t))
+	if err != nil {
+		t.Skipf("postgres unavailable (%v)", err)
+	}
+	defer d.Close()
+	cs := d.Companies()
+	suffix := time.Now().UnixNano()
+	first, _, err := cs.UpsertCompany(fmt.Sprintf("Edit Client %d", suffix), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanupCompany(d, first)
+	secondName := fmt.Sprintf("Existing Client %d", suffix)
+	second, _, err := cs.UpsertCompany(secondName, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cleanupCompany(d, second)
+	if _, err := cs.UpdateCompanyDetailsChecked(first, fmt.Sprintf("Renamed Client %d", suffix), []ScopeInput{{Kind: "ip", Value: "192.0.2.10"}}); err != nil {
+		t.Fatal(err)
+	}
+	before, err := cs.GetCompany(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope, err := cs.GetScope(first)
+	if err != nil || len(scope) != 1 || scope[0].Raw != "192.0.2.10" {
+		t.Fatalf("scope after edit: %+v, %v", scope, err)
+	}
+	if _, err := cs.UpdateCompanyDetailsChecked(first, secondName, []ScopeInput{{Kind: "ip", Value: "192.0.2.11"}}); !errors.Is(err, ErrCompanyNameConflict) {
+		t.Fatalf("duplicate name: %v", err)
+	}
+	if _, err := cs.UpdateCompanyDetailsChecked(first, "Invalid client", []ScopeInput{{Kind: "ip", Value: "not-an-ip"}}); err == nil {
+		t.Fatal("invalid IP unexpectedly accepted")
+	}
+	after, err := cs.GetCompany(first)
+	if err != nil || after.Name != before.Name {
+		t.Fatalf("name changed after rejected edit: before=%+v after=%+v err=%v", before, after, err)
+	}
+	scope, err = cs.GetScope(first)
+	if err != nil || len(scope) != 1 || scope[0].Raw != "192.0.2.10" {
+		t.Fatalf("scope changed after rejected edit: %+v, %v", scope, err)
+	}
+}
+
 func TestDeleteCompany(t *testing.T) {
 	d, err := Open(testDSN(t))
 	if err != nil {
