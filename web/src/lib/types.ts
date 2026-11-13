@@ -29,6 +29,8 @@ export interface VAPlan {
 export interface VACapabilities {
   scanner_available: boolean;
   scanner: string;
+  vt_enabled?: boolean;
+  vt_available?: boolean;
   llm_required: boolean;
   mcp_required: boolean;
 }
@@ -87,6 +89,7 @@ export interface VARun {
   result?: { campaign: string; started_at: string; finished_at: string; hosts: VAHostResult[] };
   cve_checks?: VACVECheck[];
   cve_auto?: { status: "completed" | "partial" | "skipped" | "unavailable"; cpes_checked: number; cves_checked: number; candidates: number; coverage_note?: string };
+  draxen?: { status: "completed" | "failed" | "unavailable"; offline: boolean; artifacts: number; proposals: number; network_calls: number; note?: string };
 }
 
 export interface VAEvent {

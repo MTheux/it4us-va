@@ -83,15 +83,20 @@ func (s *Server) vaAppendEvent(id string, event vaEvent) {
 }
 
 func validVAArtifactPath(name string) bool {
-	if name == "plan.json" || name == "events.jsonl" || name == "receipt.json" {
+	if name == "plan.json" || name == "events.jsonl" || name == "receipt.json" || name == "analysis-input.json" {
 		return true
 	}
+	for _, allowed := range []string{"analysis.json", "va-plan.json", "HANDOFF.md", "manifest.json", "agent-state.json", "findings.json", "audit.jsonl", "coverage-diff.json", "capability-plan.json"} {
+		if name == "draxen/"+allowed {
+			return true
+		}
+	}
 	parts := strings.Split(name, "/")
-	if len(parts) != 2 || (parts[0] != "hosts" && parts[0] != "raw" && parts[0] != "deep") {
+	if len(parts) != 2 || (parts[0] != "hosts" && parts[0] != "raw" && parts[0] != "deep" && parts[0] != "vt") {
 		return false
 	}
 	ext := ".json"
-	if parts[0] == "raw" {
+	if parts[0] == "raw" || parts[0] == "vt" {
 		ext = ".xml"
 	}
 	base := strings.TrimSuffix(parts[1], ext)
@@ -119,12 +124,13 @@ func (s *Server) vaFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.vaCurrent(&record)
-	labels := map[string]string{"plan.json": "Plano aprovado", "events.jsonl": "Histórico de execução", "receipt.json": "Recibo final"}
+	labels := map[string]string{"plan.json": "Plano aprovado", "events.jsonl": "Histórico de execução", "receipt.json": "Recibo final", "analysis-input.json": "Entrada da revisão", "draxen/analysis.json": "Revisão Draxen", "draxen/va-plan.json": "Próximas validações propostas", "draxen/HANDOFF.md": "Handoff Draxen", "draxen/agent-state.json": "Estado do agente", "draxen/audit.jsonl": "Auditoria do agente"}
 	if record.Result != nil {
 		for _, host := range record.Result.Hosts {
 			labels[vaTargetArtifact(host.Target, "hosts", ".json")] = host.Target + " · inventário"
 			labels[vaTargetArtifact(host.Target, "raw", ".xml")] = host.Target + " · scanner XML"
 			labels[vaTargetArtifact(host.Target, "deep", ".json")] = host.Target + " · checks aprofundados"
+			labels[vaTargetArtifact(host.Target, "vt", ".xml")] = host.Target + " · relatório de VTs"
 		}
 	}
 	root := s.vaArtifactDir(id)

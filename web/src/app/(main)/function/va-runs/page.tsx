@@ -534,12 +534,17 @@ export default function VARunsPage() {
                       type="button"
                       aria-pressed={depth === "deep"}
                       onClick={() => setDepth("deep")}
+                      disabled={Boolean(capabilities?.vt_enabled && !capabilities?.vt_available)}
                       className={`flex min-h-24 items-start justify-between gap-3 rounded-lg border p-4 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${depth === "deep" ? "border-primary/60 bg-primary/5" : "border-border bg-card/50 hover:border-primary/40"}`}
                     >
                       <span>
                         <strong className="block text-sm font-medium">VA aprofundado</strong>
                         <span className="mt-1 block text-xs leading-5 text-muted-foreground">
-                          Até 16 IPs · TLS e SMB read-only.
+                          {capabilities?.vt_enabled
+                            ? capabilities.vt_available
+                              ? "Até 16 IPs · TLS, SMB e verificações de vulnerabilidade."
+                              : "Feed de vulnerabilidades em preparação."
+                            : "Até 16 IPs · TLS e SMB read-only."}
                         </span>
                       </span>
                       {depth === "deep" && <CheckIcon className="size-4 shrink-0 text-primary" />}

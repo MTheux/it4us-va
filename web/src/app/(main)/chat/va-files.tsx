@@ -13,6 +13,8 @@ const groups: Record<string, string> = {
   hosts: "Hosts processados",
   raw: "Saída do scanner",
   deep: "VA aprofundado",
+  draxen: "Revisão Draxen",
+  vt: "Verificações de vulnerabilidade",
 };
 
 export function VAFiles({ runID }: { runID?: string }) {
@@ -74,7 +76,7 @@ export function VAFiles({ runID }: { runID?: string }) {
 
   const current = files.find((file) => file.path === selected);
   const filtered = files.filter((file) => `${file.name} ${file.path}`.toLocaleLowerCase("pt-BR").includes(search.toLocaleLowerCase("pt-BR")));
-  const grouped = ["root", "hosts", "raw", "deep"].map((group) => ({
+  const grouped = ["root", "hosts", "raw", "deep", "vt", "draxen"].map((group) => ({
     group,
     files: filtered.filter((file) => (file.path.includes("/") ? file.path.split("/")[0] : "root") === group),
   })).filter((entry) => entry.files.length);

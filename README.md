@@ -13,9 +13,9 @@ Console do SOC para descobrir serviços em IPs autorizados, registrar evidência
 - Configurar Claude/OpenCode e MCP em **Conexões**, se a equipe quiser apoio do agente. Discovery de portas não depende dessas integrações.
 - Acompanhar o histórico de cada execução no **Chat → Histórico** e abrir **Chat → Arquivos** para consultar plano, eventos, inventário por host, saídas brutas e recibo final. Artefatos novos são gravados em `data/va-runs/artifacts/<run-id>/` com SHA-256; execuções antigas exibem seu recibo persistido.
 
-O scanner não executa exploit, NSE, autenticação, brute force ou movimento lateral. A correlação automática não confirma que o alvo é vulnerável: patches, backports e condições adicionais exigem validação específica. Checks de impacto por CVE e scans autenticados ainda não fazem parte desta versão.
+O discovery Nmap não executa exploit, NSE, autenticação, brute force ou movimento lateral. O motor de VTs usa o perfil local `IT4US Infra Only v2`, com famílias de infraestrutura selecionadas e `safe_checks` ativo; ele pode enviar probes aos serviços observados. A correlação automática não confirma que o alvo é vulnerável: patches, backports e condições adicionais exigem validação específica. Scans autenticados ainda não fazem parte desta versão.
 
-O histórico novo registra etapas reais do scanner e chamadas de análise do chat; não reconstrói ações inexistentes para campanhas antigas. O motor de VT com feed e o runtime Draxen de infraestrutura ainda exigem integração e validação operacional antes de serem anunciados como disponíveis.
+O histórico novo registra etapas reais do scanner e chamadas de análise do chat; não reconstrói ações inexistentes para campanhas antigas. O VA aprofundado pode usar um motor local de VTs quando o feed, o perfil e o scanner estiverem prontos. A revisão Draxen processa o recibo offline e propõe validações ao SOC; ela não executa automaticamente essas propostas. A instalação e as limitações estão em [deploy/greenbone/README.md](deploy/greenbone/README.md).
 
 ## Tela real
 
@@ -62,7 +62,7 @@ As skills de infraestrutura distribuídas em `skills/infra-*` orientam pré-voo,
 
 O **Chat** mostra apenas o agente **Infraestrutura VA**; conversas antigas de outros agentes permanecem no banco, mas não aparecem nessa tela. Em **Conexões**, escolha Ollama local sem chave, Claude com API key ou OpenAI com API key. Para uso local sem nuvem, instale Ollama no servidor e baixe um modelo (`ollama pull gemma3:4b`); o painel lista os modelos instalados e testa uma resposta antes de ativar o perfil.
 
-Em **Execuções VA**, o perfil **VA aprofundado** faz discovery TCP e checks read-only de certificado TLS e assinatura SMB nos serviços observados (até 16 IPs por campanha). **Pesquisar CVE** consulta NVD, GitHub Advisory, EPSS e CISA KEV sem exigir uma campanha, e mostra referências públicas de exploit/PoC indexadas pela NVD sem executá-las. O IT4US VA executa somente análises de infraestrutura; não há conector Web/API neste fluxo. Detalhes e limites: `VA-SCANNER-v1.4-2026-11-11.md`.
+Em **Execuções VA**, o perfil **VA aprofundado** faz discovery TCP e checks read-only de certificado TLS e assinatura SMB nos serviços observados (até 16 IPs por campanha). Quando o motor de VTs local está habilitado e pronto, adiciona verificações do perfil configurado nas portas observadas. **Pesquisar CVE** consulta NVD, GitHub Advisory, EPSS e CISA KEV sem exigir uma campanha, e mostra referências públicas de exploit/PoC indexadas pela NVD sem executá-las. O IT4US VA avalia somente infraestrutura; não há conector Web/API neste fluxo. Detalhes e limites: `VA-SCANNER-v1.4-2026-11-11.md`.
 
 Para visualizar a interface sem executar um scan, `scripts/demo-va-data.sh seed` cria uma empresa e tarefa **DEMO**, três IPs reservados para documentação, serviços e quatro achados pendentes com evidência marcada `DADO FICTICIO`. O script é idempotente. Use `scripts/demo-va-data.sh status` para conferir a quantidade de registros e `scripts/demo-va-data.sh clear` para retirar apenas esses dados, após revisar se a tarefa demo não recebeu dados reais. O comando usa o container PostgreSQL local; defina `IT4US_PG_CONTAINER` se o nome for diferente.
 
@@ -103,12 +103,14 @@ A chave de IA e os cabeçalhos de autenticação MCP não são devolvidos pela i
 flowchart LR
   SOC["SOC · interface web"] --> API["API Go · autenticação"]
   API --> VA["Scanner VA · escopo e janela"]
+  VA --> VT["Motor de VTs local · opcional"]
   VA --> NVD["NVD · correlação CPE/CVE limitada"]
   NVD --> DB[("PostgreSQL · inventário, recibos e candidatos")]
   VA --> DB
   API --> AG["Agentes opcionais · goals, planner, workers, mainagent"]
   AG --> DB
   AG -.-> MCP["Skills e MCP autorizados"]
+  VA --> DR["Draxen · triagem offline e propostas"]
 ```
 
 O núcleo de agentes herdado do projeto original permanece: `goals` organiza objetivos, `planner` cria tarefas de investigação, `workers` executam as ações permitidas e `mainagent` apoia o analista. O fluxo VA executa discovery e correlação de CVEs automaticamente, sem iniciar uma exploração pelo agente ou confirmar impacto. A aprovação e a revisão do SOC continuam necessárias.

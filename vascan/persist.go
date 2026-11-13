@@ -51,7 +51,7 @@ func Persist(pg *db.DB, taskID int64, result Result) (int, error) {
 			}
 		}
 		for _, candidate := range host.Candidates {
-			if (candidate.Check != "nmap.service" && candidate.Check != "nmap.ssl-cert" && candidate.Check != "nmap.smb2-security-mode") || candidate.Asset.IP == "" || !ip.Equal(net.ParseIP(candidate.Asset.IP)) {
+			if (candidate.Check != "nmap.service" && candidate.Check != "nmap.ssl-cert" && candidate.Check != "nmap.smb2-security-mode" && candidate.Check != "gmp.vt") || candidate.Asset.IP == "" || !ip.Equal(net.ParseIP(candidate.Asset.IP)) {
 				return count, fmt.Errorf("candidate target does not match scanned host %s", host.Target)
 			}
 			severity := strings.ToLower(candidate.Severity)

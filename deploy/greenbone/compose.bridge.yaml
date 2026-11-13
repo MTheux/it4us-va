@@ -1,0 +1,18 @@
+services:
+  gmp-bridge:
+    image: python:3.12-alpine
+    command: ["python", "/bridge/gmp_socket_bridge.py"]
+    depends_on:
+      gvmd:
+        condition: service_started
+    ports:
+      - "127.0.0.1:9390:9390"
+    volumes:
+      - gvmd_socket_vol:/run/gvmd:ro
+      - ../../scripts/gmp_socket_bridge.py:/bridge/gmp_socket_bridge.py:ro
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped

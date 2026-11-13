@@ -37,6 +37,7 @@ type vaRunRecord struct {
 	Result         *vascan.Result    `json:"result,omitempty"`
 	CVEChecks      []vaCVEResult     `json:"cve_checks,omitempty"`
 	CVEAuto        *vaAutoCVESummary `json:"cve_auto,omitempty"`
+	Draxen         *vaDraxenReview   `json:"draxen,omitempty"`
 }
 
 type vaActiveRun struct {
@@ -123,9 +124,17 @@ func (v vaScopedScanner) ScanDeep(ctx context.Context, target string, ports []in
 
 func (s *Server) vaCapabilities(w http.ResponseWriter, _ *http.Request) {
 	_, err := exec.LookPath("nmap")
+	vtReady := false
+	if vaVTEnabled() {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		vtReady = vascan.GMPHealth(ctx, vaVTConfig()) == nil
+		cancel()
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"scanner_available": err == nil,
 		"scanner":           "Motor VA de infraestrutura",
+		"vt_available":      vtReady,
+		"vt_enabled":        vaVTEnabled(),
 		"llm_required":      false,
 		"mcp_required":      false,
 	})
@@ -206,6 +215,20 @@ func (s *Server) vaStartRun(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusServiceUnavailable, "Nmap is not installed on the VA worker")
 		return
 	}
+	if vaVTEnabled() && campaign.Depth == "deep" {
+		cfg := vaVTConfig()
+		if err := cfg.Validate(); err != nil {
+			writeErr(w, http.StatusServiceUnavailable, "VA aprofundado não configurado no worker")
+			return
+		}
+		healthCtx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		err := vascan.GMPHealth(healthCtx, cfg)
+		cancel()
+		if err != nil {
+			writeErr(w, http.StatusServiceUnavailable, "Motor de VTs indisponível no worker")
+			return
+		}
+	}
 	seed := make([]byte, 12)
 	if _, err := rand.Read(seed); err != nil {
 		writeErr(w, http.StatusInternalServerError, "could not create run ID")
@@ -268,6 +291,9 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 		}
 		s.vaMu.Unlock()
 	})
+	if runErr == nil {
+		runErr = s.vaEnrichWithVT(ctx, record, &result)
+	}
 	completed, failed := 0, 0
 	deepFailures := 0
 	for _, host := range result.Hosts {
@@ -319,6 +345,7 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 		}
 		record.Status, record.Phase = finalStatus, ""
 		s.vaAppendEvent(record.ID, vaEvent{Stage: "cve_review", Status: "completed", Count: len(record.CVEChecks), Detail: "Correlação automática encerrada"})
+		s.vaReviewWithDraxen(ctx, &record)
 	}
 	finished := time.Now().UTC()
 	record.FinishedAt = &finished

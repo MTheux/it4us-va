@@ -10,12 +10,12 @@ import (
 
 func TestVAArtifactPathAllowlist(t *testing.T) {
 	hash := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	for _, path := range []string{"plan.json", "events.jsonl", "receipt.json", "hosts/" + hash + ".json", "raw/" + hash + ".xml"} {
+	for _, path := range []string{"plan.json", "events.jsonl", "receipt.json", "analysis-input.json", "draxen/analysis.json", "draxen/va-plan.json", "draxen/HANDOFF.md", "draxen/audit.jsonl", "hosts/" + hash + ".json", "raw/" + hash + ".xml", "vt/" + hash + ".xml"} {
 		if !validVAArtifactPath(path) {
 			t.Fatalf("expected allowed path: %s", path)
 		}
 	}
-	for _, path := range []string{"../config.json", "hosts/../../config.json", "raw/not-a-hash.xml", "hosts/" + hash + ".json.sha256", "raw/" + hash + ".json", "plan.json/other"} {
+	for _, path := range []string{"../config.json", "hosts/../../config.json", "draxen/../config.json", "draxen/secret.env", "raw/not-a-hash.xml", "hosts/" + hash + ".json.sha256", "raw/" + hash + ".json", "plan.json/other"} {
 		if validVAArtifactPath(path) {
 			t.Fatalf("unexpected allowed path: %s", path)
 		}

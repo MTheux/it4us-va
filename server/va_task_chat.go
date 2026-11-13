@@ -25,7 +25,7 @@ func (s *Server) vaTaskChatReply(ctx context.Context, task *Task, seg int, runID
 	s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "started", Detail: "Análise solicitada pelo SOC; conteúdo da pergunta permanece no chat"})
 	if !s.taskRuntimeAvailable(task, "mainagent") {
 		s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "unavailable", Detail: "Modelo de análise indisponível; resposta determinística exibida"})
-		return fmt.Sprintf("Execução %s: %s; %d/%d hosts concluídos, %d falhas e %d candidatos. Configure um modelo em Conexões para analisar os resultados por conversa. Para novos checks, revise uma execução aprofundada em Execuções VA.", run.ID, run.Status, run.CompletedHosts, run.TotalHosts, run.FailedHosts, run.CandidateCount), nil
+		return vaReceiptAnswer(run), nil
 	}
 
 	// Bound the evidence sent to the selected model. Scanner output and service
@@ -71,7 +71,8 @@ func (s *Server) vaTaskChatReply(ctx context.Context, task *Task, seg int, runID
 		"total_hosts": run.TotalHosts, "completed_hosts": run.CompletedHosts,
 		"failed_hosts": run.FailedHosts, "candidate_count": run.CandidateCount,
 		"error": shortVAChatText(run.Error, 300), "hosts": hosts, "cve_checks": cves,
-		"cve_auto": run.CVEAuto,
+		"cve_auto":      run.CVEAuto,
+		"draxen_review": run.Draxen,
 	})
 	filter := db.ActivitySessionFilter{Main: true, MainSeg: &seg}
 	prior, _, err := task.Store.ActivityPage(filter, 0, 12)
@@ -92,16 +93,64 @@ func (s *Server) vaTaskChatReply(ctx context.Context, task *Task, seg int, runID
 	runtime := &taskLLMRuntime{s: s, taskID: task.ID, agentKey: "mainagent"}
 	message, _, _, err := runtime.Complete(ctx, request)
 	if err != nil {
-		s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "failed", Detail: "Análise do modelo falhou; consulte a conversa"})
-		return "", err
+		s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "fallback", Detail: "Modelo indisponível; resumo gerado do recibo VA"})
+		return vaReceiptAnswer(run), nil
 	}
 	answer := strings.TrimSpace(message.Text())
 	if answer == "" {
-		s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "failed", Detail: "Modelo não retornou conteúdo"})
-		return "Não houve resposta do modelo. O recibo VA permanece disponível para revisão na tarefa.", nil
+		s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "fallback", Detail: "Modelo não retornou conteúdo; resumo gerado do recibo VA"})
+		return vaReceiptAnswer(run), nil
 	}
 	s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "completed", Detail: "Análise entregue no chat da tarefa"})
 	return answer, nil
+}
+
+func vaReceiptAnswer(run vaRunRecord) string {
+	var out strings.Builder
+	fmt.Fprintf(&out, "Execução %s: %s. %d/%d hosts concluídos; %d falhas; %d candidatos pendentes de validação.",
+		run.ID, vaChatStatus(run.Status), run.CompletedHosts, run.TotalHosts, run.FailedHosts, run.CandidateCount)
+	if run.Result != nil {
+		for _, host := range run.Result.Hosts {
+			fmt.Fprintf(&out, "\n%s: %d serviço(s) observado(s)", host.Target, len(host.Services))
+			for index, service := range host.Services {
+				if index >= 8 {
+					out.WriteString("; demais serviços no inventário")
+					break
+				}
+				fmt.Fprintf(&out, "; %d/%s %s", service.Port, service.Proto, shortVAChatText(service.Service, 50))
+			}
+			out.WriteString(".")
+			if host.DeepError != "" {
+				fmt.Fprintf(&out, " Cobertura parcial: %s.", shortVAChatText(strings.Trim(host.DeepError, "; "), 180))
+			}
+		}
+	}
+	if run.CVEAuto != nil {
+		fmt.Fprintf(&out, "\nCorrelação CVE: %s; %d CPE(s) consultados e %d correspondência(s) pendentes.",
+			vaChatStatus(run.CVEAuto.Status), run.CVEAuto.CPEsChecked, run.CVEAuto.Candidates)
+	}
+	if run.Draxen != nil {
+		fmt.Fprintf(&out, "\nRevisão Draxen: %s; %d proposta(s) registradas.", vaChatStatus(run.Draxen.Status), run.Draxen.Proposals)
+	}
+	out.WriteString("\nConfira Histórico e Arquivos para evidências. Novos checks exigem uma execução revisada pelo SOC.")
+	return out.String()
+}
+
+func vaChatStatus(status string) string {
+	switch status {
+	case "completed":
+		return "concluída"
+	case "partial":
+		return "parcial"
+	case "running":
+		return "em execução"
+	case "failed":
+		return "com falha"
+	case "unavailable":
+		return "indisponível"
+	default:
+		return shortVAChatText(status, 40)
+	}
 }
 
 func shortVAChatText(value string, max int) string {
