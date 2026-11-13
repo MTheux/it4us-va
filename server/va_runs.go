@@ -55,6 +55,46 @@ type vaScopedScanner struct {
 	scanner vascan.NmapScanner
 }
 
+// vaRecordingScanner records the actual scanner steps and raw evidence. Scope
+// checks remain in vaScopedScanner immediately before every network action.
+type vaRecordingScanner struct {
+	*Server
+	id      string
+	scanner vaScopedScanner
+}
+
+func (v vaRecordingScanner) Scan(ctx context.Context, target string, ports []int) ([]byte, error) {
+	v.vaAppendEvent(v.id, vaEvent{Stage: "discovery", Status: "started", Target: target, Count: len(ports), Detail: "Verificação de serviços TCP iniciada"})
+	raw, err := v.scanner.Scan(ctx, target, ports)
+	if err != nil {
+		v.vaAppendEvent(v.id, vaEvent{Stage: "discovery", Status: "failed", Target: target, Detail: "Verificação de serviços falhou ou perdeu autorização"})
+		return nil, err
+	}
+	if vaCanonicalTarget(target) {
+		if saveErr := v.vaSaveArtifact(v.id, vaTargetArtifact(target, "raw", ".xml"), raw); saveErr != nil {
+			v.vaAppendEvent(v.id, vaEvent{Stage: "evidence", Status: "failed", Target: target, Detail: "Falha ao salvar saída bruta"})
+		}
+	}
+	v.vaAppendEvent(v.id, vaEvent{Stage: "discovery", Status: "completed", Target: target, Detail: "Saída bruta registrada"})
+	return raw, nil
+}
+
+func (v vaRecordingScanner) ScanDeep(ctx context.Context, target string, ports []int) ([]byte, error) {
+	v.vaAppendEvent(v.id, vaEvent{Stage: "deep", Status: "started", Target: target, Count: len(ports), Detail: "Checks de infraestrutura iniciados"})
+	raw, err := v.scanner.ScanDeep(ctx, target, ports)
+	if err != nil {
+		v.vaAppendEvent(v.id, vaEvent{Stage: "deep", Status: "failed", Target: target, Detail: "Checks aprofundados falharam ou perderam autorização"})
+		return nil, err
+	}
+	if vaCanonicalTarget(target) {
+		if saveErr := v.vaSaveArtifact(v.id, vaTargetArtifact(target, "deep", ".json"), raw); saveErr != nil {
+			v.vaAppendEvent(v.id, vaEvent{Stage: "evidence", Status: "failed", Target: target, Detail: "Falha ao salvar saída aprofundada"})
+		}
+	}
+	v.vaAppendEvent(v.id, vaEvent{Stage: "deep", Status: "completed", Target: target, Detail: "Checks aprofundados concluídos"})
+	return raw, nil
+}
+
 func (v vaScopedScanner) allowed(target string) error {
 	global, err := v.pg.ListAssetInterceptRules()
 	if err != nil {
@@ -85,7 +125,7 @@ func (s *Server) vaCapabilities(w http.ResponseWriter, _ *http.Request) {
 	_, err := exec.LookPath("nmap")
 	writeJSON(w, http.StatusOK, map[string]any{
 		"scanner_available": err == nil,
-		"scanner":           "Nmap TCP connect / service detection",
+		"scanner":           "Motor VA de infraestrutura",
 		"llm_required":      false,
 		"mcp_required":      false,
 	})
@@ -187,6 +227,14 @@ func (s *Server) vaStartRun(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, "could not save campaign receipt")
 		return
 	}
+	plan, _ := json.MarshalIndent(map[string]any{"run_id": id, "campaign": campaign, "expanded_targets": targets, "created_at": record.CreatedAt}, "", "  ")
+	if err := s.vaSaveArtifact(id, "plan.json", plan); err != nil {
+		s.vaMu.Unlock()
+		cancel()
+		writeErr(w, http.StatusInternalServerError, "could not save campaign plan")
+		return
+	}
+	s.vaAppendEvent(id, vaEvent{Stage: "authorization", Status: "completed", Count: len(targets), Detail: "Escopo da tarefa validado; plano e janela de execução registrados"})
 	s.vaActive[id] = &vaActiveRun{cancel: cancel}
 	s.vaMu.Unlock()
 	go s.vaExecute(ctx, record)
@@ -199,7 +247,16 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 		delete(s.vaActive, record.ID)
 		s.vaMu.Unlock()
 	}()
-	result, runErr := vascan.RunWithProgress(ctx, record.Campaign, vaScopedScanner{pg: s.m.PG(), taskID: record.Campaign.TaskID}, time.Now, func(host vascan.HostResult) {
+	s.vaAppendEvent(record.ID, vaEvent{Stage: "campaign", Status: "started", Count: record.TotalHosts, Detail: "Execução VA iniciada"})
+	scanner := vaRecordingScanner{Server: s, id: record.ID, scanner: vaScopedScanner{pg: s.m.PG(), taskID: record.Campaign.TaskID}}
+	result, runErr := vascan.RunWithProgress(ctx, record.Campaign, scanner, time.Now, func(host vascan.HostResult) {
+		if vaCanonicalTarget(host.Target) {
+			body, _ := json.MarshalIndent(host, "", "  ")
+			if err := s.vaSaveArtifact(record.ID, vaTargetArtifact(host.Target, "hosts", ".json"), body); err != nil {
+				s.vaAppendEvent(record.ID, vaEvent{Stage: "evidence", Status: "failed", Target: host.Target, Detail: "Falha ao salvar recibo do host"})
+			}
+		}
+		s.vaAppendEvent(record.ID, vaEvent{Stage: "host", Status: host.Status, Target: host.Target, Count: len(host.Services), Detail: fmt.Sprintf("%d serviço(s), %d candidato(s)", len(host.Services), len(host.Candidates))})
 		s.vaMu.Lock()
 		if active := s.vaActive[record.ID]; active != nil {
 			active.hosts = append(active.hosts, host)
@@ -226,11 +283,17 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 	record.CompletedHosts, record.FailedHosts = completed, failed
 	record.Result = &result
 	if len(result.Hosts) > 0 {
+		s.vaAppendEvent(record.ID, vaEvent{Stage: "findings", Status: "started", Detail: "Persistência dos candidatos de infraestrutura"})
 		count, err := vascan.Persist(s.m.PG(), record.Campaign.TaskID, result)
 		record.CandidateCount = count
 		if err != nil {
 			record.Error = "candidate persistence failed: " + err.Error()
 		}
+		status := "completed"
+		if err != nil {
+			status = "failed"
+		}
+		s.vaAppendEvent(record.ID, vaEvent{Stage: "findings", Status: status, Count: count, Detail: "Candidatos registrados para triagem"})
 	}
 	switch {
 	case errors.Is(runErr, context.Canceled):
@@ -249,18 +312,25 @@ func (s *Server) vaExecute(ctx context.Context, record vaRunRecord) {
 		finalStatus := record.Status
 		record.Status, record.Phase = "running", "cve_review"
 		_ = s.vaWriteRecord(record)
+		s.vaAppendEvent(record.ID, vaEvent{Stage: "cve_review", Status: "started", Detail: "Correlação de versões observadas com CVEs"})
 		s.vaAutoReview(ctx, &record)
 		if record.CVEAuto != nil {
 			record.CandidateCount += record.CVEAuto.Candidates
 		}
 		record.Status, record.Phase = finalStatus, ""
+		s.vaAppendEvent(record.ID, vaEvent{Stage: "cve_review", Status: "completed", Count: len(record.CVEChecks), Detail: "Correlação automática encerrada"})
 	}
 	finished := time.Now().UTC()
 	record.FinishedAt = &finished
+	s.vaAppendEvent(record.ID, vaEvent{Stage: "campaign", Status: record.Status, Count: record.CandidateCount, Detail: "Execução encerrada; confira o recibo e os artefatos"})
 	if err := s.vaWriteRecord(record); err != nil {
 		// The in-memory run has ended; an initial receipt remains on disk and is
 		// reported as interrupted after restart, never as a successful scan.
 		fmt.Fprintf(os.Stderr, "[va] save run %s: %v\n", record.ID, err)
+	} else if body, err := json.MarshalIndent(record, "", "  "); err == nil {
+		if err := s.vaSaveArtifact(record.ID, "receipt.json", body); err != nil {
+			fmt.Fprintf(os.Stderr, "[va] save receipt %s: %v\n", record.ID, err)
+		}
 	}
 }
 
@@ -332,6 +402,7 @@ func (s *Server) vaCancelRun(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	active.cancel()
+	s.vaAppendEvent(id, vaEvent{Stage: "operator", Status: "canceled", Detail: "Cancelamento solicitado pelo SOC"})
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 

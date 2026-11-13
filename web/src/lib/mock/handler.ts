@@ -1061,7 +1061,7 @@ function route(m: string, path: string, seg: string[], q: URLSearchParams, b: Re
 
   // VA demo never starts a network scan. It only previews the operator form.
   if (path === "/va/runs" && m === "GET") return { runs: [] };
-  if (path === "/va/capabilities" && m === "GET") return { scanner_available: true, scanner: "Nmap TCP connect / service detection", llm_required: false, mcp_required: false };
+  if (path === "/va/capabilities" && m === "GET") return { scanner_available: true, scanner: "Motor VA de infraestrutura", llm_required: false, mcp_required: false };
   if (path === "/va/plan" && m === "POST") {
     const ports = Array.isArray(b.ports) ? b.ports : [];
     return { campaign: b.name, task_id: b.task_id, targets: b.targets, ports, port_count: b.port_profile === "all" ? 65535 : ports.length, depth: b.depth, expires_at: b.expires_at };

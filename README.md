@@ -11,8 +11,11 @@ Console do SOC para descobrir serviços em IPs autorizados, registrar evidência
 - Ver serviços no inventário e candidatos pendentes em **Achados**. Porta aberta ou banner não é vulnerabilidade confirmada; o analista decide após revisar a evidência.
 - Após o discovery, consultar automaticamente a NVD para CPEs com versão identificada e registrar CVEs possivelmente aplicáveis como candidatos pendentes, com CPE, critério e fonte. Limites e falhas de cobertura ficam no recibo. Também é possível consultar uma CVE específica manualmente.
 - Configurar Claude/OpenCode e MCP em **Conexões**, se a equipe quiser apoio do agente. Discovery de portas não depende dessas integrações.
+- Acompanhar o histórico de cada execução no **Chat → Histórico** e abrir **Chat → Arquivos** para consultar plano, eventos, inventário por host, saídas brutas e recibo final. Artefatos novos são gravados em `data/va-runs/artifacts/<run-id>/` com SHA-256; execuções antigas exibem seu recibo persistido.
 
 O scanner não executa exploit, NSE, autenticação, brute force ou movimento lateral. A correlação automática não confirma que o alvo é vulnerável: patches, backports e condições adicionais exigem validação específica. Checks de impacto por CVE e scans autenticados ainda não fazem parte desta versão.
+
+O histórico novo registra etapas reais do scanner e chamadas de análise do chat; não reconstrói ações inexistentes para campanhas antigas. O motor de VT com feed e o runtime Draxen de infraestrutura ainda exigem integração e validação operacional antes de serem anunciados como disponíveis.
 
 ## Tela real
 
@@ -80,7 +83,7 @@ Após atualizar uma instalação que oferecia os perfis Administrador e Operaç�
 
 1. Confirme a autorização escrita, o **IP literal** ou CIDR exato, a origem de rede permitida, as portas, a janela de execução e o contato do cliente. O IP de teste deve ser fornecido ao operador do SOC; não há alvo real embutido neste guia.
 2. Crie uma tarefa para esse cliente em **Tarefas**.
-3. Abra **Execuções VA** → **Analisar infraestrutura**. Selecione a tarefa, informe somente o IP autorizado e comece por **Portas comuns** ou pelas portas acordadas em **Personalizar**. Preencha **Autorizado por** e o fim da janela.
+3. Abra **Execuções VA** → **Analisar infraestrutura**. Selecione a tarefa; os IPs autorizados são carregados do escopo cadastrado. Comece por **Portas comuns** ou pelas portas acordadas em **Personalizar**. Preencha **Autorizado por** e o fim da janela.
 4. Clique **Revisar execução**, confira cada IP expandido e a quantidade de portas, confirme o escopo na tela e então inicie. **Interromper** cancela a campanha em andamento.
 5. Quando o discovery terminar, o VA correlaciona automaticamente os CPEs precisos com a NVD. Abra a execução para ver a cobertura da consulta e **Achados** para revisar serviços e CVEs possivelmente aplicáveis. Se houver outra CVE de interesse, use **Verificar CVE específica** com a campanha concluída.
 

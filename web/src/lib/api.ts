@@ -84,6 +84,8 @@ import type {
   VACapabilities,
   VAPlan,
   VARun,
+  VAEvent,
+  VAFile,
   TaskArchive,
   TaskArchivePage,
   TaskAssetMutation,
@@ -253,6 +255,18 @@ export const api = {
   vaCapabilities: () => get<VACapabilities>("/va/capabilities"),
   vaRuns: () => get<{ runs: VARun[] }>("/va/runs").then((r) => arr(r.runs)),
   vaRun: (id: string) => get<VARun>(`/va/runs/${encodeURIComponent(id)}`),
+  vaEvents: (id: string) => get<{ events: VAEvent[] }>(`/va/runs/${encodeURIComponent(id)}/events`).then((r) => arr(r.events)),
+  vaFiles: (id: string) => get<{ files: VAFile[] }>(`/va/runs/${encodeURIComponent(id)}/files`).then((r) => arr(r.files)),
+  vaFile: async (id: string, path: string, download = false) => {
+    const token = getToken();
+    const query = new URLSearchParams({ path });
+    if (download) query.set("download", "1");
+    const response = await fetch(`/api/va/runs/${encodeURIComponent(id)}/file?${query}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok) throw new Error(`Não foi possível abrir o artefato (${response.status}).`);
+    return download ? response.blob() : response.text();
+  },
   vaStart: (campaign: VACampaign) => post<VARun>("/va/runs", campaign),
   vaCancel: (id: string) => post<{ ok: boolean }>(`/va/runs/${encodeURIComponent(id)}/cancel`, {}),
   vaCheckCVE: (runID: string, cve: string) =>

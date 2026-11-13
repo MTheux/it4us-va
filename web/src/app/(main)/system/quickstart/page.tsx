@@ -124,7 +124,7 @@ export default function QuickstartPage() {
       </header>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Readiness title="Scanner" ready={!!capabilities?.scanner_available} detail={capabilities?.scanner_available ? capabilities.scanner : "Nmap ausente no worker"} loading={loading} />
+        <Readiness title="Scanner" ready={!!capabilities?.scanner_available} detail={capabilities?.scanner_available ? capabilities.scanner : "Motor VA indisponível no worker"} loading={loading} />
         <Readiness title="LLM" ready={modelReady} optional={!active} detail={active ? `${active.name} · ${active.model}` : "Opcional para o discovery"} loading={loading} />
         <Readiness title="MCP" ready={connectedMcp > 0} optional={mcp.length === 0} detail={mcp.length ? `${connectedMcp} conectado(s) de ${mcp.length}` : "Opcional: nenhum servidor cadastrado"} loading={loading} />
         <Readiness title="Agente" ready={!!worker && modelReady} optional={!modelReady} detail={worker ? (modelReady ? "Worker com LLM configurado" : "Worker disponível; LLM opcional") : "Worker indisponível"} loading={loading} />

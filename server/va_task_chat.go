@@ -22,7 +22,9 @@ func (s *Server) vaTaskChatReply(ctx context.Context, task *Task, seg int, runID
 	if !found {
 		return "Ainda não há execução VA registrada nesta tarefa. Inicie uma execução em Execuções VA após revisar o escopo e as portas.", nil
 	}
+	s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "started", Detail: "Análise solicitada pelo SOC; conteúdo da pergunta permanece no chat"})
 	if !s.taskRuntimeAvailable(task, "mainagent") {
+		s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "unavailable", Detail: "Modelo de análise indisponível; resposta determinística exibida"})
 		return fmt.Sprintf("Execução %s: %s; %d/%d hosts concluídos, %d falhas e %d candidatos. Configure um modelo em Conexões para analisar os resultados por conversa. Para novos checks, revise uma execução aprofundada em Execuções VA.", run.ID, run.Status, run.CompletedHosts, run.TotalHosts, run.FailedHosts, run.CandidateCount), nil
 	}
 
@@ -90,12 +92,15 @@ func (s *Server) vaTaskChatReply(ctx context.Context, task *Task, seg int, runID
 	runtime := &taskLLMRuntime{s: s, taskID: task.ID, agentKey: "mainagent"}
 	message, _, _, err := runtime.Complete(ctx, request)
 	if err != nil {
+		s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "failed", Detail: "Análise do modelo falhou; consulte a conversa"})
 		return "", err
 	}
 	answer := strings.TrimSpace(message.Text())
 	if answer == "" {
+		s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "failed", Detail: "Modelo não retornou conteúdo"})
 		return "Não houve resposta do modelo. O recibo VA permanece disponível para revisão na tarefa.", nil
 	}
+	s.vaAppendEvent(run.ID, vaEvent{Stage: "analyst", Status: "completed", Detail: "Análise entregue no chat da tarefa"})
 	return answer, nil
 }
 

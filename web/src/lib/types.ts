@@ -89,6 +89,23 @@ export interface VARun {
   cve_auto?: { status: "completed" | "partial" | "skipped" | "unavailable"; cpes_checked: number; cves_checked: number; candidates: number; coverage_note?: string };
 }
 
+export interface VAEvent {
+  at: string;
+  stage: string;
+  status: string;
+  target?: string;
+  detail?: string;
+  count?: number;
+}
+
+export interface VAFile {
+  path: string;
+  name: string;
+  size: number;
+  modified: string;
+  sha256: string;
+}
+
 export interface Task {
   id: string;
   va_only?: boolean;

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRightIcon, ArrowUpIcon, BotIcon, CheckCircle2Icon, Clock3Icon, Loader2Icon, NetworkIcon, RadarIcon, ShieldCheckIcon } from "lucide-react";
+import { ArrowRightIcon, ArrowUpIcon, BotIcon, CheckCircle2Icon, Clock3Icon, FilesIcon, Loader2Icon, NetworkIcon, RadarIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Transcript } from "@/components/transcript";
@@ -11,10 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { api } from "@/lib/api";
-import type { Activity, Task, VARun } from "@/lib/types";
+import type { Activity, Task, VAEvent, VARun } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 import LegacyChatPage from "./legacy-chat";
+import { VAFiles } from "./va-files";
 
 const runLabels: Record<VARun["status"], string> = {
   running: "Em execução", completed: "Concluída", partial: "Parcial",
@@ -32,6 +33,11 @@ function TaskVAChat() {
   const [requestedRunID, setRequestedRunID] = React.useState("");
   const [runDetail, setRunDetail] = React.useState<VARun | null>(null);
   const [activity, setActivity] = React.useState<Activity[]>([]);
+  const [events, setEvents] = React.useState<VAEvent[]>([]);
+  const [olderCursor, setOlderCursor] = React.useState(0);
+  const [hasOlder, setHasOlder] = React.useState(false);
+  const loadedOlderRef = React.useRef(false);
+  const [view, setView] = React.useState<"history" | "files">("history");
   const [segment, setSegment] = React.useState(0);
   const [chatBusy, setChatBusy] = React.useState(false);
   const [input, setInput] = React.useState("");
@@ -82,12 +88,13 @@ function TaskVAChat() {
 
   React.useEffect(() => {
     setRunDetail(null);
+    setEvents([]);
     if (!chosenRun) return;
     let alive = true;
     async function refresh() {
       try {
-        const detail = await api.vaRun(chosenRun!.id);
-        if (alive) setRunDetail(detail);
+        const [detail, history] = await Promise.all([api.vaRun(chosenRun!.id), api.vaEvents(chosenRun!.id)]);
+        if (alive) { setRunDetail(detail); setEvents(history); }
       } catch {
         if (alive) setRunDetail(chosenRun!);
       }
@@ -99,6 +106,9 @@ function TaskVAChat() {
 
   React.useEffect(() => {
     setActivity([]);
+    loadedOlderRef.current = false;
+    setOlderCursor(0);
+    setHasOlder(false);
     setChatBusy(false);
     if (!selectedTaskID) return;
     let alive = true;
@@ -110,7 +120,14 @@ function TaskVAChat() {
       if (busyResult.status === "fulfilled") setChatBusy(busyResult.value.running);
       try {
         const history = await api.activityHistory(selectedTaskID, `main:${nextSegment}`, 0, 200);
-        if (alive) setActivity(history.items);
+        if (alive) {
+          setActivity((current) => {
+            const merged = new Map<number, Activity>();
+            for (const item of [...current, ...history.items]) merged.set(item.seq, item);
+            return [...merged.values()].sort((a, b) => a.seq - b.seq);
+          });
+          if (!loadedOlderRef.current) { setOlderCursor(history.earliestCursor); setHasOlder(history.hasMore); }
+        }
       } catch {
         if (alive) setError("Não foi possível carregar a conversa desta tarefa.");
       }
@@ -119,6 +136,19 @@ function TaskVAChat() {
     const timer = window.setInterval(() => void refresh(), 2000);
     return () => { alive = false; window.clearInterval(timer); };
   }, [selectedTaskID]);
+
+  async function loadOlder() {
+    if (!selectedTaskID || !hasOlder || !olderCursor) return;
+    try {
+      const history = await api.activityHistory(selectedTaskID, `main:${segment}`, olderCursor, 200);
+      loadedOlderRef.current = true;
+      setActivity((current) => [...history.items, ...current.filter((item) => !history.items.some((older) => older.seq === item.seq))]);
+      setOlderCursor(history.earliestCursor);
+      setHasOlder(history.hasMore);
+    } catch {
+      setError("Não foi possível carregar mensagens anteriores.");
+    }
+  }
 
   React.useEffect(() => {
     const viewport = transcriptRef.current;
@@ -195,21 +225,17 @@ function TaskVAChat() {
                 </div> : <div className="mt-4 flex items-center gap-2 border-t pt-3 text-xs text-muted-foreground"><Clock3Icon className="size-4" /> Nenhuma execução VA nesta tarefa. <Link href={`/function/va-runs?task=${selectedTask.id}`} className="text-primary hover:underline">Criar execução</Link></div>}
               </div>
 
-              <section className="flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-xl border bg-card/50 lg:min-h-0" aria-label="Conversa da tarefa">
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b px-4 py-3"><div className="flex items-center gap-2"><BotIcon className="size-4 text-primary" /><h3 className="text-sm font-semibold">Análise da tarefa</h3></div><span className="flex items-center gap-1 text-xs text-muted-foreground">{chatBusy ? <><Loader2Icon className="size-3.5 animate-spin" /> Analisando</> : <><ShieldCheckIcon className="size-3.5" /> Baseada no recibo VA</>}</span></div>
+              <section className="flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-xl border bg-card/50 lg:min-h-0" aria-label="Acompanhamento da tarefa">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2"><div className="flex gap-1" role="tablist" aria-label="Acompanhamento VA"><button role="tab" aria-selected={view === "history"} type="button" onClick={() => setView("history")} className={cn("rounded-md px-3 py-2 text-sm font-medium", view === "history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}><BotIcon className="mr-2 inline size-4" />Histórico</button><button role="tab" aria-selected={view === "files"} type="button" onClick={() => setView("files")} className={cn("rounded-md px-3 py-2 text-sm font-medium", view === "files" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}><FilesIcon className="mr-2 inline size-4" />Arquivos</button></div><span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">{chatBusy ? <><Loader2Icon className="size-3.5 animate-spin" /> Analisando</> : <><ShieldCheckIcon className="size-3.5" /> {events.length ? "Trilha registrada" : "Recibo disponível"}</>}</span></div>
+                {view === "files" ? <VAFiles runID={run?.id} /> : <>
                 <div ref={transcriptRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                  {run && <div className="mb-5 space-y-2 border-l border-primary/30 pl-4 text-xs">
-                    <p className="font-semibold text-foreground">Scanner · {new Date(run.created_at).toLocaleString("pt-BR")}</p>
-                    <p className="text-muted-foreground">Execução iniciada com {run.total_hosts} host(s) e {run.campaign.ports.length ? `${run.campaign.ports.length} portas TCP` : "todas as portas TCP"}. Escopo revisado antes da partida.</p>
-                    {hosts.map((host) => <p key={host.target} className="text-muted-foreground"><code className="text-foreground">{host.target}</code> · {host.status === "completed" ? `${host.services?.length ?? 0} serviço(s) observado(s), ${host.candidates?.length ?? 0} candidato(s)` : `falha: ${host.error || "consulte o recibo"}`}</p>)}
-                    {run.phase === "cve_review" && <p className="text-primary">Correlacionando versões observadas com CVEs…</p>}
-                    {done && <p className="font-medium text-foreground">Execução {runLabels[run.status].toLowerCase()}. {run.candidate_count} candidato(s) para triagem.</p>}
-                    {run.status === "running" && run.phase !== "cve_review" && <p className="flex items-center gap-1 text-primary"><Loader2Icon className="size-3 animate-spin" /> Scanner em execução. Novos hosts aparecem aqui automaticamente.</p>}
-                  </div>}
+                  {run && <div className="mb-5 border-l border-primary/30 pl-4 text-xs"><p className="mb-3 font-semibold text-foreground">Execução · {new Date(run.created_at).toLocaleString("pt-BR")}</p>{events.length ? <div className="space-y-3">{events.map((event, index) => <div key={`${event.at}-${index}`} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-2"><time className="font-mono text-[10px] text-muted-foreground">{new Date(event.at).toLocaleTimeString("pt-BR")}</time><p className="text-muted-foreground"><span className={cn("font-medium", event.status === "failed" ? "text-destructive" : "text-foreground")}>{event.stage}</span>{event.target && <code className="ml-2 text-primary">{event.target}</code>}<span className="ml-2">{event.detail || event.status}</span></p></div>)}</div> : <p className="text-muted-foreground">Esta execução ainda não possui eventos detalhados. O recibo da execução permanece disponível.</p>}</div>}
+                  {hasOlder && <button type="button" onClick={() => void loadOlder()} className="mb-3 rounded-md border px-3 py-1.5 text-xs text-primary hover:bg-primary/10">Carregar mensagens anteriores</button>}
                   {activity.length ? <Transcript activity={activity} live={chatBusy} chat taskId={selectedTask.id} /> : <div className="flex min-h-32 flex-col items-center justify-center gap-2 text-center"><CheckCircle2Icon className="size-6 text-primary" /><p className="text-sm font-medium">Conversa pronta para esta tarefa</p><p className="max-w-md text-xs leading-5 text-muted-foreground">Pergunte sobre a execução ou peça um plano de aprofundamento com base no recibo VA.</p></div>}
                 </div>
                 {done && <div className="flex shrink-0 flex-wrap gap-2 border-t px-4 py-2"><button type="button" onClick={() => setInput("Resuma os serviços e candidatos observados nesta execução.")} className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary">Resumir resultados</button><button type="button" onClick={() => setInput("Quais evidências faltam e qual aprofundamento de infraestrutura você recomenda dentro do escopo?")} className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary">Planejar aprofundamento</button></div>}
                 <div className="shrink-0 border-t p-3"><div className="flex items-end gap-2 rounded-lg border bg-background px-3 py-2 focus-within:border-primary"><label htmlFor="task-va-chat-input" className="sr-only">Mensagem para análise VA</label><Textarea id="task-va-chat-input" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} disabled={chatBusy || sending} rows={1} placeholder={chatBusy ? "Aguarde a análise terminar…" : "Pergunte sobre os resultados desta tarefa…"} className="max-h-28 min-h-9 flex-1 resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0" /><Button size="icon-sm" onClick={() => void send()} disabled={!input.trim() || chatBusy || sending} aria-label="Enviar mensagem"><ArrowUpIcon /></Button></div><p className="mt-2 text-[11px] text-muted-foreground">O chat analisa recibos existentes. Novos checks exigem revisão em Execuções VA.</p>{error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}</div>
+                </>}
               </section>
             </>
           )}
