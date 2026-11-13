@@ -28,6 +28,63 @@ type GMPConfig struct {
 }
 
 var gmpUUID = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+var gmpCVEID = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,}$`)
+
+// GMPCVERecord is feed metadata, not proof that a scanned host is vulnerable.
+type GMPCVERecord struct {
+	ID          string
+	Description string
+	Published   string
+	Updated     string
+	Severity    string
+	Vector      string
+	FeedCount   int
+}
+
+// GMPCVELookup reads the manager's local SCAP feed through authenticated GMP.
+// It does not infer applicability from the product list.
+func GMPCVELookup(ctx context.Context, cfg GMPConfig, id string) (GMPCVERecord, error) {
+	if !gmpCVEID.MatchString(id) {
+		return GMPCVERecord{}, errors.New("invalid CVE ID")
+	}
+	s, err := openGMPSession(ctx, cfg)
+	if err != nil {
+		return GMPCVERecord{}, err
+	}
+	defer s.conn.Close()
+	response, err := s.call(ctx, `<get_info type="cve" name="`+id+`" details="1"/>`)
+	if err != nil {
+		return GMPCVERecord{}, err
+	}
+	return parseGMPCVEInfo(response.Inner, id)
+}
+
+func parseGMPCVEInfo(inner, id string) (GMPCVERecord, error) {
+	var data struct {
+		Count int `xml:"info_count"`
+		Items []struct {
+			ID        string `xml:"id,attr"`
+			Name      string `xml:"name"`
+			Published string `xml:"creation_time"`
+			Updated   string `xml:"update_time"`
+			CVE       struct {
+				Description string `xml:"description"`
+				Severity    string `xml:"severity"`
+				Vector      string `xml:"cvss_vector"`
+			} `xml:"cve"`
+		} `xml:"info"`
+	}
+	if err := xml.Unmarshal([]byte("<root>"+inner+"</root>"), &data); err != nil {
+		return GMPCVERecord{}, err
+	}
+	for _, item := range data.Items {
+		if item.ID == id && item.Name == id {
+			return GMPCVERecord{ID: id, Description: item.CVE.Description, Published: item.Published,
+				Updated: item.Updated, Severity: item.CVE.Severity, Vector: item.CVE.Vector, FeedCount: data.Count}, nil
+		}
+	}
+	return GMPCVERecord{}, errors.New("CVE not found in local SCAP feed")
+}
 
 func (c GMPConfig) Validate() error {
 	host, _, err := net.SplitHostPort(c.Address)

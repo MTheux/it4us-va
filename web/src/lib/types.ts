@@ -72,6 +72,8 @@ export interface VACVEIntel {
   kev: boolean;
   kev_date?: string;
   source_status: Record<string, "ok" | "unavailable">;
+  local_feed_updated?: string;
+  local_feed_count?: number;
 }
 
 export interface VARun {

@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/MTheux/it4us-va/vascan"
 )
 
 const epssURL = "https://api.first.org/data/v1/epss"
@@ -36,6 +38,8 @@ type vaCVEIntel struct {
 	KEV               bool               `json:"kev"`
 	KEVDate           string             `json:"kev_date,omitempty"`
 	SourceStatus      map[string]string  `json:"source_status"`
+	LocalFeedUpdated  string             `json:"local_feed_updated,omitempty"`
+	LocalFeedCount    int                `json:"local_feed_count,omitempty"`
 }
 
 var kevCache = struct {
@@ -193,12 +197,36 @@ func (s *Server) vaLookupCVE(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "valid CVE ID required")
 		return
 	}
+	var local vascan.GMPCVERecord
+	localOK := false
+	if cfg := vaVTConfig(); cfg.Validate() == nil {
+		localCtx, localCancel := context.WithTimeout(r.Context(), 4*time.Second)
+		var localErr error
+		local, localErr = vascan.GMPCVELookup(localCtx, cfg, id)
+		localCancel()
+		localOK = localErr == nil
+	}
 	data, err := fetchNVD(r, id)
-	if err != nil {
-		writeErr(w, http.StatusServiceUnavailable, "NVD lookup unavailable: "+err.Error())
+	if err != nil && !localOK {
+		writeErr(w, http.StatusServiceUnavailable, "CVE sources unavailable: "+err.Error())
 		return
 	}
-	result := nvdIntel(data.Vulnerabilities[0].CVE)
+	var result vaCVEIntel
+	if err == nil {
+		result = nvdIntel(data.Vulnerabilities[0].CVE)
+	} else {
+		result = vaCVEIntel{CVE: id, Description: local.Description, Published: local.Published,
+			NVDURL:            "https://nvd.nist.gov/vuln/detail/" + id,
+			ExploitReferences: []vaIntelReference{}, References: []vaIntelReference{}, Advisories: []vaIntelReference{},
+			SourceStatus: map[string]string{"nvd": "unavailable", "epss": "unavailable", "kev": "unavailable", "github": "unavailable"}}
+	}
+	if localOK {
+		result.SourceStatus["local_scap"] = "ok"
+		result.LocalFeedUpdated = local.Updated
+		result.LocalFeedCount = local.FeedCount
+	} else {
+		result.SourceStatus["local_scap"] = "unavailable"
+	}
 	client := &http.Client{Timeout: 10 * time.Second}
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
 	defer cancel()

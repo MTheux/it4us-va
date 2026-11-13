@@ -38,3 +38,7 @@ docker compose -f deploy/greenbone/compose.upstream.yaml \
 ```
 
 Referências: [instalação oficial](https://greenbone.github.io/docs/latest/22.4/container/), [fluxo de atualização do feed](https://greenbone.github.io/docs/latest/22.4/container/workflows.html) e [troubleshooting de configs ausentes](https://greenbone.github.io/docs/latest/22.4/container/troubleshooting.html).
+
+## Base local de CVEs e análise do motor
+
+A pesquisa manual de CVE usa a NVD e, quando o GMP local está configurado, consulta também o feed SCAP do gerenciador. Se a NVD falhar, o registro local ainda pode ser exibido como referência, sem atribuir vulnerabilidade a um ativo. O fluxo e a evidência da análise estática com REA estão em [REA-ANALYSIS-v1.0-2026-11-13.md](REA-ANALYSIS-v1.0-2026-11-13.md).

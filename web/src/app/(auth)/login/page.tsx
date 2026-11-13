@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useRouter } from "next/navigation";
 
-import { AlertTriangle, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,10 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
 import { auth } from "@/lib/auth";
+import styles from "./login.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -87,71 +89,59 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-[#070a08] px-6 py-12">
-      <div className="w-full max-w-[400px]">
-        <div className="text-center">
+    <main className={styles.shell}>
+      <div className={styles.grid} aria-hidden="true" />
+      <div className={styles.dots} aria-hidden="true" />
+      <div className={styles.loginWrap}>
+        <div className={styles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/it4us-icon.svg" alt="IT4US" width={42} height={42} className="mx-auto mb-2 rounded-xl" />
-          <h1 className="font-[family-name:var(--font-display)] text-[30px] font-bold leading-none tracking-tight">
-            IT4US VA
-          </h1>
-          <p className="mt-2 font-mono text-[9px] uppercase tracking-[0.23em] text-muted-foreground">
-            Avaliação de vulnerabilidades
-          </p>
-          <p className="mt-5 inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-            <span className="size-1.5 rounded-full bg-primary" /> Entrar na plataforma
-          </p>
-          <p className="mx-auto mt-2 max-w-[310px] text-sm leading-5 text-muted-foreground">
-            Acesse suas tarefas, execuções e achados de infraestrutura.
-          </p>
+          <img src="/brand/it4us-icon.svg" alt="" width={34} height={34} />
+          <span>IT4US <strong>VA</strong></span>
         </div>
-
-        <form onSubmit={handleSubmit} className="mt-7 space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="password" className="text-xs font-semibold">
-              Senha
-            </Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Digite sua senha"
-              autoComplete="current-password"
-              className="h-9 rounded-md bg-[#111713]"
-            />
+        <div className={styles.card}>
+          <div className={styles.cardHeading}>
+            <div className={styles.eyebrow}><span /> Acesso ao ambiente</div>
+            <h1>Bem-vindo de volta</h1>
+            <p>Entre para acompanhar suas análises de infraestrutura.</p>
           </div>
-          <div className="flex items-start gap-2.5">
-            <Checkbox
-              id="agree-terms"
-              checked={agreed}
-              onCheckedChange={(v) => setAgreed(v === true)}
-              className="mt-0.5"
-            />
-            <Label htmlFor="agree-terms" className="text-sm font-normal leading-relaxed text-muted-foreground">
-              Li e concordo com os{" "}
-              <button
-                type="button"
-                onClick={() => setTermsOpen(true)}
-                className="font-semibold text-primary underline underline-offset-2"
-              >
-                Termos de Uso
-              </button>
-            </Label>
-          </div>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-          <Button type="submit" className="h-10 w-full font-semibold" disabled={loading || !password || !agreed}>
-            {loading ? "Entrando..." : "Entrar"}
-          </Button>
-        </form>
-
-        <p className="mt-14 text-center text-xs text-muted-foreground">
-          Acesso restrito · somente para a equipe autorizada.
-        </p>
+          <form onSubmit={handleSubmit} className={styles.form}>
+            <div className={styles.field}>
+              <Label htmlFor="account">Conta</Label>
+              <div className={styles.account} id="account" aria-label="Conta IT4US VA">
+                <LockKeyhole size={16} aria-hidden="true" /> IT4US VA
+              </div>
+            </div>
+            <div className={styles.field}>
+              <Label htmlFor="password">Senha</Label>
+              <div className={styles.passwordRow}>
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Digite sua senha"
+                  autoComplete="current-password"
+                  className={styles.passwordInput}
+                />
+                <button type="button" className={styles.visibility} onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
+                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                </button>
+              </div>
+            </div>
+            <div className={styles.terms}>
+              <Checkbox id="agree-terms" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} />
+              <Label htmlFor="agree-terms">
+                Li e concordo com os{" "}
+                <button type="button" onClick={() => setTermsOpen(true)}>Termos de Uso</button>
+              </Label>
+            </div>
+            {error && <p role="alert" className={styles.error}>{error}</p>}
+            <Button type="submit" className={styles.submit} disabled={loading || !password || !agreed}>
+              {loading ? "Entrando..." : "Entrar na plataforma"}
+            </Button>
+          </form>
+        </div>
+        <p className={styles.footer}>ACESSO RESTRITO À EQUIPE AUTORIZADA</p>
       </div>
 
       <Dialog open={termsOpen} onOpenChange={setTermsOpen}>

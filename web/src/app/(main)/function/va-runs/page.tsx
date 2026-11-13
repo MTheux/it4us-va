@@ -708,6 +708,7 @@ export default function VARunsPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <strong>{cveIntel.cve}</strong>
                   {cveIntel.vuln_status && <Badge variant="outline">NVD: {cveIntel.vuln_status}</Badge>}
+                  {cveIntel.source_status.local_scap === "ok" && <Badge variant="outline">Base CVE local</Badge>}
                   {cveIntel.kev && <Badge variant="destructive">Exploração observada · CISA KEV</Badge>}
                   {cveIntel.epss !== undefined && (
                     <Badge variant="outline">EPSS {(cveIntel.epss * 100).toFixed(1)}%</Badge>
@@ -716,11 +717,14 @@ export default function VARunsPage() {
                 {cveIntel.description && <p>{cveIntel.description}</p>}
                 <p className="text-xs text-muted-foreground">
                   {cveIntel.published && `Publicada: ${new Date(cveIntel.published).toLocaleDateString("pt-BR")} · `}
-                  Fontes: NVD{cveIntel.source_status.github === "ok" ? ", GitHub Advisory" : ""}
+                  Fontes: {cveIntel.source_status.nvd === "ok" ? "NVD" : "NVD indisponível"}
+                  {cveIntel.source_status.local_scap === "ok" ? `, base CVE local (${cveIntel.local_feed_count?.toLocaleString("pt-BR") ?? "?"} registros)` : ""}
+                  {cveIntel.source_status.github === "ok" ? ", GitHub Advisory" : ""}
                   {cveIntel.source_status.epss === "ok" ? ", FIRST EPSS" : ""}
                   {cveIntel.source_status.kev === "ok" ? ", CISA KEV" : ""}. Fonte indisponível não significa ausência
                   de risco.
                 </p>
+                {cveIntel.source_status.nvd !== "ok" && <p className="text-xs text-amber-300">Registro da base local para consulta. A aplicabilidade ao ativo precisa de validação pela NVD ou por VT.</p>}
                 <a href={cveIntel.nvd_url} target="_blank" rel="noreferrer" className="text-primary underline">
                   Registro NVD
                 </a>
