@@ -6,6 +6,8 @@ import * as React from "react";
 import { AppSidebar } from "@/app/(main)/_components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
+import { api } from "@/lib/api";
+import { MOCK } from "@/lib/mock/enabled";
 import { getClientCookie } from "@/lib/cookie.client";
 import {
   SIDEBAR_COLLAPSIBLE_VALUES,
@@ -34,15 +36,20 @@ export default function Layout({ children }: Readonly<{ children: ReactNode }>) 
   // protected UI (or its API calls) flashes for a logged-out visitor.
   const [authed, setAuthed] = React.useState(false);
   React.useEffect(() => {
-    if (auth.getToken()) {
-      setAuthed(true);
-    } else {
+    if (auth.isSSO()) auth.acceptSSO();
+    if (!auth.getToken()) {
       // When the client-side guard sees a logged-out state, the cookie must be cleared too: otherwise proxy.ts, going
       // by "cookie exists" alone, would bounce us from /login back to the main UI and ping-pong with this guard
       // in an infinite redirect → blank screen (triggered when cookie and localStorage disagree).
       auth.clearToken();
       window.location.href = "/login";
+      return;
     }
+    if (MOCK) { setAuthed(true); return; }
+    void api.authSession().then(({ user }) => {
+      auth.setCurrentUser({ ...user, avatar: "" });
+      setAuthed(true);
+    }).catch(() => { auth.clearToken(); window.location.href = "/login"; });
   }, []);
 
   const defaultOpen = typeof document === "undefined" ? true : getClientCookie("sidebar_state") !== "false";

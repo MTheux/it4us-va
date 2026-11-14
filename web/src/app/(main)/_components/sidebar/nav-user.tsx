@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { auth } from "@/lib/auth";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { getInitials } from "@/lib/utils";
 
 import { ChangePasswordDialog } from "./change-password-dialog";
@@ -31,7 +33,8 @@ export function NavUser({
   const { isMobile } = useSidebar();
   const [pwOpen, setPwOpen] = React.useState(false);
 
-  function handleLogout() {
+  async function handleLogout() {
+    try { await api.logout(); } catch { toast.error("Não foi possível encerrar a sessão."); return; }
     auth.clearToken();
     // Hard navigation: let the browser start a fresh request with the cleared cookie,
     // so middleware reads the empty token correctly and lets /login through
@@ -77,19 +80,19 @@ export function NavUser({
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => setPwOpen(true)}>
+            {!auth.isSSO() && <DropdownMenuItem onClick={() => setPwOpen(true)}>
               <KeyRound />
               Change password
-            </DropdownMenuItem>
+            </DropdownMenuItem>}
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+            <DropdownMenuItem onClick={() => void handleLogout()} className="text-destructive focus:text-destructive">
               <LogOut />
               Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </SidebarMenuItem>
-      <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
+      {!auth.isSSO() && <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />}
     </SidebarMenu>
   );
 }

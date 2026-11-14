@@ -2,6 +2,8 @@
 
 Console do SOC para descobrir serviços em IPs autorizados, registrar evidências e revisar candidatos a vulnerabilidade. O scanner de infraestrutura funciona sem IA. A IA e os conectores MCP são opcionais para investigação e integração.
 
+O acesso do time pode usar Microsoft Entra ID com provisionamento no primeiro login, restrito a um tenant e à função de aplicativo `Guard4US.Access`. A configuração do App Registration e do servidor está em [deploy/guard4us/README.md](deploy/guard4us/README.md). Sem essas credenciais, o SSO fica desativado e o login local continua disponível.
+
 > **Origem e licença:** este projeto é um fork de [ARTEX, de Autumn-27](https://github.com/Autumn-27/artex), adaptado pela IT4US para o fluxo de avaliação de infraestrutura do SOC. O código permanece sob [AGPL-3.0](LICENSE). A interface do produto se chama Guard4US.
 
 ## O que o SOC consegue fazer

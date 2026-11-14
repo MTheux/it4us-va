@@ -67,6 +67,13 @@
 .cardHeading h1 { margin: 0; font-family: var(--font-display), sans-serif; font-size: 25px; font-weight: 650; letter-spacing: -.035em; }
 .cardHeading p { margin-top: 7px; color: #a0afa2; font-size: 13px; line-height: 1.5; }
 .form { display: grid; gap: 17px; }
+.ssoSection { display: grid; gap: 10px; margin-bottom: 16px; }
+.ssoButton { height: 46px; border: 1px solid #839a87aa; background: #17251b; color: #f0f6ef; font-weight: 650; }
+.ssoButton:hover { background: #24382a; color: white; }
+.ssoButton:disabled { opacity: .55; }
+.microsoftMark { display: grid; grid-template-columns: repeat(2, 7px); grid-template-rows: repeat(2, 7px); gap: 2px; margin-right: 4px; }
+.microsoftMark i:nth-child(1) { background: #f25022; }.microsoftMark i:nth-child(2) { background: #7fba00; }.microsoftMark i:nth-child(3) { background: #00a4ef; }.microsoftMark i:nth-child(4) { background: #ffb900; }
+.divider { margin: 0 0 18px; text-align: center; color: #8fa090; font-size: 11px; }
 .field { display: grid; gap: 8px; }
 .field label { color: #d5ded5; font-size: 12px; font-weight: 600; }
 .account, .passwordInput {

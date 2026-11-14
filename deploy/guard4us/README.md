@@ -23,3 +23,31 @@ scanner enforces task IP allow rules; no target scan occurs during deployment.
 
 The GMP VT engine and Draxen runtime require separate configuration and
 readiness checks before the UI may claim those capabilities are available.
+
+## Microsoft SSO
+
+Register a **single-tenant Web application** in the IT4US Microsoft Entra ID
+tenant. Add the exact redirect URI
+`https://172.206.111.166:9445/api/auth/entra/callback` (or the final HTTPS
+hostname). Define an application role named `Guard4US.Access`, allow users or
+groups to receive it, set **assignment required**, and assign only the VA team.
+Enforce MFA with the tenant's Conditional Access policy. The callback requires
+the exact tenant, audience, nonce and app role; an email domain alone does not
+grant access. Entra users are recorded in `auth_users` on first authorized login.
+
+Set these values in the server's mode-0600 `.env` and restart the app. Keep the
+client secret out of Git and deployment logs:
+
+```dotenv
+GUARD4US_ENTRA_TENANT_ID=<tenant-guid>
+GUARD4US_ENTRA_CLIENT_ID=<application-client-guid>
+GUARD4US_ENTRA_CLIENT_SECRET=<secret-from-entra>
+GUARD4US_ENTRA_REDIRECT_URL=https://172.206.111.166:9445/api/auth/entra/callback
+GUARD4US_ENTRA_REQUIRED_ROLE=Guard4US.Access
+```
+
+SSO sessions last one hour. Disabling an `auth_users` row blocks its existing
+session on the next API request. Removing an Entra assignment blocks new logins;
+existing sessions remain valid until they expire unless the local row is disabled.
+The local password/TOTP account remains available as a separate break-glass
+login until the operator explicitly retires it.

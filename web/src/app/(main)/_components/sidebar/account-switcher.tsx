@@ -13,6 +13,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { auth } from "@/lib/auth";
+import { api } from "@/lib/api";
+import { toast } from "sonner";
 import { getInitials } from "@/lib/utils";
 
 import { ChangePasswordDialog } from "./change-password-dialog";
@@ -30,7 +32,8 @@ export function AccountSwitcher({
 }) {
   const [pwOpen, setPwOpen] = useState(false);
 
-  function handleLogout() {
+  async function handleLogout() {
+    try { await api.logout(); } catch { toast.error("Não foi possível encerrar a sessão."); return; }
     auth.clearToken();
     window.location.href = "/login";
   }
@@ -47,17 +50,17 @@ export function AccountSwitcher({
         <DropdownMenuContent className="min-w-56 space-y-1 rounded-lg" side="bottom" align="end" sideOffset={4}>
           <div className="px-2 py-1.5 text-sm font-medium">{user.name}</div>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setPwOpen(true)}>
+          {!auth.isSSO() && <DropdownMenuItem onClick={() => setPwOpen(true)}>
             <KeyRound />
             Change password
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
+          </DropdownMenuItem>}
+          <DropdownMenuItem onClick={() => void handleLogout()} className="text-destructive focus:text-destructive">
             <LogOut />
             Sign out
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
+      {!auth.isSSO() && <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />}
     </>
   );
 }

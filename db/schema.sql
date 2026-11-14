@@ -360,6 +360,20 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Users are provisioned only after a verified, role-authorized Entra login.
+-- The Microsoft object ID is stable across email/name changes.
+CREATE TABLE IF NOT EXISTS auth_users (
+    id             BIGSERIAL PRIMARY KEY,
+    tenant_id      TEXT NOT NULL,
+    object_id      TEXT NOT NULL,
+    display_name   TEXT NOT NULL,
+    email          TEXT NOT NULL DEFAULT '',
+    disabled       BOOLEAN NOT NULL DEFAULT false,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_login_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (tenant_id, object_id)
+);
+
 CREATE TABLE IF NOT EXISTS llm_profiles (
     id               BIGSERIAL PRIMARY KEY,
     name             TEXT NOT NULL UNIQUE,

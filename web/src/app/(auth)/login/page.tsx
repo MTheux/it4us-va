@@ -21,6 +21,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [ssoEnabled, setSsoEnabled] = useState(false);
+  const [localEnabled, setLocalEnabled] = useState(true);
   const [stage, setStage] = useState<"login" | "enroll" | "recovery">("login");
   const [setupToken, setSetupToken] = useState("");
   const [mfaSecret, setMfaSecret] = useState("");
@@ -52,19 +54,26 @@ export default function LoginPage() {
 
   useEffect(() => {
     async function check() {
+      if (auth.isSSO()) auth.acceptSSO();
       const token = auth.getToken();
       if (token) {
         try {
-          await api.authSession();
-          auth.setToken(token);
+          const session = await api.authSession();
+          auth.setCurrentUser({ ...session.user, avatar: "" });
           window.location.replace("/function/va-runs");
           return;
         } catch { auth.clearToken(); }
       }
       try {
         const status = await api.authStatus();
-        if (!status.initialized) router.replace("/setup");
+        if (!status.initialized && !status.sso_enabled) router.replace("/setup");
         setMfaEnabled(status.mfa_enabled);
+        setSsoEnabled(status.sso_enabled);
+        setLocalEnabled(status.initialized);
+        const ssoError = new URLSearchParams(window.location.search).get("sso_error");
+        if (ssoError === "access") setError("Sua conta Microsoft precisa ser atribuída ao Guard4US pelo time de TI.");
+        else if (ssoError === "disabled") setError("Esta conta está desativada no Guard4US. Procure o administrador.");
+        else if (ssoError) setError("O acesso Microsoft foi cancelado ou não foi concluído.");
       } catch { setError("Não foi possível conectar ao servidor"); }
       finally { setChecking(false); }
     }
@@ -137,7 +146,17 @@ export default function LoginPage() {
             <h1>{stage === "enroll" ? "Ative a verificação em duas etapas" : stage === "recovery" ? "Guarde seus códigos" : "Bem-vindo de volta"}</h1>
             <p>{stage === "enroll" ? "Adicione o Guard4US ao aplicativo autenticador e confirme o código." : stage === "recovery" ? "Estes códigos aparecem uma vez e permitem recuperar o acesso." : "Entre para acompanhar suas análises de infraestrutura."}</p>
           </div>
-          {stage === "login" ?
+          {stage === "login" ? <>
+          {ssoEnabled && <div className={styles.ssoSection}>
+            <Button type="button" variant="outline" className={styles.ssoButton} disabled={!agreed} onClick={() => { window.location.href = "/api/auth/entra/start"; }}>
+              <span className={styles.microsoftMark} aria-hidden="true"><i /><i /><i /><i /></span>
+              Entrar com Microsoft
+            </Button>
+            <p className={styles.helper}>Acesso para integrantes atribuídos ao Guard4US no Entra ID.</p>
+            {!localEnabled && <div className={styles.terms}><Checkbox id="agree-terms-sso" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} /><Label htmlFor="agree-terms-sso">Li e concordo com os <button type="button" onClick={() => setTermsOpen(true)}>Termos de Uso</button></Label></div>}
+          </div>}
+          {ssoEnabled && localEnabled && <p className={styles.divider}>ou use a conta local</p>}
+          {localEnabled &&
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.field}>
               <Label htmlFor="account">Conta</Label>
@@ -177,7 +196,9 @@ export default function LoginPage() {
             <Button type="submit" className={styles.submit} disabled={loading || !password || !agreed || (mfaEnabled && !code.trim())}>
               {loading ? "Entrando..." : "Entrar na plataforma"}
             </Button>
-          </form>
+          </form>}
+          {error && !localEnabled && <p role="alert" className={styles.error}>{error}</p>}
+          </>
           : stage === "enroll" ? <form onSubmit={confirmMFA} className={styles.form}>
             <div className={styles.qr}><QRCodeSVG value={mfaURI} size={176} marginSize={2} /></div>
             <p className={styles.helper}>Se não conseguir ler o QR, digite esta chave no autenticador:</p>

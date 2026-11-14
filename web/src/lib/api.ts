@@ -113,6 +113,7 @@ import type {
 
 function getToken(): string | null {
   if (typeof window === "undefined") return null;
+  if (document.cookie.split("; ").some((item) => item === "guard4us_sso=1")) return null;
   return localStorage.getItem("it4us_token");
 }
 
@@ -130,7 +131,9 @@ export async function http<T>(path: string, init?: RequestInit): Promise<T> {
   if (r.status === 401) {
     if (typeof window !== "undefined") {
       localStorage.removeItem("it4us_token");
+      sessionStorage.removeItem("guard4us_current_user");
       document.cookie = "it4us_token=; path=/; max-age=0";
+      document.cookie = "guard4us_sso=; path=/; max-age=0";
       window.location.href = "/login";
     }
     throw new Error("Unauthorized");
@@ -242,8 +245,9 @@ export const api = {
   health: () => get<{ ok: boolean; service: string; version: string }>("/health"),
 
   // ---- auth ----
-  authStatus: () => get<{ initialized: boolean; mfa_enabled: boolean }>("/auth/status"),
-  authSession: () => get<{ authenticated: boolean }>("/auth/session"),
+  authStatus: () => get<{ initialized: boolean; mfa_enabled: boolean; sso_enabled: boolean }>("/auth/status"),
+  authSession: () => get<{ authenticated: boolean; provider: "local" | "entra"; user: { id: string; name: string; username: string; email: string; role: string } }>("/auth/session"),
+  logout: () => post<void>("/auth/logout", {}),
   login: (username: string, password: string, code: string) => post<{ token?: string; mfa_setup?: boolean; setup_token?: string }>("/auth/login", { username, password, code }),
   initPassword: (password: string) => post<{ mfa_setup: boolean; setup_token: string }>("/auth/init", { password }),
   mfaSetup: (setupToken: string) => post<{ secret: string; uri: string }>("/auth/mfa/setup", { setup_token: setupToken }),

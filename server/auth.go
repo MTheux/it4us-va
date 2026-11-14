@@ -88,6 +88,12 @@ type roleClaims struct {
 	MFA           bool   `json:"mfa"`
 	Purpose       string `json:"purpose,omitempty"`
 	PasswordProof string `json:"password_proof,omitempty"`
+	Provider      string `json:"provider,omitempty"`
+	UserID        string `json:"user_id,omitempty"`
+	Name          string `json:"name,omitempty"`
+	Email         string `json:"email,omitempty"`
+	TenantID      string `json:"tenant_id,omitempty"`
+	ObjectID      string `json:"object_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -107,21 +113,54 @@ func verifyJWT(tokenStr string, key []byte) bool {
 }
 
 func tokenRole(tokenStr string, key []byte) (string, bool) {
+	claims, ok := parseSessionClaims(tokenStr, key)
+	if !ok {
+		return "", false
+	}
+	return claims.Role, true
+}
+
+func parseSessionClaims(tokenStr string, key []byte) (*roleClaims, bool) {
 	claims := &roleClaims{}
 	t, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (any, error) {
-		if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+		if t.Method.Alg() != jwt.SigningMethodHS256.Alg() {
 			return nil, fmt.Errorf("unexpected signing method")
 		}
 		return key, nil
 	})
 	if err != nil || !t.Valid {
-		return "", false
+		return nil, false
 	}
 	// Invalidate every pre-MFA session on upgrade and never admit enrollment tokens.
-	if claims.MFA && claims.Purpose == "" && claims.Role == "admin" && claims.Subject == "IT4US VA" {
-		return "admin", true
+	if claims.MFA && claims.Provider == "" && claims.Purpose == "" && claims.Role == "admin" && claims.Subject == "IT4US VA" {
+		return claims, true
 	}
-	return "", false
+	if claims.Provider == "entra" && !claims.MFA && claims.Purpose == "" && claims.Role == "admin" && claims.UserID != "" &&
+		uuidPattern.MatchString(claims.TenantID) && uuidPattern.MatchString(claims.ObjectID) &&
+		claims.Subject == "entra:"+claims.TenantID+":"+claims.ObjectID {
+		return claims, true
+	}
+	return nil, false
+}
+
+func (s *Server) requestSession(w http.ResponseWriter, r *http.Request) (*roleClaims, bool) {
+	claims, ok := parseSessionClaims(extractToken(r), s.jwtKey)
+	if !ok {
+		writeErr(w, 401, "token is invalid or expired")
+		return nil, false
+	}
+	if claims.Provider == "entra" {
+		active, err := s.entraUserActive(r.Context(), claims)
+		if err != nil {
+			writeErr(w, 503, errDataSourceUnavailable)
+			return nil, false
+		}
+		if !active {
+			writeErr(w, 401, "SSO account is no longer active")
+			return nil, false
+		}
+	}
+	return claims, true
 }
 
 // extractToken reads the JWT from Authorization: Bearer header,
@@ -150,9 +189,7 @@ func (s *Server) requireAuth(h http.Handler) http.Handler {
 			writeErr(w, 401, "Unauthorized")
 			return
 		}
-		_, valid := tokenRole(tok, s.jwtKey)
-		if !valid {
-			writeErr(w, 401, "token is invalid or expired")
+		if _, valid := s.requestSession(w, r); !valid {
 			return
 		}
 		h.ServeHTTP(w, r)
@@ -178,15 +215,24 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 503, errDataSourceUnavailable)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"initialized": hash != "", "mfa_enabled": mfa != ""})
+	_, ssoEnabled := configuredEntra()
+	writeJSON(w, 200, map[string]any{"initialized": hash != "", "mfa_enabled": mfa != "", "sso_enabled": ssoEnabled})
 }
 
 func (s *Server) authSession(w http.ResponseWriter, r *http.Request) {
-	if _, ok := tokenRole(extractToken(r), s.jwtKey); !ok {
-		writeErr(w, 401, "Unauthorized")
+	claims, ok := s.requestSession(w, r)
+	if !ok {
 		return
 	}
-	writeJSON(w, 200, map[string]any{"authenticated": true})
+	if claims.Provider == "entra" {
+		writeJSON(w, 200, map[string]any{"authenticated": true, "provider": "entra", "user": map[string]string{
+			"id": claims.UserID, "name": claims.Name, "email": claims.Email, "username": claims.Email, "role": "admin",
+		}})
+		return
+	}
+	writeJSON(w, 200, map[string]any{"authenticated": true, "provider": "local", "user": map[string]string{
+		"id": "1", "name": "Equipe IT4US", "email": "", "username": "IT4US VA", "role": "admin",
+	}})
 }
 
 // POST /api/auth/init — sets the password for the first time; rejected if already set.
@@ -248,7 +294,11 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 	if pg == nil {
 		return
 	}
-	if role, ok := tokenRole(extractToken(r), s.jwtKey); !ok || role != "admin" {
+	claims, ok := s.requestSession(w, r)
+	if !ok {
+		return
+	}
+	if claims.Provider != "" || claims.Role != "admin" {
 		writeErr(w, 401, "Unauthorized")
 		return
 	}
