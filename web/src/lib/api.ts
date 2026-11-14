@@ -242,9 +242,12 @@ export const api = {
   health: () => get<{ ok: boolean; service: string; version: string }>("/health"),
 
   // ---- auth ----
-  authStatus: () => get<{ initialized: boolean }>("/auth/status"),
-  login: (username: string, password: string) => post<{ token: string }>("/auth/login", { username, password }),
-  initPassword: (password: string) => post<{ token: string }>("/auth/init", { password }),
+  authStatus: () => get<{ initialized: boolean; mfa_enabled: boolean }>("/auth/status"),
+  authSession: () => get<{ authenticated: boolean }>("/auth/session"),
+  login: (username: string, password: string, code: string) => post<{ token?: string; mfa_setup?: boolean; setup_token?: string }>("/auth/login", { username, password, code }),
+  initPassword: (password: string) => post<{ mfa_setup: boolean; setup_token: string }>("/auth/init", { password }),
+  mfaSetup: (setupToken: string) => post<{ secret: string; uri: string }>("/auth/mfa/setup", { setup_token: setupToken }),
+  mfaConfirm: (setupToken: string, code: string) => post<{ token: string; recovery_codes: string[] }>("/auth/mfa/confirm", { setup_token: setupToken, code }),
   changePassword: (oldPassword: string, newPassword: string) =>
     post<{ ok: boolean }>("/auth/change-password", { old_password: oldPassword, new_password: newPassword }),
 

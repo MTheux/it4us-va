@@ -1,8 +1,8 @@
-# IT4US VA
+# Guard4US
 
 Console do SOC para descobrir serviços em IPs autorizados, registrar evidências e revisar candidatos a vulnerabilidade. O scanner de infraestrutura funciona sem IA. A IA e os conectores MCP são opcionais para investigação e integração.
 
-> **Origem e licença:** este projeto é um fork de [ARTEX, de Autumn-27](https://github.com/Autumn-27/artex), adaptado pela IT4US para o fluxo de avaliação de infraestrutura do SOC. O código permanece sob [AGPL-3.0](LICENSE). As capturas e instruções abaixo retratam o IT4US VA.
+> **Origem e licença:** este projeto é um fork de [ARTEX, de Autumn-27](https://github.com/Autumn-27/artex), adaptado pela IT4US para o fluxo de avaliação de infraestrutura do SOC. O código permanece sob [AGPL-3.0](LICENSE). A interface do produto se chama Guard4US.
 
 ## O que o SOC consegue fazer
 
@@ -11,7 +11,7 @@ Console do SOC para descobrir serviços em IPs autorizados, registrar evidência
 - Ver serviços no inventário e candidatos pendentes em **Achados**. Porta aberta ou banner não é vulnerabilidade confirmada; o analista decide após revisar a evidência.
 - Após o discovery, consultar automaticamente a NVD para CPEs com versão identificada e registrar CVEs possivelmente aplicáveis como candidatos pendentes, com CPE, critério e fonte. Limites e falhas de cobertura ficam no recibo. Também é possível consultar uma CVE específica manualmente.
 - Configurar Claude/OpenCode e MCP em **Conexões**, se a equipe quiser apoio do agente. Discovery de portas não depende dessas integrações.
-- Acompanhar o histórico de cada execução no **Chat → Histórico** e abrir **Chat → Arquivos** para consultar plano, eventos, inventário por host, saídas brutas e recibo final. Artefatos novos são gravados em `data/va-runs/artifacts/<run-id>/` com SHA-256; execuções antigas exibem seu recibo persistido.
+- Acompanhar a conversa da tarefa no **Chat**, com execuções, trilha e arquivos no painel lateral. O painel permite consultar plano, eventos, inventário por host, saídas brutas e recibo final. Artefatos novos são gravados em `data/va-runs/artifacts/<run-id>/` com SHA-256; execuções antigas exibem seu recibo persistido.
 
 O discovery Nmap não executa exploit, NSE, autenticação, brute force ou movimento lateral. O motor de VTs usa o perfil local `IT4US Infra Only v2`, com famílias de infraestrutura selecionadas e `safe_checks` ativo; ele pode enviar probes aos serviços observados. A correlação automática não confirma que o alvo é vulnerável: patches, backports e condições adicionais exigem validação específica. Scans autenticados ainda não fazem parte desta versão.
 

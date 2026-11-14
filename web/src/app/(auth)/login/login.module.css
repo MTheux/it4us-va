@@ -89,6 +89,11 @@
 .terms label { color: #a7b5a8; font-size: 12px; line-height: 1.6; font-weight: 400; }
 .terms label button { color: #9ce86e; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .error { margin: 0; color: #ff9a97; font-size: 12px; }
+.qr { display: flex; justify-content: center; border-radius: 10px; padding: 15px; background: #edf4e9; }
+.helper { color: #a7b5a8; font-size: 12px; line-height: 1.5; }
+.secret { display: block; overflow-wrap: anywhere; border: 1px solid #758a7940; border-radius: 8px; padding: 12px; background: #0b120e; color: #d2f5bd; text-align: center; font-size: 12px; letter-spacing: .1em; }
+.recoveryList { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.recoveryList code { border: 1px solid #758a7940; border-radius: 7px; padding: 9px 5px; background: #0b120e; color: #d2f5bd; text-align: center; font-size: 11px; }
 .submit { height: 44px; margin-top: 4px; border-radius: 8px; background: #91e65a; color: #102009; font-size: 13px; font-weight: 700; }
 .submit:hover { background: #a5f071; }
 .submit:disabled { background: #557449; color: #d5e6cb; }

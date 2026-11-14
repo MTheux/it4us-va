@@ -7,7 +7,7 @@ const stages = [
 
 export function BrandProof() {
   return (
-    <aside className="proof hidden flex-col p-10 text-left lg:flex lg:w-1/2 xl:p-14" aria-label="IT4US VA">
+    <aside className="proof hidden flex-col p-10 text-left lg:flex lg:w-1/2 xl:p-14" aria-label="Guard4US">
       <div className="proof-grid" aria-hidden="true" />
       <div className="relative flex h-full flex-col">
         {/* The artwork is the existing IT4US Cyber Security brand asset. */}
@@ -21,7 +21,7 @@ export function BrandProof() {
         />
 
         <div className="my-auto max-w-xl py-10">
-          <div className="proof-kicker">IT4US VA · VULNERABILITY ASSESSMENT</div>
+          <div className="proof-kicker">GUARD4US · VULNERABILITY ASSESSMENT</div>
           <h1 className="proof-title mt-5">Visibilidade para agir.</h1>
           <p className="proof-copy mt-5">
             Descubra ativos, conduza campanhas de avaliação e revise evidências com apoio de agentes.

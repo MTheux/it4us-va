@@ -3,6 +3,7 @@
 import * as React from "react";
 import { DownloadIcon, FileCode2Icon, FileJson2Icon, FilesIcon, FolderIcon, SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import type { VAFile } from "@/lib/types";
@@ -17,7 +18,7 @@ const groups: Record<string, string> = {
   vt: "Verificações de vulnerabilidade",
 };
 
-export function VAFiles({ runID }: { runID?: string }) {
+export function VAFiles({ runID, compact = false }: { runID?: string; compact?: boolean }) {
   const [files, setFiles] = React.useState<VAFile[]>([]);
   const [selected, setSelected] = React.useState("");
   const [preview, setPreview] = React.useState("");
@@ -80,6 +81,28 @@ export function VAFiles({ runID }: { runID?: string }) {
     group,
     files: filtered.filter((file) => (file.path.includes("/") ? file.path.split("/")[0] : "root") === group),
   })).filter((entry) => entry.files.length);
+
+  if (compact) return <div className="space-y-3" aria-label="Arquivos da execução">
+    <div className="flex items-center gap-2"><FilesIcon className="size-4 text-primary" /><h3 className="text-sm font-semibold">Arquivos</h3><span className="ml-auto rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">{files.length}</span></div>
+    <div className="relative"><SearchIcon className="absolute left-2.5 top-2.5 size-4 text-muted-foreground" /><Input aria-label="Buscar arquivos" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar evidências" className="h-9 pl-9 text-xs" /></div>
+    <div className="max-h-[21rem] space-y-3 overflow-y-auto pr-1">
+      {!runID ? <p className="text-xs text-muted-foreground">Selecione uma execução para ver os arquivos.</p> : grouped.length === 0 ? <p className="text-xs text-muted-foreground">{search ? "Nenhum arquivo encontrado." : "Os arquivos aparecerão durante a execução."}</p> : grouped.map(({ group, files: items }) => <div key={group}>
+        <p className="mb-1 px-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{groups[group]}</p>
+        {items.map((file) => <button key={file.path} type="button" onClick={() => setSelected(file.path)} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-left hover:bg-accent/70">
+          {file.path.endsWith(".xml") ? <FileCode2Icon className="size-4 shrink-0 text-primary/70" /> : <FileJson2Icon className="size-4 shrink-0 text-primary/70" />}
+          <span className="min-w-0 flex-1 truncate text-xs">{file.name}</span><span className="font-mono text-[10px] text-muted-foreground">{Math.max(1, Math.ceil(file.size / 1024))} KB</span>
+        </button>)}
+      </div>)}
+    </div>
+    {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
+    <Dialog open={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelected(""); }}>
+      <DialogContent className="flex max-h-[85dvh] max-w-4xl flex-col overflow-hidden">
+        <DialogHeader><DialogTitle className="truncate pr-8 text-base">{current?.name || "Evidência"}</DialogTitle></DialogHeader>
+        {current && <div className="flex items-center justify-between gap-3 border-b pb-3"><p className="truncate font-mono text-[10px] text-muted-foreground">{current.path} · SHA-256 {current.sha256.slice(0, 16)}…</p><Button size="sm" variant="outline" onClick={() => void download(current)}><DownloadIcon /> Baixar</Button></div>}
+        <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap break-all rounded-md bg-muted/40 p-4 font-mono text-xs leading-5">{loading ? "Carregando…" : preview}</pre>
+      </DialogContent>
+    </Dialog>
+  </div>;
 
   return <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[21rem_minmax(0,1fr)]" aria-label="Arquivos da execução">
     <div className="flex min-h-[260px] flex-col border-b bg-background/30 lg:min-h-0 lg:border-b-0 lg:border-r">

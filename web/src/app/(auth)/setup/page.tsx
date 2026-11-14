@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { api } from "@/lib/api";
-import { auth } from "@/lib/auth";
 
 export default function SetupPage() {
   const router = useRouter();
@@ -48,9 +47,8 @@ export default function SetupPage() {
     setLoading(true);
     setError("");
     try {
-      const { token } = await api.initPassword(password);
-      auth.setToken(token);
-      router.replace("/system/quickstart");
+      await api.initPassword(password);
+      router.replace("/login");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Initialization failed");
     } finally {
@@ -72,7 +70,7 @@ export default function SetupPage() {
             <p className="mx-auto max-w-xl text-muted-foreground">
               {unavailable
                 ? "O backend ou o banco de dados está temporariamente indisponível. Para evitar sobrescrever uma senha já definida nesta instância, a configuração foi temporariamente bloqueada — restaure o serviço e tente novamente."
-                : "Primeira vez usando o IT4US VA? Defina uma senha de login para a conta (no mínimo 8 caracteres)"}
+                : "Primeira vez no Guard4US? Defina uma senha de login para a conta (no mínimo 8 caracteres). Depois, configure o MFA."}
             </p>
           </div>
           {unavailable ? (

@@ -256,7 +256,7 @@ export default function SystemSettingsPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-6">
       <header className="space-y-2 border-b border-border pb-5">
-        <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">IT4US VA / Sistema</p>
+        <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">Guard4US / Sistema</p>
         <h1 className="text-3xl font-semibold tracking-tight">Configurações do sistema</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted-foreground">O discovery VA funciona sem LLM. Os controles abaixo ajustam os agentes e suas ferramentas; o scanner usa o plano de execução validado em cada campanha.</p>
       </header>

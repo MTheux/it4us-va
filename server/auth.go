@@ -19,7 +19,7 @@ import (
 const (
 	jwtKeyFilename = "jwt.key"
 	authPassKey    = "auth.password_hash"
-	jwtTTL         = 7 * 24 * time.Hour
+	jwtTTL         = 8 * time.Hour
 	keyChars       = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
 	// The lower bound matches the setup page's frontend validation — validation that
@@ -84,13 +84,16 @@ func loadOrCreateJWTKey(keyDir, dataDir string) ([]byte, error) {
 }
 
 type roleClaims struct {
-	Role string `json:"role"`
+	Role          string `json:"role"`
+	MFA           bool   `json:"mfa"`
+	Purpose       string `json:"purpose,omitempty"`
+	PasswordProof string `json:"password_proof,omitempty"`
 	jwt.RegisteredClaims
 }
 
-// signJWT issues a 7-day HS256 token for the single IT4US VA login.
+// signJWT issues an eight-hour HS256 token after password and MFA verification.
 func signJWT(key []byte) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: "admin", RegisteredClaims: jwt.RegisteredClaims{
+	return jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: "admin", MFA: true, RegisteredClaims: jwt.RegisteredClaims{
 		Subject:   "IT4US VA",
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(jwtTTL)),
 		IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -114,12 +117,8 @@ func tokenRole(tokenStr string, key []byte) (string, bool) {
 	if err != nil || !t.Valid {
 		return "", false
 	}
-	// Tokens issued while SOC had a restricted role remain valid, but now carry
-	// the same administrator privileges as every other authenticated account.
-	if (claims.Role == "soc" || claims.Role == "admin") && claims.Subject == "IT4US SOC" {
-		return "admin", true
-	}
-	if (claims.Role == "admin" || claims.Role == "") && claims.Subject == "IT4US VA" {
+	// Invalidate every pre-MFA session on upgrade and never admit enrollment tokens.
+	if claims.MFA && claims.Purpose == "" && claims.Role == "admin" && claims.Subject == "IT4US VA" {
 		return "admin", true
 	}
 	return "", false
@@ -174,7 +173,20 @@ func (s *Server) authStatus(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 503, errDataSourceUnavailable)
 		return
 	}
-	writeJSON(w, 200, map[string]any{"initialized": hash != ""})
+	mfa, _, err := pg.GetSetting(authMFASecretKey)
+	if err != nil {
+		writeErr(w, 503, errDataSourceUnavailable)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"initialized": hash != "", "mfa_enabled": mfa != ""})
+}
+
+func (s *Server) authSession(w http.ResponseWriter, r *http.Request) {
+	if _, ok := tokenRole(extractToken(r), s.jwtKey); !ok {
+		writeErr(w, 401, "Unauthorized")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"authenticated": true})
 }
 
 // POST /api/auth/init — sets the password for the first time; rejected if already set.
@@ -220,12 +232,12 @@ func (s *Server) authInit(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 403, "Password is already set")
 		return
 	}
-	tok, err := signJWT(s.jwtKey)
+	tok, err := s.signMFASetupToken(string(hash))
 	if err != nil {
-		writeErr(w, 500, "token generation failed")
+		writeErr(w, 500, "MFA setup failed")
 		return
 	}
-	writeJSON(w, 200, map[string]any{"token": tok})
+	writeJSON(w, 200, map[string]any{"mfa_setup": true, "setup_token": tok})
 }
 
 // POST /api/auth/change-password — changes the admin password. Requires a valid
@@ -278,6 +290,8 @@ func (s *Server) authChangePassword(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, "Save failed: "+err.Error())
 		return
 	}
+	// Existing sessions expire after at most eight hours. The TOTP enrollment
+	// remains bound to the persistent JWT key, independent of the password hash.
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
@@ -286,6 +300,7 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if err := decode(r, &req); err != nil {
 		writeErr(w, 400, "Invalid request format")
@@ -293,6 +308,11 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.Username != "IT4US VA" {
 		writeErr(w, 401, "Incorrect username or password")
+		return
+	}
+	key := authAttemptKey(r)
+	if !s.authAttemptAllowed(key) {
+		writeErr(w, 429, "Too many attempts; retry later")
 		return
 	}
 	pg := s.pg(w)
@@ -309,9 +329,35 @@ func (s *Server) authLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(req.Password)); err != nil {
+		s.authAttemptFailed(key)
 		writeErr(w, 401, "Incorrect username or password")
 		return
 	}
+	mfaSecret, _, err := pg.GetSetting(authMFASecretKey)
+	if err != nil {
+		writeErr(w, 503, errDataSourceUnavailable)
+		return
+	}
+	if mfaSecret == "" {
+		tok, err := s.signMFASetupToken(hash)
+		if err != nil {
+			writeErr(w, 500, "MFA setup failed")
+			return
+		}
+		writeJSON(w, 200, map[string]any{"mfa_setup": true, "setup_token": tok})
+		return
+	}
+	valid, err := s.verifyMFALogin(pg, mfaSecret, req.Code)
+	if err != nil {
+		writeErr(w, 503, errDataSourceUnavailable)
+		return
+	}
+	if !valid {
+		s.authAttemptFailed(key)
+		writeErr(w, 401, "Incorrect username, password or MFA code")
+		return
+	}
+	s.authAttemptSucceeded(key)
 	tok, err := signJWT(s.jwtKey)
 	if err != nil {
 		writeErr(w, 500, "token generation failed")

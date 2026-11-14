@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRightIcon, ArrowUpIcon, BotIcon, CheckCircle2Icon, Clock3Icon, FilesIcon, Loader2Icon, NetworkIcon, RadarIcon, ShieldCheckIcon } from "lucide-react";
+import { ArrowRightIcon, ArrowUpIcon, BotIcon, Loader2Icon, NetworkIcon, ShieldCheckIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Transcript } from "@/components/transcript";
@@ -37,7 +37,6 @@ function TaskVAChat() {
   const [olderCursor, setOlderCursor] = React.useState(0);
   const [hasOlder, setHasOlder] = React.useState(false);
   const loadedOlderRef = React.useRef(false);
-  const [view, setView] = React.useState<"history" | "files">("history");
   const [segment, setSegment] = React.useState(0);
   const [chatBusy, setChatBusy] = React.useState(false);
   const [input, setInput] = React.useState("");
@@ -177,25 +176,25 @@ function TaskVAChat() {
   const hosts = run?.result?.hosts ?? [];
 
   return (
-    <div data-content-padding="false" className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-7xl flex-col gap-5 px-4 py-5 lg:h-[calc(100svh-4rem)] lg:min-h-0 lg:overflow-hidden lg:px-10">
-      <header className="flex shrink-0 flex-wrap items-end justify-between gap-3 border-b pb-5">
+    <div data-content-padding="false" className="mx-auto flex min-h-[calc(100svh-3rem)] w-full max-w-[1680px] flex-col gap-4 px-4 py-5 lg:h-[calc(100svh-4rem)] lg:min-h-0 lg:overflow-hidden lg:px-8">
+      <header className="flex shrink-0 items-center justify-between gap-4 pb-1">
         <div>
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-primary">SOC / ACOMPANHAMENTO VA</p>
-          <h1 className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight sm:text-4xl">Chat da tarefa</h1>
-          <p className="mt-2 text-sm text-muted-foreground">Uma conversa por tarefa para acompanhar a execução e analisar os resultados.</p>
+          <p className="font-mono text-[10px] font-medium uppercase tracking-[0.2em] text-primary">GUARD4US / OPERAÇÃO VA</p>
+          <h1 className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight sm:text-3xl">Chat da tarefa</h1>
+          <p className="mt-1 text-xs text-muted-foreground">Converse sobre a execução enquanto acompanha a trilha e as evidências.</p>
         </div>
-        <Button asChild size="sm" variant="outline"><Link href="/function/va-runs"><RadarIcon /> Nova execução</Link></Button>
+        {selectedTask && <Button asChild size="sm" variant="ghost" className="hidden sm:inline-flex"><Link href={`/function/tasks/detail?id=${selectedTask.id}`}>Ver tarefa <ArrowRightIcon /></Link></Button>}
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:grid lg:grid-cols-[16rem_minmax(0,1fr)]">
-        <aside className="hidden min-h-0 flex-col overflow-hidden rounded-xl border bg-card/50 lg:flex">
-          <div className="border-b px-4 py-3"><p className="text-sm font-semibold">Tarefas VA</p><p className="text-xs text-muted-foreground">{tasks.length} cadastrada(s)</p></div>
-          <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[13.5rem_minmax(0,1fr)_21rem]">
+        <aside className="hidden min-h-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/40 lg:flex" aria-label="Tarefas VA">
+          <div className="border-b border-border/70 px-4 py-4"><p className="text-sm font-semibold">Tarefas VA</p><p className="mt-0.5 text-xs text-muted-foreground">{tasks.length} cadastrada(s)</p></div>
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto p-2">
             {tasks.map((task) => {
               const activeRun = runs.find((item) => String(item.campaign.task_id) === task.id && item.status === "running");
-              return <button type="button" key={task.id} onClick={() => { setSelectedTaskID(task.id); setRequestedRunID(""); }} className={cn("mb-1 flex w-full items-start gap-2 rounded-lg px-3 py-3 text-left hover:bg-accent/60", selectedTaskID === task.id && "bg-primary/10 text-primary")}>
+              return <button type="button" key={task.id} onClick={() => { setSelectedTaskID(task.id); setRequestedRunID(""); }} className={cn("flex w-full items-start gap-2 rounded-xl px-3 py-3 text-left transition-colors hover:bg-accent/60", selectedTaskID === task.id && "border border-primary/25 bg-primary/10 text-primary")}>
                 <NetworkIcon className="mt-0.5 size-4 shrink-0" />
-                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{taskTitle(task)}</span><span className="mt-1 block font-mono text-[11px] text-muted-foreground">#{task.id}{activeRun ? " · VA em execução" : ""}</span></span>
+                <span className="min-w-0 flex-1"><span className="block truncate text-sm font-medium">{taskTitle(task)}</span><span className="mt-1 block font-mono text-[10px] text-muted-foreground">Tarefa #{task.id}</span></span>
                 {activeRun && <span className="mt-1 size-1.5 shrink-0 animate-pulse rounded-full bg-primary" />}
               </button>;
             })}
@@ -203,43 +202,40 @@ function TaskVAChat() {
           </div>
         </aside>
 
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-          <div className="lg:hidden"><Select value={selectedTaskID} onValueChange={(id) => { setSelectedTaskID(id); setRequestedRunID(""); }}><SelectTrigger className="w-full"><SelectValue placeholder="Selecionar tarefa VA" /></SelectTrigger><SelectContent>{tasks.map((task) => <SelectItem key={task.id} value={task.id}>{taskTitle(task)} · #{task.id}</SelectItem>)}</SelectContent></Select></div>
-          {!selectedTask ? (
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3 rounded-xl border bg-card/40 p-8 text-center"><BotIcon className="size-8 text-primary" /><h2 className="font-semibold">{loaded ? "Selecione ou crie uma tarefa VA" : "Carregando tarefas…"}</h2><p className="max-w-sm text-sm text-muted-foreground">{error || "O acompanhamento começa quando uma execução VA é iniciada para a tarefa."}</p><Button asChild size="sm"><Link href="/function/tasks">Ver tarefas <ArrowRightIcon /></Link></Button></div>
-          ) : (
-            <>
-              <div className="shrink-0 rounded-xl border bg-card/50 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0"><p className="font-mono text-[10px] uppercase tracking-widest text-primary">TAREFA #{selectedTask.id}</p><h2 className="mt-1 truncate text-lg font-semibold">{taskTitle(selectedTask)}</h2><p className="mt-1 text-xs text-muted-foreground">{taskRuns.length} execução(ões) VA vinculada(s)</p></div>
-                  <Button asChild variant="ghost" size="sm"><Link href={`/function/tasks/detail?id=${selectedTask.id}`}>Ver tarefa <ArrowRightIcon /></Link></Button>
-                </div>
-                {taskRuns.length > 1 && <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{taskRuns.map((item) => <button key={item.id} type="button" onClick={() => setRequestedRunID(item.id)} className={cn("shrink-0 rounded-md border px-2 py-1 font-mono text-[11px]", run?.id === item.id ? "border-primary text-primary" : "text-muted-foreground")}>{new Date(item.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</button>)}</div>}
-                {run ? <div className="mt-4 space-y-3 border-t pt-3">
-                  <div className="flex flex-wrap items-center gap-2 text-xs"><Badge variant={run.status === "running" ? "default" : "secondary"}>{runLabels[run.status]}</Badge><span className="text-muted-foreground">{run.phase === "cve_review" ? "Correlação de CVEs" : run.status === "running" ? "Discovery e checks de infraestrutura" : "Execução finalizada"}</span><span className="ml-auto font-mono tabular-nums">{run.completed_hosts + run.failed_hosts}/{run.total_hosts} hosts</span></div>
-                  <div role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso da execução VA" className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} /></div>
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground"><span>{run.candidate_count} candidato(s)</span><span>{run.failed_hosts} host(s) com falha</span><span>{run.campaign.depth === "deep" ? "Discovery + VA aprofundado" : "Discovery"}</span><span>{run.campaign.ports.length ? `${run.campaign.ports.length} portas` : "Todas as portas"}</span>{run.draxen && <span>Revisão Draxen: {run.draxen.status === "completed" ? `concluída · ${run.draxen.proposals ?? 0} proposta(s)` : run.draxen.status === "unavailable" ? "indisponível" : "falhou"}</span>}</div>
-                  {run.error && <p className="text-xs text-destructive">{run.error}</p>}
-                  {hosts.length > 0 && <details open={run.status === "running"} className="text-xs"><summary className="cursor-pointer font-medium text-foreground">Hosts processados ({hosts.length})</summary><div className="mt-2 max-h-36 space-y-1 overflow-y-auto">{hosts.map((host) => <div key={host.target} className="flex flex-wrap items-center gap-2 rounded border px-2 py-1"><code>{host.target}</code><span className="text-muted-foreground">{host.services?.length ?? 0} serviço(s) · {host.candidates?.length ?? 0} candidato(s)</span><span className="ml-auto">{host.status === "completed" ? "Concluído" : "Falhou"}</span></div>)}</div></details>}
-                  {done && <Button asChild size="sm" variant="outline"><Link href={`/function/va-runs?task=${selectedTask.id}&depth=deep`}>Planejar aprofundamento <ArrowRightIcon /></Link></Button>}
-                </div> : <div className="mt-4 flex items-center gap-2 border-t pt-3 text-xs text-muted-foreground"><Clock3Icon className="size-4" /> Nenhuma execução VA nesta tarefa. <Link href={`/function/va-runs?task=${selectedTask.id}`} className="text-primary hover:underline">Criar execução</Link></div>}
-              </div>
+        <div className="min-w-0 lg:hidden"><Select value={selectedTaskID} onValueChange={(id) => { setSelectedTaskID(id); setRequestedRunID(""); }}><SelectTrigger className="w-full"><SelectValue placeholder="Selecionar tarefa VA" /></SelectTrigger><SelectContent>{tasks.map((task) => <SelectItem key={task.id} value={task.id}>{taskTitle(task)} · #{task.id}</SelectItem>)}</SelectContent></Select></div>
 
-              <section className="flex min-h-[360px] flex-1 flex-col overflow-hidden rounded-xl border bg-card/50 lg:min-h-0" aria-label="Acompanhamento da tarefa">
-                <div className="flex shrink-0 items-center justify-between gap-2 border-b px-3 py-2"><div className="flex gap-1" role="tablist" aria-label="Acompanhamento VA"><button role="tab" aria-selected={view === "history"} type="button" onClick={() => setView("history")} className={cn("rounded-md px-3 py-2 text-sm font-medium", view === "history" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}><BotIcon className="mr-2 inline size-4" />Histórico</button><button role="tab" aria-selected={view === "files"} type="button" onClick={() => setView("files")} className={cn("rounded-md px-3 py-2 text-sm font-medium", view === "files" ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}><FilesIcon className="mr-2 inline size-4" />Arquivos</button></div><span className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">{chatBusy ? <><Loader2Icon className="size-3.5 animate-spin" /> Analisando</> : <><ShieldCheckIcon className="size-3.5" /> {events.length ? "Trilha registrada" : "Recibo disponível"}</>}</span></div>
-                {view === "files" ? <VAFiles runID={run?.id} /> : <>
-                <div ref={transcriptRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-                  {run && <div className="mb-5 border-l border-primary/30 pl-4 text-xs"><p className="mb-3 font-semibold text-foreground">Execução · {new Date(run.created_at).toLocaleString("pt-BR")}</p>{events.length ? <div className="space-y-3">{events.map((event, index) => <div key={`${event.at}-${index}`} className="grid grid-cols-[4.25rem_minmax(0,1fr)] gap-2"><time className="font-mono text-[10px] text-muted-foreground">{new Date(event.at).toLocaleTimeString("pt-BR")}</time><p className="text-muted-foreground"><span className={cn("font-medium", event.status === "failed" ? "text-destructive" : "text-foreground")}>{event.stage}</span>{event.target && <code className="ml-2 text-primary">{event.target}</code>}<span className="ml-2">{event.detail || event.status}</span></p></div>)}</div> : <p className="text-muted-foreground">Esta execução ainda não possui eventos detalhados. O recibo da execução permanece disponível.</p>}</div>}
-                  {hasOlder && <button type="button" onClick={() => void loadOlder()} className="mb-3 rounded-md border px-3 py-1.5 text-xs text-primary hover:bg-primary/10">Carregar mensagens anteriores</button>}
-                  {activity.length ? <Transcript activity={activity} live={chatBusy} chat taskId={selectedTask.id} /> : <div className="flex min-h-32 flex-col items-center justify-center gap-2 text-center"><CheckCircle2Icon className="size-6 text-primary" /><p className="text-sm font-medium">Conversa pronta para esta tarefa</p><p className="max-w-md text-xs leading-5 text-muted-foreground">Pergunte sobre a execução ou peça um plano de aprofundamento com base no recibo VA.</p></div>}
-                </div>
-                {done && <div className="flex shrink-0 flex-wrap gap-2 border-t px-4 py-2"><button type="button" onClick={() => setInput("Resuma os serviços e candidatos observados nesta execução.")} className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary">Resumir resultados</button><button type="button" onClick={() => setInput("Quais evidências faltam e qual aprofundamento de infraestrutura você recomenda dentro do escopo?")} className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:border-primary hover:text-primary">Planejar aprofundamento</button></div>}
-                <div className="shrink-0 border-t p-3"><div className="flex items-end gap-2 rounded-lg border bg-background px-3 py-2 focus-within:border-primary"><label htmlFor="task-va-chat-input" className="sr-only">Mensagem para análise VA</label><Textarea id="task-va-chat-input" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} disabled={chatBusy || sending} rows={1} placeholder={chatBusy ? "Aguarde a análise terminar…" : "Pergunte sobre os resultados desta tarefa…"} className="max-h-28 min-h-9 flex-1 resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0" /><Button size="icon-sm" onClick={() => void send()} disabled={!input.trim() || chatBusy || sending} aria-label="Enviar mensagem"><ArrowUpIcon /></Button></div><p className="mt-2 text-[11px] text-muted-foreground">O chat analisa recibos existentes. Novos checks exigem revisão em Execuções VA.</p>{error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}</div>
-                </>}
-              </section>
-            </>
-          )}
-        </div>
+        {!selectedTask ? <div className="flex min-h-[28rem] flex-col items-center justify-center gap-3 rounded-2xl border bg-card/40 p-8 text-center lg:col-span-2"><BotIcon className="size-8 text-primary" /><h2 className="font-semibold">{loaded ? "Selecione uma tarefa VA" : "Carregando tarefas…"}</h2><p className="max-w-sm text-sm text-muted-foreground">{error || "A conversa começa quando uma tarefa VA é selecionada."}</p><Button asChild size="sm"><Link href="/function/tasks">Ver tarefas <ArrowRightIcon /></Link></Button></div> : <>
+          <section className="flex min-h-[32rem] min-w-0 flex-col overflow-hidden rounded-2xl border border-border/70 bg-card/50 lg:min-h-0" aria-label="Conversa da tarefa">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/70 px-5 py-4">
+              <div className="min-w-0"><p className="font-mono text-[10px] uppercase tracking-[0.16em] text-primary">TAREFA #{selectedTask.id}</p><h2 className="mt-1 truncate text-base font-semibold">{taskTitle(selectedTask)}</h2></div>
+              <span className={cn("flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px]", chatBusy ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>{chatBusy ? <Loader2Icon className="size-3.5 animate-spin" /> : <BotIcon className="size-3.5" />}{chatBusy ? "Analisando" : "Chat disponível"}</span>
+            </div>
+            <div ref={transcriptRef} className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-6">
+              {hasOlder && <button type="button" onClick={() => void loadOlder()} className="rounded-md border px-3 py-1.5 text-xs text-primary hover:bg-primary/10">Carregar mensagens anteriores</button>}
+              {activity.length ? <Transcript activity={activity} live={chatBusy} chat taskId={selectedTask.id} /> : <div className="flex min-h-64 flex-col items-center justify-center gap-3 text-center"><div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10"><BotIcon className="size-6 text-primary" /></div><p className="text-sm font-semibold">Conversa pronta para esta tarefa</p><p className="max-w-sm text-xs leading-5 text-muted-foreground">Peça um resumo, esclareça um candidato ou solicite um plano de aprofundamento com base nos recibos.</p></div>}
+            </div>
+            {done && <div className="flex shrink-0 flex-wrap gap-2 border-t border-border/70 px-4 py-3 sm:px-6"><button type="button" onClick={() => setInput("Resuma os serviços e candidatos observados nesta execução.")} className="rounded-full border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary hover:text-primary">Resumir resultados</button><button type="button" onClick={() => setInput("Quais evidências faltam e qual aprofundamento de infraestrutura você recomenda dentro do escopo?")} className="rounded-full border px-3 py-1.5 text-xs text-muted-foreground hover:border-primary hover:text-primary">Próximas validações</button></div>}
+            <div className="shrink-0 border-t border-border/70 bg-background/30 px-4 py-3 sm:px-6"><div className="flex items-end gap-2 rounded-xl border bg-background px-3 py-2 focus-within:border-primary"><label htmlFor="task-va-chat-input" className="sr-only">Mensagem para análise VA</label><Textarea id="task-va-chat-input" value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} disabled={chatBusy || sending} rows={1} placeholder={chatBusy ? "Aguarde a análise terminar…" : "Pergunte sobre esta tarefa…"} className="max-h-28 min-h-9 flex-1 resize-none border-0 bg-transparent p-0 text-sm shadow-none focus-visible:ring-0" /><Button size="icon-sm" onClick={() => void send()} disabled={!input.trim() || chatBusy || sending} aria-label="Enviar mensagem"><ArrowUpIcon /></Button></div><p className="mt-2 text-[10px] text-muted-foreground">O chat analisa recibos existentes; novas ações passam pelos controles da execução VA.</p>{error && <p role="alert" className="mt-1 text-xs text-destructive">{error}</p>}</div>
+          </section>
+
+          <aside className="min-h-0 space-y-3 overflow-y-auto rounded-2xl border border-border/70 bg-card/40 p-3 lg:p-4" aria-label="Contexto e evidências da execução">
+            <div className="rounded-xl border border-border/70 bg-background/40 p-3">
+              <div className="flex items-center justify-between gap-2"><p className="text-sm font-semibold">Execuções</p><span className="font-mono text-[11px] text-muted-foreground">{taskRuns.length}</span></div>
+              {taskRuns.length > 0 ? <div className="mt-3 flex gap-2 overflow-x-auto pb-1">{taskRuns.map((item) => <button key={item.id} type="button" onClick={() => setRequestedRunID(item.id)} className={cn("shrink-0 rounded-lg border px-2.5 py-1.5 font-mono text-[10px]", run?.id === item.id ? "border-primary/50 bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>{new Date(item.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</button>)}</div> : <p className="mt-2 text-xs text-muted-foreground">Nenhuma execução vinculada.</p>}
+            </div>
+            {run && <div className="space-y-3 rounded-xl border border-border/70 bg-background/40 p-3">
+              <div className="flex items-center justify-between gap-2"><Badge variant={run.status === "running" ? "default" : "secondary"}>{runLabels[run.status]}</Badge><span className="font-mono text-[11px] tabular-nums">{run.completed_hosts + run.failed_hosts}/{run.total_hosts} hosts</span></div>
+              <div role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Progresso da execução VA" className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${progress}%` }} /></div>
+              <div className="grid grid-cols-2 gap-2 text-center"><div className="rounded-lg bg-muted/50 p-2"><strong className="block text-lg">{run.candidate_count}</strong><span className="text-[10px] text-muted-foreground">candidatos</span></div><div className="rounded-lg bg-muted/50 p-2"><strong className="block text-lg">{run.failed_hosts}</strong><span className="text-[10px] text-muted-foreground">hosts com falha</span></div></div>
+              <p className="text-[11px] text-muted-foreground">{run.campaign.depth === "deep" ? "Discovery + VA aprofundado" : "Discovery"} · {run.campaign.ports.length ? `${run.campaign.ports.length} portas` : "Todas as portas"}</p>
+              {run.draxen && <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><ShieldCheckIcon className="size-3.5 text-primary" />Revisão Draxen: {run.draxen.status === "completed" ? `concluída · ${run.draxen.proposals ?? 0} propostas` : run.draxen.status === "unavailable" ? "indisponível" : "falhou"}</p>}
+              {run.error && <p className="text-xs text-destructive">{run.error}</p>}
+              {hosts.length > 0 && <details className="text-xs"><summary className="cursor-pointer font-medium">Hosts processados ({hosts.length})</summary><div className="mt-2 space-y-1">{hosts.map((host) => <div key={host.target} className="rounded-md border px-2 py-1.5"><code>{host.target}</code><span className="block text-[10px] text-muted-foreground">{host.services?.length ?? 0} serviços · {host.candidates?.length ?? 0} candidatos</span></div>)}</div></details>}
+            </div>}
+            {run && <details className="rounded-xl border border-border/70 bg-background/40 p-3 text-xs"><summary className="cursor-pointer font-semibold">Trilha da execução <span className="ml-1 font-mono font-normal text-muted-foreground">{events.length}</span></summary><div className="mt-3 max-h-52 space-y-2 overflow-y-auto border-l border-primary/30 pl-3">{events.length ? events.map((event, index) => <div key={`${event.at}-${index}`}><time className="font-mono text-[10px] text-muted-foreground">{new Date(event.at).toLocaleTimeString("pt-BR")}</time><p className="text-[11px]"><span className={event.status === "failed" ? "text-destructive" : "font-medium"}>{event.stage}</span>{event.target && <code className="ml-1 text-primary">{event.target}</code>}<span className="block text-muted-foreground">{event.detail || event.status}</span></p></div>) : <p className="text-muted-foreground">Nenhum evento detalhado.</p>}</div></details>}
+            <div className="rounded-xl border border-border/70 bg-background/40 p-3"><VAFiles runID={run?.id} compact /></div>
+          </aside>
+        </>}
       </div>
     </div>
   );

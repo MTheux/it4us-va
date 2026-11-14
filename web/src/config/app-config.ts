@@ -3,11 +3,11 @@ import packageJson from "../../package.json";
 const currentYear = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "IT4US VA",
+  name: "Guard4US",
   version: packageJson.version,
-  copyright: `© ${currentYear}, IT4US VA.`,
+  copyright: `© ${currentYear}, IT4US · Guard4US.`,
   meta: {
-    title: "IT4US VA — Console de Avaliação de Vulnerabilidade",
-    description: "Console de avaliação de vulnerabilidade (VA) guiado por IA",
+    title: "Guard4US — Avaliação de Vulnerabilidades",
+    description: "Console de avaliação de vulnerabilidades em infraestrutura da IT4US",
   },
 };

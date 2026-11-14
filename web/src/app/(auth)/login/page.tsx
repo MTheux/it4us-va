@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AlertTriangle, Eye, EyeOff, LockKeyhole, ShieldCheck } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -18,6 +19,13 @@ import styles from "./login.module.css";
 export default function LoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [stage, setStage] = useState<"login" | "enroll" | "recovery">("login");
+  const [setupToken, setSetupToken] = useState("");
+  const [mfaSecret, setMfaSecret] = useState("");
+  const [mfaURI, setMfaURI] = useState("");
+  const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -43,22 +51,24 @@ export default function LoginPage() {
   }, [termsOpen]);
 
   useEffect(() => {
-    // Already signed in — go straight to the main UI (static export has no middleware to do this redirect).
-    const token = auth.getToken();
-    if (token) {
-      // localStorage may still hold credentials while the cookie is gone. Sync first, then start a fresh request,
-      // so a server-side guard or route cache cannot bounce the redirect back to the login page still in its checking state.
-      auth.setToken(token);
-      window.location.replace("/function/va-runs");
-      return;
+    async function check() {
+      const token = auth.getToken();
+      if (token) {
+        try {
+          await api.authSession();
+          auth.setToken(token);
+          window.location.replace("/function/va-runs");
+          return;
+        } catch { auth.clearToken(); }
+      }
+      try {
+        const status = await api.authStatus();
+        if (!status.initialized) router.replace("/setup");
+        setMfaEnabled(status.mfa_enabled);
+      } catch { setError("Não foi possível conectar ao servidor"); }
+      finally { setChecking(false); }
     }
-    api
-      .authStatus()
-      .then(({ initialized }) => {
-        if (!initialized) router.replace("/setup");
-      })
-      .catch(() => setError("Não foi possível conectar ao servidor"))
-      .finally(() => setChecking(false));
+    void check();
   }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -70,14 +80,37 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const { token } = await api.login("IT4US VA", password);
-      auth.setToken(token);
-      window.location.replace("/function/va-runs");
+      const result = await api.login("IT4US VA", password, code);
+      if (result.mfa_setup && result.setup_token) {
+        const enrollment = await api.mfaSetup(result.setup_token);
+        setSetupToken(result.setup_token);
+        setMfaSecret(enrollment.secret);
+        setMfaURI(enrollment.uri);
+        setCode("");
+        setStage("enroll");
+      } else if (result.token) {
+        auth.setToken(result.token);
+        window.location.replace("/function/va-runs");
+      } else { setError("Resposta de autenticação inválida."); }
     } catch {
-      setError("Usuário ou senha incorretos");
+      setError("Credenciais ou código MFA inválidos. Confira e tente novamente.");
     } finally {
       setLoading(false);
     }
+  }
+
+  async function confirmMFA(e: React.FormEvent) {
+    e.preventDefault();
+    if (!setupToken || !code) return;
+    setLoading(true); setError("");
+    try {
+      const result = await api.mfaConfirm(setupToken, code);
+      auth.setToken(result.token);
+      setRecoveryCodes(result.recovery_codes);
+      setMfaSecret(""); setMfaURI(""); setSetupToken(""); setCode(""); setPassword("");
+      setStage("recovery");
+    } catch { setError("Código inválido ou configuração expirada. Reinicie o login se necessário."); }
+    finally { setLoading(false); }
   }
 
   if (checking) {
@@ -96,21 +129,26 @@ export default function LoginPage() {
         <div className={styles.brand}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/it4us-icon.svg" alt="" width={34} height={34} />
-          <span>IT4US <strong>VA</strong></span>
+          <span>GUARD<strong>4US</strong></span>
         </div>
         <div className={styles.card}>
           <div className={styles.cardHeading}>
             <div className={styles.eyebrow}><span /> Acesso ao ambiente</div>
-            <h1>Bem-vindo de volta</h1>
-            <p>Entre para acompanhar suas análises de infraestrutura.</p>
+            <h1>{stage === "enroll" ? "Ative a verificação em duas etapas" : stage === "recovery" ? "Guarde seus códigos" : "Bem-vindo de volta"}</h1>
+            <p>{stage === "enroll" ? "Adicione o Guard4US ao aplicativo autenticador e confirme o código." : stage === "recovery" ? "Estes códigos aparecem uma vez e permitem recuperar o acesso." : "Entre para acompanhar suas análises de infraestrutura."}</p>
           </div>
+          {stage === "login" ?
           <form onSubmit={handleSubmit} className={styles.form}>
             <div className={styles.field}>
               <Label htmlFor="account">Conta</Label>
-              <div className={styles.account} id="account" aria-label="Conta IT4US VA">
-                <LockKeyhole size={16} aria-hidden="true" /> IT4US VA
+              <div className={styles.account} id="account" aria-label="Conta Guard4US">
+                <LockKeyhole size={16} aria-hidden="true" /> Equipe IT4US
               </div>
             </div>
+            {mfaEnabled && <div className={styles.field}>
+              <Label htmlFor="mfa-code">Código MFA ou recuperação</Label>
+              <Input id="mfa-code" value={code} onChange={(event) => setCode(event.target.value)} placeholder="000000 ou código de recuperação" autoComplete="one-time-code" inputMode="text" maxLength={20} className={styles.passwordInput} />
+            </div>}
             <div className={styles.field}>
               <Label htmlFor="password">Senha</Label>
               <div className={styles.passwordRow}>
@@ -136,10 +174,22 @@ export default function LoginPage() {
               </Label>
             </div>
             {error && <p role="alert" className={styles.error}>{error}</p>}
-            <Button type="submit" className={styles.submit} disabled={loading || !password || !agreed}>
+            <Button type="submit" className={styles.submit} disabled={loading || !password || !agreed || (mfaEnabled && !code.trim())}>
               {loading ? "Entrando..." : "Entrar na plataforma"}
             </Button>
           </form>
+          : stage === "enroll" ? <form onSubmit={confirmMFA} className={styles.form}>
+            <div className={styles.qr}><QRCodeSVG value={mfaURI} size={176} marginSize={2} /></div>
+            <p className={styles.helper}>Se não conseguir ler o QR, digite esta chave no autenticador:</p>
+            <code className={styles.secret}>{mfaSecret}</code>
+            <div className={styles.field}><Label htmlFor="enroll-code">Código de 6 dígitos</Label><Input id="enroll-code" value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} placeholder="000000" className={styles.passwordInput} /></div>
+            {error && <p role="alert" className={styles.error}>{error}</p>}
+            <Button type="submit" className={styles.submit} disabled={loading || code.length !== 6}>{loading ? "Confirmando..." : "Ativar MFA"}</Button>
+          </form> : <div className={styles.form}>
+            <div className={styles.recoveryList}>{recoveryCodes.map((item) => <code key={item}>{item}</code>)}</div>
+            <p className={styles.helper}>Salve estes códigos em um cofre. Cada código funciona uma única vez.</p>
+            <Button className={styles.submit} onClick={() => window.location.replace("/function/va-runs")}>Guardei os códigos · continuar</Button>
+          </div>}
         </div>
         <p className={styles.footer}>ACESSO RESTRITO À EQUIPE AUTORIZADA</p>
       </div>
@@ -151,7 +201,7 @@ export default function LoginPage() {
               <ShieldCheck className="size-5" />
             </div>
             <div className="space-y-0.5">
-              <DialogTitle className="text-base">Termos de Uso e Isenção de Responsabilidade do IT4US VA</DialogTitle>
+              <DialogTitle className="text-base">Termos de Uso e Isenção de Responsabilidade do Guard4US</DialogTitle>
               <p className="text-xs text-muted-foreground">
                 Version v1.1 · Effective 2026-10-11 · Please read all the following terms in full before signing in
               </p>

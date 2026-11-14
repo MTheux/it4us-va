@@ -10,7 +10,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-func TestSingleLoginAndLegacySessions(t *testing.T) {
+func TestMFASessionsInvalidateLegacyTokens(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
 	admin, err := signJWT(key)
 	if err != nil {
@@ -25,8 +25,8 @@ func TestSingleLoginAndLegacySessions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if role, ok := tokenRole(legacy, key); !ok || role != "admin" {
-		t.Fatalf("legacy soc: %q %v", role, ok)
+	if role, ok := tokenRole(legacy, key); ok || role != "" {
+		t.Fatalf("legacy token must be rejected: %q %v", role, ok)
 	}
 }
 
@@ -51,7 +51,7 @@ func TestPageIgnoresCookieFromAnotherInstance(t *testing.T) {
 	}
 }
 
-func TestLegacySOCSessionAllowsAdministratorAPI(t *testing.T) {
+func TestLegacySOCSessionCannotAccessAdministratorAPI(t *testing.T) {
 	key := []byte("0123456789abcdef0123456789abcdef")
 	soc, err := jwt.NewWithClaims(jwt.SigningMethodHS256, roleClaims{Role: "soc", RegisteredClaims: jwt.RegisteredClaims{
 		Subject: "IT4US SOC", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
@@ -66,8 +66,8 @@ func TestLegacySOCSessionAllowsAdministratorAPI(t *testing.T) {
 		token, path string
 		want        int
 	}{
-		{soc, "/api/mcp", 204}, {soc, "/api/skills/infra-inventory/files/SKILL.md", 204},
-		{soc, "/api/va/capabilities", 204}, {admin, "/api/mcp", 204},
+		{soc, "/api/mcp", 401}, {soc, "/api/skills/infra-inventory/files/SKILL.md", 401},
+		{soc, "/api/va/capabilities", 401}, {admin, "/api/mcp", 204},
 	} {
 		r := httptest.NewRequest("GET", tc.path, nil)
 		r.Header.Set("Authorization", "Bearer "+tc.token)

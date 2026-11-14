@@ -732,7 +732,7 @@ export default function VARunsPage() {
                   <div className="space-y-2">
                     <h3 className="font-medium">Referências públicas de exploit/PoC</h3>
                     <p className="text-xs text-muted-foreground">
-                      Links marcados como Exploit na NVD; não são validados nem executados pelo IT4US VA.
+                      Links marcados como Exploit na NVD; não são validados nem executados pelo Guard4US.
                     </p>
                     {cveIntel.exploit_references.map((ref) => (
                       <a

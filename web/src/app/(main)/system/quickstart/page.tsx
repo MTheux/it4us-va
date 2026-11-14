@@ -116,7 +116,7 @@ export default function QuickstartPage() {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8 p-6 pb-16 md:p-10">
       <header className="space-y-3 border-b border-border pb-7">
-        <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">IT4US VA / Primeiro acesso</p>
+        <p className="font-mono text-xs font-semibold uppercase tracking-[0.2em] text-primary">Guard4US / Primeiro acesso</p>
         <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">Prepare a operação do SOC</h1>
         <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
           O scanner executa discovery sem LLM. Ative um modelo e MCP se o SOC quiser investigação assistida por agente.

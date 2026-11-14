@@ -1,5 +1,5 @@
 const TOKEN_KEY = "it4us_token";
-const COOKIE_MAX_AGE = 7 * 24 * 60 * 60; // 7 days (seconds)
+const COOKIE_MAX_AGE = 8 * 60 * 60;
 
 export interface CurrentUser {
   id: string;
@@ -32,6 +32,6 @@ export const auth = {
   // or the retired SOC identity from sessions issued before the change.
   getCurrentUser(): CurrentUser | null {
     if (!this.getToken()) return null;
-    return { id: "1", name: "IT4US VA", username: "IT4US VA", email: "", avatar: "", role: "admin" };
+    return { id: "1", name: "Guard4US", username: "IT4US VA", email: "", avatar: "", role: "admin" };
   },
 };

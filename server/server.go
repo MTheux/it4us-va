@@ -42,10 +42,12 @@ type Server struct {
 	engine *Engine
 	ctx    context.Context
 
-	skillDir string // root directory for skill subdirectories
-	jwtKey   []byte // HS256 signing key loaded from / generated into dataDir/jwt.key
-	vaMu     sync.Mutex
-	vaActive map[string]*vaActiveRun
+	skillDir  string // root directory for skill subdirectories
+	jwtKey    []byte // HS256 signing key stored outside the browsable data directory
+	authMu    sync.Mutex
+	authFails map[string]authFailure
+	vaMu      sync.Mutex
+	vaActive  map[string]*vaActiveRun
 
 	// concMu serializes concurrency-cap decisions (admission + reconcile) so a
 	// scheduler tick and an HTTP settings change / task creation can't both count
@@ -662,8 +664,11 @@ func (s *Server) Handler() http.Handler {
 
 	// Auth routes — exempt from JWT check (handled in requireAuth)
 	mux.HandleFunc("GET /api/auth/status", s.authStatus)
+	mux.HandleFunc("GET /api/auth/session", s.authSession)
 	mux.HandleFunc("POST /api/auth/init", s.authInit)
 	mux.HandleFunc("POST /api/auth/login", s.authLogin)
+	mux.HandleFunc("POST /api/auth/mfa/setup", s.authMFASetup)
+	mux.HandleFunc("POST /api/auth/mfa/confirm", s.authMFAConfirm)
 	mux.HandleFunc("POST /api/auth/change-password", s.authChangePassword)
 
 	mux.HandleFunc("GET /api/health", s.health)
